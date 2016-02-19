@@ -89,24 +89,25 @@ namespace DomDom.OpenSSL.Core
 
 		internal int OnPasswordThunk(IntPtr buf, int size, int rwflag, IntPtr userdata)
 		{
+			int len;
 			try
 			{
 				var ret = OnPassword(rwflag != 0, arg);
 				var pass = Encoding.ASCII.GetBytes(ret);
-				var len = pass.Length;
+				len = pass.Length;
 
 				if (len > size)
 					len = size;
 
 				Marshal.Copy(pass, 0, buf, len);
-
-				return len;
 			}
 			catch (Exception ex)
 			{
 				Logger.WriteError(ex);
 				return -1;
 			}
+
+			return len;
 		}
 	}
 }
