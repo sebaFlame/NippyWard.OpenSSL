@@ -141,6 +141,10 @@
       <Project>{848dc369-2e19-4bf0-bbc3-16be3ab114ba}</Project>
       <Name>DomDom.Log</Name>
     </ProjectReference>
+    <ProjectReference Include="..\DomDom.Model\DomDom.Model.csproj">
+      <Project>{cfaac33e-c2f8-42fe-af35-7d2278e201b9}</Project>
+      <Name>DomDom.Model</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
