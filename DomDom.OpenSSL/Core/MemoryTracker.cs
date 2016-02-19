@@ -2,8 +2,9 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using DomDom.Log;
 
-namespace OpenSSL.Core
+namespace DomDom.OpenSSL.Core
 {
 	/// <summary>
 	/// 
@@ -172,7 +173,7 @@ namespace OpenSSL.Core
 							File = block.file,
 							Line = block.line,
 						};
-						Console.WriteLine(problem);
+						Logger.WriteDebug(3, problem.ToString());
 						problems.Add(problem);
 					}
 				}

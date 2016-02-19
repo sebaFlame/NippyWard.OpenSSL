@@ -25,7 +25,7 @@
 
 using System.Runtime.InteropServices;
 
-namespace OpenSSL.Core
+namespace DomDom.OpenSSL.Core
 {
 	/// <summary>
 	/// Asn1 object.

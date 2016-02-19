@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace OpenSSL
+namespace DomDom.OpenSSL
 {
 	/// <summary>
 	/// Enum extensions.

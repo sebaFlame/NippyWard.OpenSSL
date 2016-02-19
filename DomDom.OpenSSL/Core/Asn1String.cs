@@ -26,7 +26,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace OpenSSL.Core
+namespace DomDom.OpenSSL.Core
 {
 	/// <summary>
 	/// Wraps ASN1_STRING_*

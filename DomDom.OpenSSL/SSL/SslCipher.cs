@@ -23,13 +23,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.Core;
+using DomDom.OpenSSL.Core;
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Collections.Generic;
 
-namespace OpenSSL.SSL
+namespace DomDom.OpenSSL.SSL
 {
 	/// <summary>
 	/// Wraps a SSL_CIPHER

@@ -28,7 +28,7 @@ using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace OpenSSL.Core
+namespace DomDom.OpenSSL.Core
 {
 	/// <summary>
 	/// V_CRYPTO_MDEBUG_*

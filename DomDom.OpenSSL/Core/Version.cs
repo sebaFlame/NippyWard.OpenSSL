@@ -25,7 +25,7 @@
 
 using System.Text;
 
-namespace OpenSSL.Core
+namespace DomDom.OpenSSL.Core
 {
 	/// <summary>
 	/// Contains the set of elements that make up a Version.

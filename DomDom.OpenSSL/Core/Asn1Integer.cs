@@ -25,7 +25,7 @@
 
 using System;
 
-namespace OpenSSL.Core
+namespace DomDom.OpenSSL.Core
 {
 	class Asn1Integer : Base
 	{

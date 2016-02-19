@@ -23,16 +23,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.Core;
-using OpenSSL.X509;
+using DomDom.OpenSSL.Core;
+using DomDom.OpenSSL.X509;
 using System;
 using System.Runtime.InteropServices;
-using OpenSSL.Extensions;
-using OpenSSL.Exceptions;
+using DomDom.OpenSSL.Extensions;
 using System.Text;
 using System.Collections.Generic;
 
-namespace OpenSSL.SSL
+namespace DomDom.OpenSSL.SSL
 {
 	internal enum SslError
 	{
@@ -46,6 +45,16 @@ namespace OpenSSL.SSL
 		SSL_ERROR_WANT_CONNECT = 7,
 		SSL_ERROR_WANT_ACCEPT = 8
 	}
+
+    public enum SslVersion
+    {
+        VERS_TLS_1_3 = 772,
+        VERS_TLS_1_2 = 771,
+        VERS_TLS_1_1 = 770,
+        VERS_TLS_1_0 = 769,
+        VERS_SSL_3_0 = 768,
+        VERS_SSL_LT_3_0 = 767
+    }
 
 	/// <summary>
 	/// Ssl.
@@ -212,31 +221,14 @@ namespace OpenSSL.SSL
 			return Native.ExpectSuccess(Native.SSL_use_PrivateKey_file(ptr, filename, (int)type));
 		}
 
+        public SslVersion SSLVersion()
+        {
+            return (SslVersion)Native.ExpectSuccess(Native.SSL_version(ptr));
+        }
+
 		internal int Clear()
 		{
 			return Native.ExpectSuccess(Native.SSL_clear(ptr));
-		}
-
-		/// <summary>
-		/// Gets the alpn selected protocol.
-		/// </summary>
-		/// <value>The alpn selected protocol.</value>
-		public string AlpnSelectedProtocol
-		{
-			get
-			{
-				var ptr = new IntPtr();
-				var len = 0;
-
-				Native.SSL_get0_alpn_selected(Handle, out ptr, out len);
-
-				if (ptr == IntPtr.Zero)
-					throw new AlpnException("Cant get selected protocol. See if ALPN was included into client/server hello");
-
-				var buf = new byte[len];
-				Marshal.Copy(ptr, buf, 0, len);
-				return Encoding.ASCII.GetString(buf, 0, len);
-			}
 		}
 
 		#endregion

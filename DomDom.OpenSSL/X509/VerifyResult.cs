@@ -24,7 +24,7 @@
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-namespace OpenSSL.X509
+namespace DomDom.OpenSSL.X509
 {
 	/// <summary>
 	/// X509_V_*

@@ -23,15 +23,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.Core;
-using OpenSSL.Crypto;
-using OpenSSL.X509;
+using DomDom.OpenSSL.Core;
+using DomDom.OpenSSL.Crypto;
+using DomDom.OpenSSL.X509;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using OpenSSL.Extensions;
+using DomDom.OpenSSL.Extensions;
 
-namespace OpenSSL.SSL
+namespace DomDom.OpenSSL.SSL
 {
 	internal delegate int ClientCertCallbackHandler(
 		Ssl ssl, 
@@ -46,14 +46,12 @@ namespace OpenSSL.SSL
 	{
 		#region Members
 
-		private AlpnExtension alpnExt;
 		private ClientCertCallbackHandler OnClientCert;
 		private RemoteCertificateValidationHandler OnVerifyCert;
 
 		// hold down the thunk so it doesn't get collected
 		private Native.client_cert_cb _ptrOnClientCertThunk;
 		private Native.VerifyCertCallback _ptrOnVerifyCertThunk;
-		private Native.alpn_cb _ptrOnAlpn;
 
 		#endregion
 
@@ -70,16 +68,8 @@ namespace OpenSSL.SSL
 			IEnumerable<string> protoList) :
 			base(Native.ExpectNonNull(Native.SSL_CTX_new(sslMethod.Handle)), true)
 		{
-			alpnExt = new AlpnExtension(Handle, protoList);
-
 			_ptrOnClientCertThunk = OnClientCertThunk;
 			_ptrOnVerifyCertThunk = OnVerifyCertThunk;
-			_ptrOnAlpn = alpnExt.AlpnCb;
-
-			if (end == ConnectionEnd.Server)
-			{
-				Native.SSL_CTX_set_alpn_select_cb(Handle, _ptrOnAlpn, IntPtr.Zero);
-			}
 		}
 
 		#region Properties

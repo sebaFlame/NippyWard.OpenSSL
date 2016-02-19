@@ -28,7 +28,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 
-namespace OpenSSL.Core
+namespace DomDom.OpenSSL.Core
 {
 	/// <summary>
 	/// The Stack class can only contain objects marked with this interface.

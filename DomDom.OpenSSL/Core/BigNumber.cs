@@ -26,7 +26,7 @@
 using System;
 using System.Text;
 
-namespace OpenSSL.Core
+namespace DomDom.OpenSSL.Core
 {
 	/// <summary>
 	/// Wraps the BN_* set of functions.

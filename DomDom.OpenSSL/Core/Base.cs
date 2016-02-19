@@ -25,9 +25,10 @@
 
 using System;
 using System.Reflection;
+using DomDom.Log;
 using System.Runtime.InteropServices;
 
-namespace OpenSSL.Core
+namespace DomDom.OpenSSL.Core
 {
 	/// <summary>
 	/// Base class for all openssl wrapped objects. 
@@ -196,9 +197,9 @@ namespace OpenSSL.Core
 		public void PrintRefCount()
 		{
 			var count = Marshal.ReadInt32(refPtr);
-			Console.WriteLine("{0} ptr: {1}, ref_count: {2}", 
+			Logger.WriteDebug(3, string.Format("{0} ptr: {1}, ref_count: {2}", 
 				this.GetType().Name, this.ptr, count
-			);
+			));
 		}
 
 		/// <summary>

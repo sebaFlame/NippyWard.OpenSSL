@@ -26,7 +26,7 @@
 using System;
 using System.Globalization;
 
-namespace OpenSSL.Core
+namespace DomDom.OpenSSL.Core
 {
 	class Asn1DateTime : Base
 	{

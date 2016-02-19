@@ -3,7 +3,7 @@ using System.Threading;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 
-namespace OpenSSL.Core
+namespace DomDom.OpenSSL.Core
 {
 	/// <summary>
 	/// Threading.

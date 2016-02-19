@@ -31,7 +31,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 
-namespace OpenSSL.Core
+namespace DomDom.OpenSSL.Core
 {
 	/// <summary>
 	/// 
@@ -127,16 +127,6 @@ namespace OpenSSL.Core
 
 		[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 		public delegate int client_cert_cb(IntPtr ssl, out IntPtr x509, out IntPtr pkey);
-
-		[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-		public delegate int alpn_cb(
-			IntPtr ssl, 
-			out string selProto, 
-			out byte selProtoLen,
-			IntPtr inProtos, 
-			int inProtosLen, 
-			IntPtr arg
-		);
 
 		[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 		public delegate IntPtr MallocFunctionPtr(uint num, IntPtr file, int line);
@@ -2527,8 +2517,8 @@ namespace OpenSSL.Core
 		[DllImport(SSLDLLNAME, CallingConvention = CallingConvention.Cdecl)]
 		public extern static IntPtr SSLv23_client_method();
 
-		[DllImport(SSLDLLNAME, CallingConvention = CallingConvention.Cdecl)]
-		public extern static IntPtr TLSv1_method();
+        [DllImport(SSLDLLNAME, CallingConvention = CallingConvention.Cdecl)]
+        public extern static IntPtr TLSv1_method();
 
 		[DllImport(SSLDLLNAME, CallingConvention = CallingConvention.Cdecl)]
 		public extern static IntPtr TLSv1_client_method();
@@ -2839,6 +2829,9 @@ namespace OpenSSL.Core
 		[DllImport(SSLDLLNAME, CallingConvention = CallingConvention.Cdecl)]
 		public extern static int SSL_use_PrivateKey_file(IntPtr ssl, string file, int type);
 
+        [DllImport(SSLDLLNAME, CallingConvention = CallingConvention.Cdecl)]
+        public extern static int SSL_version(IntPtr ssl);
+
 		[DllImport(SSLDLLNAME, CallingConvention = CallingConvention.Cdecl)]
 		public extern static int SSL_clear(IntPtr ssl);
 
@@ -2874,15 +2867,6 @@ namespace OpenSSL.Core
 
 		[DllImport(SSLDLLNAME, CallingConvention = CallingConvention.Cdecl)]
 		public static extern int SSL_CTX_callback_ctrl(IntPtr ctx, int cmd, IntPtr cb);
-
-		[DllImport(SSLDLLNAME, CallingConvention = CallingConvention.Cdecl)]
-		public static extern int SSL_CTX_set_alpn_protos(IntPtr ctx, byte[] protos, UInt32 protos_len);
-
-		[DllImport(SSLDLLNAME, CallingConvention = CallingConvention.Cdecl)]
-		public static extern void SSL_get0_alpn_selected(IntPtr ssl, out IntPtr data, out int len);
-
-		[DllImport(SSLDLLNAME, CallingConvention = CallingConvention.Cdecl)]
-		public static extern void SSL_CTX_set_alpn_select_cb(IntPtr ctx, alpn_cb alpnCb, IntPtr arg);
 
 		#endregion
 

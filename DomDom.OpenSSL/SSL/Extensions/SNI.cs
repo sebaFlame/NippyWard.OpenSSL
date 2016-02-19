@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-using OpenSSL.Core;
-using OpenSSL.SSL;
+using DomDom.OpenSSL.Core;
+using DomDom.OpenSSL.SSL;
+using DomDom.Log;
 
-namespace OpenSSL.Extensions
+namespace DomDom.OpenSSL.Extensions
 {
 	/// <summary>
 	/// Sni callback.
@@ -77,13 +78,13 @@ namespace OpenSSL.Extensions
 				var isReused = SSL_session_reused(ssl) != 0;
 				var clientSniArgAck = !isReused && hnptr != IntPtr.Zero;
 #if DEBUG
-				Console.WriteLine("Servername ack is {0}", clientSniArgAck);
+				Logger.WriteDebug(3, string.Format("Servername ack is {0}", clientSniArgAck));
 #endif
 			}
 			else
 			{
 #if DEBUG
-				Console.WriteLine("Can't use SSL_get_servername");
+				Logger.WriteError("Can't use SSL_get_servername");
 #endif
 				throw new Exception("Cant use servername extension");
 			}
@@ -100,7 +101,7 @@ namespace OpenSSL.Extensions
 			if (!_serverName.Equals(extServerName))
 			{
 #if DEBUG
-				Console.WriteLine("Server names are not equal");
+				Logger.WriteError("Server names are not equal");
 #endif
 				throw new Exception("Server names are not equal");    
 			}

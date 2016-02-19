@@ -23,15 +23,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.Core;
-using OpenSSL.X509;
+using DomDom.OpenSSL.Core;
+using DomDom.OpenSSL.X509;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using OpenSSL.Extensions;
+using DomDom.OpenSSL.Extensions;
 
-namespace OpenSSL.SSL
+namespace DomDom.OpenSSL.SSL
 {
 	internal abstract class SslStreamBase : Stream
 	{

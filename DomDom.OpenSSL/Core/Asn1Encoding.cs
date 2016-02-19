@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace OpenSSL
+namespace DomDom.OpenSSL
 {
 	
 	[StructLayout(LayoutKind.Sequential)]

@@ -23,13 +23,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.X509;
+using DomDom.OpenSSL.X509;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Security;
 
-namespace OpenSSL.SSL
+namespace DomDom.OpenSSL.SSL
 {
 	/// <summary>
 	/// 
@@ -526,8 +526,6 @@ namespace OpenSSL.SSL
 
 			// Finish the async authentication.  The EndRead/EndWrite will complete successfully, or throw exception
 			EndWrite(ar);
-
-			AlpnSelectedProtocol = sslStream.ssl.AlpnSelectedProtocol;
 		}
 
 		/// <summary>
@@ -645,9 +643,7 @@ namespace OpenSSL.SSL
 
 			// Finish the async AuthenticateAsServer call - EndRead/Write call will throw exception on error
 			EndRead(ar);
-
-			AlpnSelectedProtocol = sslStream.ssl.AlpnSelectedProtocol;
-		}
+    	}
 
 		/// <summary>
 		/// 

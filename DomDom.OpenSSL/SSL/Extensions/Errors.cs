@@ -1,7 +1,7 @@
 ﻿// Copyright © Microsoft Open Technologies, Inc.
 // All Rights Reserved       
 
-namespace OpenSSL.SSL
+namespace DomDom.OpenSSL.SSL
 {
     internal enum Errors : int
     {

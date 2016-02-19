@@ -26,8 +26,9 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
+using DomDom.Log;
 
-namespace OpenSSL.Core
+namespace DomDom.OpenSSL.Core
 {
 	/// <summary>
 	/// Callback prototype. Must return the password or prompt for one.
@@ -103,7 +104,7 @@ namespace OpenSSL.Core
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine(ex.Message);
+				Logger.WriteError(ex);
 				return -1;
 			}
 		}

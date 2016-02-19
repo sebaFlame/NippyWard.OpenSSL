@@ -23,15 +23,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.Core;
-using OpenSSL.Crypto;
-using OpenSSL.Extensions;
-using OpenSSL.X509;
+using DomDom.OpenSSL.Core;
+using DomDom.OpenSSL.Crypto;
+using DomDom.OpenSSL.Extensions;
+using DomDom.OpenSSL.X509;
 using System.IO;
-using OpenSSL;
+using DomDom.OpenSSL;
 using System;
 
-namespace OpenSSL.SSL
+namespace DomDom.OpenSSL.SSL
 {
 	internal class SslStreamClient : SslStreamBase
 	{
@@ -71,7 +71,7 @@ namespace OpenSSL.SSL
 			bool checkCertificateRevocation)
 		{
 			// Initialize the context with specified TLS version
-			sslContext = new SslContext(SslMethod.TLSv12_client_method, ConnectionEnd.Client, new[] {
+			sslContext = new SslContext(SslMethod.SSLv23_client_method, ConnectionEnd.Client, new[] {
 				Protocols.Http2,
 				Protocols.Http1
 			});
@@ -89,10 +89,10 @@ namespace OpenSSL.SSL
 				options |= SslOptions.SSL_OP_NO_SSLv3;
 			}
 
-			if (!EnumExtensions.HasFlag(enabledSslProtocols, SslProtocols.Tls))
-			{
-				options |= SslOptions.SSL_OP_NO_TLSv1;
-			}
+            if (!EnumExtensions.HasFlag(enabledSslProtocols, SslProtocols.Tls))
+            {
+                options |= SslOptions.SSL_OP_NO_TLSv1;
+            }
 
 			sslContext.Options = options;
 

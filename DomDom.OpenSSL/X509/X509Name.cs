@@ -23,12 +23,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.Core;
-using OpenSSL.Crypto;
+using DomDom.OpenSSL.Core;
+using DomDom.OpenSSL.Crypto;
 using System;
 using System.Text;
 
-namespace OpenSSL.X509
+namespace DomDom.OpenSSL.X509
 {
 	/// <summary>
 	/// Encapsulates the X509_NAME_* functions
