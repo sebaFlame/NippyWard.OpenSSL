@@ -64,8 +64,7 @@ namespace DomDom.OpenSSL.SSL
 		/// <param name="protoList"></param>
 		public SslContext(
 			SslMethod sslMethod,
-			ConnectionEnd end,
-			IEnumerable<string> protoList) :
+			ConnectionEnd end) :
 			base(Native.ExpectNonNull(Native.SSL_CTX_new(sslMethod.Handle)), true)
 		{
 			_ptrOnClientCertThunk = OnClientCertThunk;

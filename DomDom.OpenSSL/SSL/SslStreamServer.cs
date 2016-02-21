@@ -132,10 +132,7 @@ namespace DomDom.OpenSSL.SSL
 			}
 
 			// Initialize the context with specified TLS version
-			sslContext = new SslContext(SslMethod.SSLv23_server_method, ConnectionEnd.Server, new[] {
-				Protocols.Http2,
-				Protocols.Http1
-			});
+			sslContext = new SslContext(SslMethod.SSLv23_server_method, ConnectionEnd.Server);
             
 			var options = sslContext.Options;
 
@@ -150,13 +147,13 @@ namespace DomDom.OpenSSL.SSL
 				options |= SslOptions.SSL_OP_NO_SSLv3;
 			}
 
-			if (!EnumExtensions.HasFlag(enabledSslProtocols, SslProtocols.Tls))
-			{
+            if (!EnumExtensions.HasFlag(enabledSslProtocols, SslProtocols.Tls))
+            {
                 options |= SslOptions.SSL_OP_NO_TLSv1;
-			}
+            }
 
-			// Set the workaround options
-			sslContext.Options = options | SslOptions.SSL_OP_ALL;
+            // Set the workaround options
+            sslContext.Options = options | SslOptions.SSL_OP_ALL;
 
 			// Set the context mode
 			sslContext.Mode = SslMode.SSL_MODE_AUTO_RETRY;
