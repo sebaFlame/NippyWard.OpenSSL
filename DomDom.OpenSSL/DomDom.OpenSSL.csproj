@@ -96,7 +96,6 @@
     <Compile Include="SSL\Extensions\EnumExtensions.cs" />
     <Compile Include="SSL\Extensions\Errors.cs" />
     <Compile Include="SSL\Extensions\SNI.cs" />
-    <Compile Include="SSL\Protocols.cs" />
     <Compile Include="SSL\Ssl.cs" />
     <Compile Include="SSL\SslCipher.cs" />
     <Compile Include="SSL\SslContext.cs" />

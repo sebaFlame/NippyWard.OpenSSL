@@ -71,10 +71,7 @@ namespace DomDom.OpenSSL.SSL
 			bool checkCertificateRevocation)
 		{
 			// Initialize the context with specified TLS version
-			sslContext = new SslContext(SslMethod.SSLv23_client_method, ConnectionEnd.Client, new[] {
-				Protocols.Http2,
-				Protocols.Http1
-			});
+			sslContext = new SslContext(SslMethod.SSLv23_client_method, ConnectionEnd.Client);
             
 			var options = sslContext.Options;
 
@@ -94,7 +91,7 @@ namespace DomDom.OpenSSL.SSL
                 options |= SslOptions.SSL_OP_NO_TLSv1;
             }
 
-			sslContext.Options = options;
+            sslContext.Options = options | SslOptions.SSL_OP_ALL;
 
 			// Set the Local certificate selection callback
 			sslContext.SetClientCertCallback(OnClientCertificate);
