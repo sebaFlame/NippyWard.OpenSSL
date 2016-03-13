@@ -259,6 +259,12 @@ namespace DomDom.OpenSSL.SSL
 		protected override void OnDispose()
 		{
 			Native.SSL_CTX_free(ptr);
+
+			_ptrOnClientCertThunk = null;
+			_ptrOnVerifyCertThunk = null;
+
+			this.OnClientCert = null;
+			this.OnVerifyCert = null;
 		}
 
 		#endregion
