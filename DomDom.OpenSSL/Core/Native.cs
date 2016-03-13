@@ -2393,9 +2393,12 @@ namespace DomDom.OpenSSL.Core
 		public extern static int BIO_gets(IntPtr b, byte[] buf, int len);
 
 		[DllImport(DLLNAME, CallingConvention = CallingConvention.Cdecl)]
-		public extern static void BIO_free(IntPtr bio);
+		public extern static int BIO_free(IntPtr bio);
 
-		[DllImport(DLLNAME, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(DLLNAME, CallingConvention = CallingConvention.Cdecl)]
+        public extern static void BIO_free_all(IntPtr bio);
+
+        [DllImport(DLLNAME, CallingConvention = CallingConvention.Cdecl)]
 		public extern static uint BIO_number_read(IntPtr bio);
 
 		[DllImport(DLLNAME, CallingConvention = CallingConvention.Cdecl)]

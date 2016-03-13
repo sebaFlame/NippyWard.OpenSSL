@@ -935,21 +935,22 @@ namespace DomDom.OpenSSL.SSL
 			}
 			if (read_bio != null)
 			{
-				read_bio.Dispose();
+				read_bio.FreeAfterSSL();
 				read_bio = null;
 			}
 			if (write_bio != null)
 			{
-				write_bio.Dispose();
+				write_bio.FreeAfterSSL();
 				write_bio = null;
 			}
-			if (sniExt != null)
+            if (sniCb != null)
+            {
+                sniCb = null;
+            }
+            if (sniExt != null)
 			{
+                sniExt.Dispose();
 				sniExt = null;
-			}
-			if (sniCb != null)
-			{
-				sniCb = null;
 			}
 			if (cleartext != null)
 			{

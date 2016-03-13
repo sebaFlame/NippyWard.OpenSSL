@@ -294,6 +294,11 @@ namespace DomDom.OpenSSL.Core
 			return sb.ToString();
 		}
 
+        internal void FreeAfterSSL()
+        {
+            this.ptr = IntPtr.Zero;
+        }
+
 		/// <summary>
 		/// Returns the MessageDigestContext if this BIO's type if BIO_f_md()
 		/// </summary>
