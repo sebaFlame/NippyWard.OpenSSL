@@ -933,6 +933,38 @@ namespace DomDom.OpenSSL.SSL
 				sslContext.Dispose();
 				sslContext = null;
 			}
+			if (read_bio != null)
+			{
+				read_bio.Dispose();
+				read_bio = null;
+			}
+			if (write_bio != null)
+			{
+				write_bio.Dispose();
+				write_bio = null;
+			}
+			if (sniExt != null)
+			{
+				sniExt = null;
+			}
+			if (sniCb != null)
+			{
+				sniCb = null;
+			}
+			if (cleartext != null)
+			{
+				cleartext.Dispose ();
+				cleartext = null;
+			}
+			if (innerStream != null)
+			{
+				innerStream.Dispose();
+				innerStream = null;
+			}
+			read_buffer = null;
+
+			OnLocalCertificate = null;
+			OnRemoteCertificate = null;
 
 			base.Close();
 			Dispose();
