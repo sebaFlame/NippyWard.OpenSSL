@@ -14,7 +14,7 @@ namespace DomDom.OpenSSL.Extensions
                                     IntPtr ad,
                                     IntPtr arg);
 
-	internal class Sni
+	internal class Sni : IDisposable
 	{
 		internal const int TLSEXT_NAMETYPE_host_name = 0;
 		internal const int SSL_CTRL_SET_TLSEXT_SERVERNAME_CB = 53;
@@ -23,7 +23,7 @@ namespace DomDom.OpenSSL.Extensions
 		internal const int SSL_CTRL_GET_SESSION_REUSED = 8;
 
 		private readonly string _serverName;
-		private static IntPtr _serverNamePtr;
+		private IntPtr _serverNamePtr;
 
 		public Sni(string serverName)
 		{
@@ -86,9 +86,11 @@ namespace DomDom.OpenSSL.Extensions
 #if DEBUG
 				Logger.WriteError("Can't use SSL_get_servername");
 #endif
+                hnptr = IntPtr.Zero;
 				throw new Exception("Cant use servername extension");
 			}
 
+            hnptr = IntPtr.Zero;
 			return (int)Errors.SSL_TLSEXT_ERR_OK;
 		}
 
@@ -103,15 +105,29 @@ namespace DomDom.OpenSSL.Extensions
 #if DEBUG
 				Logger.WriteError("Server names are not equal");
 #endif
+                extServerNamePtr = IntPtr.Zero;
 				throw new Exception("Server names are not equal");    
 			}
 
+            extServerNamePtr = IntPtr.Zero;
 			return (int)Errors.SSL_TLSEXT_ERR_OK;
 		}
 
 		~Sni()
 		{
-			//Marshal.FreeHGlobal(_serverNamePtr);
+            Dispose();
 		}
+
+        private bool disposed;
+        public void Dispose()
+        {
+            if (disposed)
+                return;
+
+            if(_serverNamePtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(_serverNamePtr);
+
+            disposed = true;
+        }
 	}
 }
