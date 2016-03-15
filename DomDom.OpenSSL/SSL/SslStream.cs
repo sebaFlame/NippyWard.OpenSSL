@@ -28,6 +28,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Security;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace DomDom.OpenSSL.SSL
 {
@@ -211,10 +213,15 @@ namespace DomDom.OpenSSL.SSL
 			InnerStream.Flush();
 		}
 
-		/// <summary>
-		/// Gets the length in bytes of the stream.
-		/// </summary>
-		public override long Length
+        public override async Task FlushAsync(CancellationToken cancellationToken)
+        {
+            await InnerStream.FlushAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Gets the length in bytes of the stream.
+        /// </summary>
+        public override long Length
 		{
 			get { return InnerStream.Length; }
 		}
@@ -255,7 +262,7 @@ namespace DomDom.OpenSSL.SSL
 		/// <returns></returns>
 		public override int Read(byte[] buffer, int offset, int count)
 		{
-			return EndRead(BeginRead(buffer, offset, count, null, null));
+            return sslStream.Read(buffer, offset, count);
 		}
 
 		/// <summary>
@@ -291,13 +298,18 @@ namespace DomDom.OpenSSL.SSL
 			return sslStream.EndRead(asyncResult);
 		}
 
-		/// <summary>
-		/// Not supported
-		/// </summary>
-		/// <param name="offset"></param>
-		/// <param name="origin"></param>
-		/// <returns></returns>
-		public override long Seek(long offset, SeekOrigin origin)
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            return await sslStream.ReadAsync(buffer, offset, count, cancellationToken);
+        }
+
+        /// <summary>
+        /// Not supported
+        /// </summary>
+        /// <param name="offset"></param>
+        /// <param name="origin"></param>
+        /// <returns></returns>
+        public override long Seek(long offset, SeekOrigin origin)
 		{
 			throw new NotSupportedException();
 		}
@@ -356,27 +368,14 @@ namespace DomDom.OpenSSL.SSL
 			sslStream.EndWrite(asyncResult);
 		}
 
-		/// <summary>
-		/// Closes the current stream and releases any resources 
-		/// (such as sockets and file handles) associated with the current stream.		
-		/// </summary>
-		public override void Close()
-		{
-			base.Close();
-			if (sslStream != null)
-			{
-				sslStream.Close();
-			}
-		}
+        public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            await sslStream.WriteAsync(buffer, offset, count, cancellationToken);
+        }
 
-		#endregion
+        #endregion
 
-		#region Properties
-
-		/// <summary>
-		/// 
-		/// </summary>
-		public string AlpnSelectedProtocol { get; private set; }
+        #region Properties
 
 		/// <summary>
 		/// 
@@ -414,127 +413,63 @@ namespace DomDom.OpenSSL.SSL
 		/// 
 		/// </summary>
 		/// <param name="targetHost"></param>
-		public virtual void AuthenticateAsClient(string targetHost)
-		{
-			AuthenticateAsClient(targetHost, null, null, SslProtocols.Tls, SslStrength.All, false);
-		}
+        public virtual async Task AuthenticateAsClientAsync(string targetHost)
+        {
+            await AuthenticateAsClientAsync(targetHost, null, null, SslProtocols.Tls, SslStrength.All, false);
+        }
 
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="targetHost"></param>
-		/// <param name="certificates"></param>
-		/// <param name="caCertificates"></param>
-		/// <param name="enabledSslProtocols"></param>
-		/// <param name="sslStrength"></param>
-		/// <param name="checkCertificateRevocation"></param>
-		public virtual void AuthenticateAsClient(
-			string targetHost,
-			X509List certificates,
-			X509Chain caCertificates,
-			SslProtocols enabledSslProtocols,
-			SslStrength sslStrength,
-			bool checkCertificateRevocation)
-		{
-			EndAuthenticateAsClient(BeginAuthenticateAsClient(
-				targetHost, 
-				certificates, 
-				caCertificates, 
-				enabledSslProtocols, 
-				sslStrength, 
-				checkCertificateRevocation, 
-				null, 
-				null));
-		}
 
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="targetHost"></param>
-		/// <param name="asyncCallback"></param>
-		/// <param name="asyncState"></param>
-		/// <returns></returns>
-		public virtual IAsyncResult BeginAuthenticateAsClient(
-			string targetHost,
-			AsyncCallback asyncCallback,
-			Object asyncState)
-		{
-			return BeginAuthenticateAsClient(
-				targetHost, 
-				null, 
-				null, 
-				SslProtocols.Tls, 
-				SslStrength.All, 
-				false, 
-				asyncCallback, 
-				asyncState);
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="targetHost"></param>
-		/// <param name="clientCertificates"></param>
-		/// <param name="caCertificates"></param>
-		/// <param name="enabledSslProtocols"></param>
-		/// <param name="sslStrength"></param>
-		/// <param name="checkCertificateRevocation"></param>
-		/// <param name="asyncCallback"></param>
-		/// <param name="asyncState"></param>
-		/// <returns></returns>
-		public virtual IAsyncResult BeginAuthenticateAsClient(
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="targetHost"></param>
+        /// <param name="certificates"></param>
+        /// <param name="caCertificates"></param>
+        /// <param name="enabledSslProtocols"></param>
+        /// <param name="sslStrength"></param>
+        /// <param name="checkCertificateRevocation"></param>
+        public virtual async Task AuthenticateAsClientAsync(
 			string targetHost,
 			X509List clientCertificates,
 			X509Chain caCertificates,
 			SslProtocols enabledSslProtocols,
 			SslStrength sslStrength,
-			bool checkCertificateRevocation,
-			AsyncCallback asyncCallback,
-			Object asyncState)
+			bool checkCertificateRevocation)
 		{
-			if (IsAuthenticated)
-			{
-				throw new InvalidOperationException("SslStream is already authenticated");
-			}
+            if (IsAuthenticated)
+            {
+                throw new InvalidOperationException("SslStream is already authenticated");
+            }
 
-			End = ConnectionEnd.Client;
+            End = ConnectionEnd.Client;
 
-			// Create the stream
-			var client_stream = new SslStreamClient(
-				                    InnerStream, 
-				                    targetHost, 
-				                    clientCertificates, 
-				                    caCertificates, 
-				                    enabledSslProtocols, 
-				                    sslStrength, 
-				                    checkCertificateRevocation, 
-				                    remoteCertificateValidationCallback, 
-				                    localCertificateSelectionCallback);
-			// set the internal stream
-			sslStream = client_stream;
-			// start the write operation
-			return BeginWrite(new byte[0], 0, 0, asyncCallback, asyncState);
-		}
+            // Create the stream
+            var client_stream = new SslStreamClient(
+                                    InnerStream,
+                                    targetHost,
+                                    clientCertificates,
+                                    caCertificates,
+                                    enabledSslProtocols,
+                                    sslStrength,
+                                    checkCertificateRevocation,
+                                    remoteCertificateValidationCallback,
+                                    localCertificateSelectionCallback);
+            // set the internal stream
+            sslStream = client_stream;
+            // start the write operation
 
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="ar"></param>
-		public virtual void EndAuthenticateAsClient(IAsyncResult ar)
-		{
-			TestConnectionIsValid();
+            await client_stream.HandShake();
 
-			// Finish the async authentication.  The EndRead/EndWrite will complete successfully, or throw exception
-			EndWrite(ar);
-		}
+            //client == write
+        }
 
 		/// <summary>
 		/// 
 		/// </summary>
 		/// <param name="serverCertificate"></param>
-		public virtual void AuthenticateAsServer(X509Certificate serverCertificate)
+		public virtual async Task AuthenticateAsServerAsync(X509Certificate serverCertificate)
 		{
-			AuthenticateAsServer(serverCertificate, false, null, SslProtocols.Tls, SslStrength.All, false);
+			await AuthenticateAsServerAsync(serverCertificate, false, null, SslProtocols.Tls, SslStrength.All, false);
 		}
 
 		/// <summary>
@@ -546,7 +481,7 @@ namespace DomDom.OpenSSL.SSL
 		/// <param name="enabledSslProtocols"></param>
 		/// <param name="sslStrength"></param>
 		/// <param name="checkCertificateRevocation"></param>
-		public virtual void AuthenticateAsServer(
+		public virtual async Task AuthenticateAsServerAsync(
 			X509Certificate serverCertificate,
 			bool clientCertificateRequired,
 			X509Chain caCertificates,
@@ -554,143 +489,39 @@ namespace DomDom.OpenSSL.SSL
 			SslStrength sslStrength,
 			bool checkCertificateRevocation)
 		{
-			EndAuthenticateAsServer(BeginAuthenticateAsServer(
-				serverCertificate, 
-				clientCertificateRequired, 
-				caCertificates, 
-				enabledSslProtocols, 
-				sslStrength, 
-				checkCertificateRevocation, 
-				null, 
-				null));
-		}
+            if (IsAuthenticated)
+            {
+                throw new InvalidOperationException("SslStream is already authenticated");
+            }
+
+            End = ConnectionEnd.Server;
+
+            // Initialize the server stream
+            var server_stream = new SslStreamServer(
+                                    InnerStream,
+                                    serverCertificate,
+                                    clientCertificateRequired,
+                                    caCertificates,
+                                    enabledSslProtocols,
+                                    sslStrength,
+                                    checkCertificateRevocation,
+                                    remoteCertificateValidationCallback);
+            // Set the internal sslStream
+            sslStream = server_stream;
+            // Start the read operation
+            await server_stream.HandShake();
+
+            //server == read
+        }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="serverCertificate"></param>
-		/// <param name="asyncCallback"></param>
-		/// <param name="asyncState"></param>
-		/// <returns></returns>
-		public virtual IAsyncResult BeginAuthenticateAsServer(
-			X509Certificate serverCertificate,
-			AsyncCallback asyncCallback,
-			Object asyncState)
-		{
-			return BeginAuthenticateAsServer(
-				serverCertificate, 
-				false, 
-				null, 
-				SslProtocols.Tls, 
-				SslStrength.All, 
-				false, 
-				asyncCallback, 
-				asyncState);
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="serverCertificate"></param>
-		/// <param name="clientCertificateRequired"></param>
-		/// <param name="caCerts"></param>
-		/// <param name="enabledSslProtocols"></param>
-		/// <param name="sslStrength"></param>
-		/// <param name="checkCertificateRevocation"></param>
-		/// <param name="asyncCallback"></param>
-		/// <param name="asyncState"></param>
-		/// <returns></returns>
-		public virtual IAsyncResult BeginAuthenticateAsServer(
-			X509Certificate serverCertificate,
-			bool clientCertificateRequired,
-			X509Chain caCerts,
-			SslProtocols enabledSslProtocols,
-			SslStrength sslStrength,
-			bool checkCertificateRevocation,
-			AsyncCallback asyncCallback,
-			Object asyncState)
-		{
-			if (IsAuthenticated)
-			{
-				throw new InvalidOperationException("SslStream is already authenticated");
-			}
-
-			End = ConnectionEnd.Server;
-		    
-			// Initialize the server stream
-			var server_stream = new SslStreamServer(
-				                    InnerStream, 
-				                    serverCertificate, 
-				                    clientCertificateRequired, 
-				                    caCerts, 
-				                    enabledSslProtocols, 
-				                    sslStrength, 
-				                    checkCertificateRevocation, 
-				                    remoteCertificateValidationCallback);
-			// Set the internal sslStream
-			sslStream = server_stream;
-			// Start the read operation
-			return BeginRead(new byte[0], 0, 0, asyncCallback, asyncState);
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="ar"></param>
-		public virtual void EndAuthenticateAsServer(IAsyncResult ar)
+		public async Task Renegotiate()
 		{
 			TestConnectionIsValid();
 
-			// Finish the async AuthenticateAsServer call - EndRead/Write call will throw exception on error
-			EndRead(ar);
-    	}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		public void Renegotiate()
-		{
-			TestConnectionIsValid();
-
-			EndRenegotiate(BeginRenegotiate(null, null));
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="callback"></param>
-		/// <param name="state"></param>
-		/// <returns></returns>
-		public IAsyncResult BeginRenegotiate(AsyncCallback callback, object state)
-		{
-			TestConnectionIsValid();
-
-			sslStream.Renegotiate();
-
-			if (sslStream is SslStreamClient)
-			{
-				return BeginWrite(new byte[0], 0, 0, callback, state);
-			}
-
-			return BeginRead(new byte[0], 0, 0, callback, state);
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="asyncResult"></param>
-		public void EndRenegotiate(IAsyncResult asyncResult)
-		{
-			TestConnectionIsValid();
-
-			if (sslStream is SslStreamClient)
-			{
-				EndWrite(asyncResult);
-			}
-			else
-			{
-				EndRead(asyncResult);
-			}
+            await sslStream.HandShake();
 		}
 
 		#endregion
@@ -722,6 +553,23 @@ namespace DomDom.OpenSSL.SSL
 		internal RemoteCertificateValidationHandler remoteCertificateValidationCallback = null;
 		internal LocalCertificateSelectionHandler localCertificateSelectionCallback = null;
 
-		#endregion
-	}
+        #endregion
+
+        #region IDisposable
+
+        private bool disposed;
+        protected override void Dispose(bool disposing)
+        {
+            if (disposed)
+                return;
+
+            if (sslStream != null)
+                sslStream.Dispose();
+
+            base.Dispose(disposing);
+            disposed = true;
+        }
+
+        #endregion
+    }
 }
