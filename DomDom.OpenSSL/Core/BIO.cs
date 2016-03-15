@@ -297,6 +297,7 @@ namespace DomDom.OpenSSL.Core
         internal void FreeAfterSSL()
         {
             this.ptr = IntPtr.Zero;
+			GC.SuppressFinalize(this);
         }
 
 		/// <summary>
