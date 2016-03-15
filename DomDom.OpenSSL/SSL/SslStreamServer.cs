@@ -29,6 +29,7 @@ using System;
 using System.IO;
 using System.Text;
 using DomDom.OpenSSL;
+using System.Threading.Tasks;
 
 namespace DomDom.OpenSSL.SSL
 {
@@ -70,46 +71,50 @@ namespace DomDom.OpenSSL.SSL
 			ssl.SetAcceptState();
 		}
 
-		internal protected override bool ProcessHandshake()
-		{
-			var nRet = 0;
-            
-			if (handShakeState == HandshakeState.InProcess)
-			{
-				nRet = ssl.Accept();
-			}
-			else if (handShakeState == HandshakeState.RenegotiateInProcess)
-			{
-				nRet = ssl.DoHandshake();
-			}
-			else if (handShakeState == HandshakeState.Renegotiate)
-			{
-				nRet = ssl.DoHandshake();
-				ssl.State = Ssl.SSL_ST_ACCEPT;
-				handShakeState = HandshakeState.RenegotiateInProcess;
-			}
+        //TODO: untested
+        public override async Task HandShake()
+        {
+            await base.HandShake();
 
-			var lastError = ssl.GetError(nRet);
-			if (lastError == SslError.SSL_ERROR_WANT_READ || 
-				lastError == SslError.SSL_ERROR_WANT_WRITE || 
-				lastError == SslError.SSL_ERROR_NONE)
-			{
-				return nRet == 1;
-			}
+            int nRet = 0;
 
-			// Check to see if we have alert data in the write_bio that needs to be sent
-			if (write_bio.BytesPending > 0)
-			{
-				// We encountered an error, but need to send the alert
-				// set the handshakeException so that it will be processed
-				// and thrown after the alert is sent
-				handshakeException = new OpenSslException();
-				return false;
-			}
+            if (handShakeState == HandshakeState.InProcess)
+                nRet = ssl.Accept();
+            else if (handShakeState == HandshakeState.Renegotiate)
+            {
+                nRet = ssl.DoHandshake();
+                ssl.State = Ssl.SSL_ST_ACCEPT;
+            }
 
-			// No alert to send, throw the exception
-			throw new OpenSslException();
-		}
+            if (processHandshake(nRet))
+                await this.ReadAsync(new byte[0], 0, 0);
+            else
+                await this.WriteAsync(new byte[0], 0, 0);
+        }
+
+        private bool processHandshake(int nRet)
+        {
+            var lastError = ssl.GetError(nRet);
+            if (lastError == SslError.SSL_ERROR_WANT_READ ||
+                lastError == SslError.SSL_ERROR_WANT_WRITE ||
+                lastError == SslError.SSL_ERROR_NONE)
+            {
+                return nRet == 1;
+            }
+
+            // Check to see if we have alert data in the write_bio that needs to be sent
+            if (write_bio.BytesPending > 0)
+            {
+                // We encountered an error, but need to send the alert
+                // set the handshakeException so that it will be processed
+                // and thrown after the alert is sent
+                handshakeException = new OpenSslException();
+                return false;
+            }
+
+            // No alert to send, throw the exception
+            throw new OpenSslException();
+        }
 
 		private void InitializeServerContext(
 			X509Certificate serverCertificate,

@@ -30,6 +30,7 @@ using DomDom.OpenSSL.X509;
 using System.IO;
 using DomDom.OpenSSL;
 using System;
+using System.Threading.Tasks;
 
 namespace DomDom.OpenSSL.SSL
 {
@@ -123,58 +124,55 @@ namespace DomDom.OpenSSL.SSL
 			ssl.SetConnectState();
 		}
 
-		internal protected override bool ProcessHandshake()
-		{
-			var ret = false;
-			var nRet = 0;
+        public override async Task HandShake()
+        {
+            await base.HandShake();
 
-			if (handShakeState == HandshakeState.InProcess)
-			{
-				nRet = ssl.Connect();
-			}
-			else if (handShakeState == HandshakeState.RenegotiateInProcess ||
-			         handShakeState == HandshakeState.Renegotiate)
-			{
-				handShakeState = HandshakeState.RenegotiateInProcess;
-				nRet = ssl.DoHandshake();
-			}
+            int nRet = 0;
+            if (handShakeState == HandshakeState.InProcess)
+                nRet = ssl.Connect();
+            else if (handShakeState == HandshakeState.Renegotiate)
+                nRet = ssl.DoHandshake();
 
-			if (nRet <= 0)
-			{
-				var lastError = ssl.GetError(nRet);
-				if (lastError == SslError.SSL_ERROR_WANT_READ)
-				{
-					// Do nothing -- the base stream will write the data from the bio
-					// when this call returns
-				}
-				else if (lastError == SslError.SSL_ERROR_WANT_WRITE)
-				{
-					// unexpected error
-					//!!TODO - debug log
-				}
-				else
-				{
-					// We should have alert data in the bio that needs to be written
-					// We'll save the exception, allow the write to start, and then throw the exception
-					// when we come back into the AsyncHandshakeCall
-					if (write_bio.BytesPending > 0)
-					{
-						handshakeException = new OpenSslException();
-					}
-					else
-					{
-						throw new OpenSslException();
-					}
-				}
-			}
-			else
-			{
-				// Successful handshake
-				ret = true;
-			}
+            if (nRet <= 0)
+            {
+                var lastError = ssl.GetError(nRet);
+                if (lastError == SslError.SSL_ERROR_WANT_READ)
+                {
+                    // Do nothing -- the base stream will write the data from the bio
+                    // when this call returns
+                }
+                else if (lastError == SslError.SSL_ERROR_WANT_WRITE)
+                {
+                    // unexpected error
+                    //!!TODO - debug log
+                }
+                else
+                {
+                    // We should have alert data in the bio that needs to be written
+                    // We'll save the exception, allow the write to start, and then throw the exception
+                    // when we come back into the AsyncHandshakeCall
+                    if (write_bio.BytesPending > 0)
+                    {
+                        handshakeException = new OpenSslException();
+                    }
+                    else
+                    {
+                        throw new OpenSslException();
+                    }
+                }
+            }
 
-			return ret;
-		}
+            if (write_bio.BytesPending > 0)
+            {
+                await this.WriteAsync(new byte[0], 0, 0);
+
+                await this.ReadAsync(new byte[0], 0, 0);
+                await this.ReadAsync(new byte[0], 0, 0);
+                handShakeState = HandshakeState.Complete;
+            }
+
+        }
 
 		private int OnClientCertificate(Ssl ssl, out X509Certificate x509_cert, out CryptoKey key)
 		{
