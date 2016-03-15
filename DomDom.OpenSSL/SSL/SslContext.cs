@@ -49,10 +49,6 @@ namespace DomDom.OpenSSL.SSL
 		private ClientCertCallbackHandler OnClientCert;
 		private RemoteCertificateValidationHandler OnVerifyCert;
 
-		// hold down the thunk so it doesn't get collected
-		private Native.client_cert_cb _ptrOnClientCertThunk;
-		private Native.VerifyCertCallback _ptrOnVerifyCertThunk;
-
 		#endregion
 
 
@@ -67,8 +63,7 @@ namespace DomDom.OpenSSL.SSL
 			ConnectionEnd end) :
 			base(Native.ExpectNonNull(Native.SSL_CTX_new(sslMethod.Handle)), true)
 		{
-			_ptrOnClientCertThunk += OnClientCertThunk;
-			_ptrOnVerifyCertThunk += OnVerifyCertThunk;
+
 		}
 
 		#region Properties
@@ -163,7 +158,7 @@ namespace DomDom.OpenSSL.SSL
 		public void SetVerify(VerifyMode mode, RemoteCertificateValidationHandler callback)
 		{
 			OnVerifyCert = callback;
-			Native.SSL_CTX_set_verify(ptr, (int)mode, callback == null ? null : _ptrOnVerifyCertThunk);
+			Native.SSL_CTX_set_verify(ptr, (int)mode, callback == null ? null : (Native.VerifyCertCallback)OnVerifyCertThunk);
 		}
 
 		/// <summary>
@@ -250,7 +245,7 @@ namespace DomDom.OpenSSL.SSL
 		public void SetClientCertCallback(ClientCertCallbackHandler callback)
 		{
 			OnClientCert = callback;
-			Native.SSL_CTX_set_client_cert_cb(ptr, callback == null ? null : _ptrOnClientCertThunk);
+			Native.SSL_CTX_set_client_cert_cb(ptr, callback == null ? null : (Native.client_cert_cb)OnClientCertThunk);
 		}
 
 		#endregion
@@ -263,12 +258,6 @@ namespace DomDom.OpenSSL.SSL
 		protected override void OnDispose()
 		{
 			Native.SSL_CTX_free(ptr);
-
-            _ptrOnClientCertThunk -= OnClientCertThunk;
-            _ptrOnVerifyCertThunk -= OnVerifyCertThunk;
-
-			_ptrOnClientCertThunk = null;
-			_ptrOnVerifyCertThunk = null;
 
 			this.OnClientCert = null;
 			this.OnVerifyCert = null;
