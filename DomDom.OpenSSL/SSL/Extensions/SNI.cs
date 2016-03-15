@@ -22,7 +22,7 @@ namespace DomDom.OpenSSL.Extensions
 		internal const int SSL_CTRL_SET_TLSEXT_HOSTNAME = 55;
 		internal const int SSL_CTRL_GET_SESSION_REUSED = 8;
 
-		private readonly string _serverName;
+		private string _serverName;
 		private IntPtr _serverNamePtr;
 
 		public Sni(string serverName)
@@ -126,6 +126,7 @@ namespace DomDom.OpenSSL.Extensions
 
             if(_serverNamePtr != IntPtr.Zero)
                 Marshal.FreeHGlobal(_serverNamePtr);
+			_serverName = string.Empty;
 
             disposed = true;
         }

@@ -67,8 +67,8 @@ namespace DomDom.OpenSSL.SSL
 			ConnectionEnd end) :
 			base(Native.ExpectNonNull(Native.SSL_CTX_new(sslMethod.Handle)), true)
 		{
-			_ptrOnClientCertThunk = OnClientCertThunk;
-			_ptrOnVerifyCertThunk = OnVerifyCertThunk;
+			_ptrOnClientCertThunk += OnClientCertThunk;
+			_ptrOnVerifyCertThunk += OnVerifyCertThunk;
 		}
 
 		#region Properties
@@ -133,6 +133,10 @@ namespace DomDom.OpenSSL.SSL
 				if (key != null)
 					ptrKey = key.Handle;
 			}
+
+			ssl.Dispose();
+			ssl = null;
+			ptrSsl = IntPtr.Zero;
 			return ret;
 		}
 
@@ -259,6 +263,9 @@ namespace DomDom.OpenSSL.SSL
 		protected override void OnDispose()
 		{
 			Native.SSL_CTX_free(ptr);
+
+            _ptrOnClientCertThunk -= OnClientCertThunk;
+            _ptrOnVerifyCertThunk -= OnVerifyCertThunk;
 
 			_ptrOnClientCertThunk = null;
 			_ptrOnVerifyCertThunk = null;

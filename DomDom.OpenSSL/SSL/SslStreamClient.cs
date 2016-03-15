@@ -116,9 +116,6 @@ namespace DomDom.OpenSSL.SSL
 			write_bio = BIO.MemoryBuffer(false);
 			ssl = new Ssl(sslContext);
 
-			sniCb = sniExt.ClientSniCb;
-			sniExt.AttachSniExtensionClient(ssl.Handle, sslContext.Handle, sniCb);
-
 			ssl.SetBIO(read_bio, write_bio);
 			read_bio.SetClose(BIO.CloseOption.Close);
 			write_bio.SetClose(BIO.CloseOption.Close);

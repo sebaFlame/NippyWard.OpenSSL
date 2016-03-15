@@ -58,9 +58,6 @@ namespace DomDom.OpenSSL.SSL
 		protected HandshakeState handShakeState = HandshakeState.None;
 		protected OpenSslException handshakeException = null;
 
-		protected SniCallback sniCb;
-		protected Sni sniExt;
-
 		protected string srvName = "localhost";
 
 		/// <summary>
@@ -245,8 +242,6 @@ namespace DomDom.OpenSSL.SSL
 				throw new ArgumentException("Stream must allow read and write capabilities", "stream");
 			}
 			innerStream = stream;
-            
-			sniExt = new Sni(srvName);
 		}
 
 		public bool HandshakeComplete
@@ -942,15 +937,6 @@ namespace DomDom.OpenSSL.SSL
 			{
 				write_bio.FreeAfterSSL();
 				write_bio = null;
-			}
-            if (sniCb != null)
-            {
-                sniCb = null;
-            }
-            if (sniExt != null)
-			{
-                sniExt.Dispose();
-				sniExt = null;
 			}
 			if (cleartext != null)
 			{
