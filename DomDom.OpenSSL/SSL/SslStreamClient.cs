@@ -95,7 +95,7 @@ namespace DomDom.OpenSSL.SSL
             sslContext.Options = options | SslOptions.SSL_OP_ALL;
 
 			// Set the Local certificate selection callback
-			sslContext.SetClientCertCallback(OnClientCertificate);
+			//sslContext.SetClientCertCallback(OnClientCertificate);
 			// Set the enabled cipher list
 			sslContext.SetCipherList(SslCipher.MakeString(enabledSslProtocols, sslStrength));
 			// Set the callbacks for remote cert verification and local cert selection

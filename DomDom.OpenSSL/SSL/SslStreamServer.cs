@@ -161,17 +161,17 @@ namespace DomDom.OpenSSL.SSL
 			sslContext.Mode = SslMode.SSL_MODE_AUTO_RETRY;
 
 			// Set the client certificate verification callback if we are requiring client certs
-			if (clientCertificateRequired)
-			{
-				sslContext.SetVerify(VerifyMode.SSL_VERIFY_PEER | VerifyMode.SSL_VERIFY_FAIL_IF_NO_PEER_CERT, OnRemoteCertificate);
-			}
-			else
-			{
-				sslContext.SetVerify(VerifyMode.SSL_VERIFY_NONE, null);
-			}
+			//if (clientCertificateRequired)
+			//{
+			//	sslContext.SetVerify(VerifyMode.SSL_VERIFY_PEER | VerifyMode.SSL_VERIFY_FAIL_IF_NO_PEER_CERT, OnRemoteCertificate);
+			//}
+			//else
+			//{
+			//	sslContext.SetVerify(VerifyMode.SSL_VERIFY_NONE, null);
+			//}
 
 			// Set the client certificate max verification depth
-			sslContext.SetVerifyDepth(10);
+			//sslContext.SetVerifyDepth(10);
 			// Set the certificate store and ca list
 			if (caCerts != null)
 			{
