@@ -49,22 +49,27 @@ namespace DomDom.OpenSSL.SSL
 		private ClientCertCallbackHandler OnClientCert;
 		private RemoteCertificateValidationHandler OnVerifyCert;
 
-		#endregion
+        // hold down the thunk so it doesn't get collected
+        private Native.client_cert_cb _ptrOnClientCertThunk;
+        private Native.VerifyCertCallback _ptrOnVerifyCertThunk;
+
+        #endregion
 
 
-		/// <summary>
-		///     Calls SSL_CTX_new()
-		/// </summary>
-		/// <param name="sslMethod"></param>
-		/// <param name="end"></param>
-		/// <param name="protoList"></param>
-		public SslContext(
+        /// <summary>
+        ///     Calls SSL_CTX_new()
+        /// </summary>
+        /// <param name="sslMethod"></param>
+        /// <param name="end"></param>
+        /// <param name="protoList"></param>
+        public SslContext(
 			SslMethod sslMethod,
 			ConnectionEnd end) :
 			base(Native.ExpectNonNull(Native.SSL_CTX_new(sslMethod.Handle)), true)
 		{
-
-		}
+            _ptrOnClientCertThunk = OnClientCertThunk;
+            _ptrOnVerifyCertThunk = OnVerifyCertThunk;
+        }
 
 		#region Properties
 
@@ -158,7 +163,7 @@ namespace DomDom.OpenSSL.SSL
 		public void SetVerify(VerifyMode mode, RemoteCertificateValidationHandler callback)
 		{
 			OnVerifyCert = callback;
-			Native.SSL_CTX_set_verify(ptr, (int)mode, callback == null ? null : (Native.VerifyCertCallback)OnVerifyCertThunk);
+			Native.SSL_CTX_set_verify(ptr, (int)mode, callback == null ? null : _ptrOnVerifyCertThunk);
 		}
 
 		/// <summary>
@@ -245,7 +250,7 @@ namespace DomDom.OpenSSL.SSL
 		public void SetClientCertCallback(ClientCertCallbackHandler callback)
 		{
 			OnClientCert = callback;
-			Native.SSL_CTX_set_client_cert_cb(ptr, callback == null ? null : (Native.client_cert_cb)OnClientCertThunk);
+			Native.SSL_CTX_set_client_cert_cb(ptr, callback == null ? null : _ptrOnClientCertThunk);
 		}
 
 		#endregion
@@ -259,7 +264,10 @@ namespace DomDom.OpenSSL.SSL
 		{
 			Native.SSL_CTX_free(ptr);
 
-			this.OnClientCert = null;
+            _ptrOnClientCertThunk = null;
+            _ptrOnVerifyCertThunk = null;
+
+            this.OnClientCert = null;
 			this.OnVerifyCert = null;
 		}
 

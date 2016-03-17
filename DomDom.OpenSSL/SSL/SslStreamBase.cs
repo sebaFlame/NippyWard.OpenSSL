@@ -382,6 +382,11 @@ namespace DomDom.OpenSSL.SSL
 			if (disposed)
 				return;
 
+            if (innerStream != null)
+            {
+                innerStream.Dispose();
+                innerStream = null;
+            }
             if (ssl != null)
             {
                 ssl.Dispose();
@@ -406,11 +411,6 @@ namespace DomDom.OpenSSL.SSL
             {
                 cleartext.Dispose();
                 cleartext = null;
-            }
-            if (innerStream != null)
-            {
-                innerStream.Dispose();
-                innerStream = null;
             }
             read_buffer = null;
 
