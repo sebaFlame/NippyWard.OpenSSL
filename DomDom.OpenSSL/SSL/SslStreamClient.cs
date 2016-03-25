@@ -124,15 +124,21 @@ namespace DomDom.OpenSSL.SSL
 			ssl.SetConnectState();
 		}
 
-        public override async Task HandShake()
+        internal protected override bool ProcessHandshake()
         {
-            await base.HandShake();
+            var ret = false;
+            var nRet = 0;
 
-            int nRet = 0;
             if (handShakeState == HandshakeState.InProcess)
+            {
                 nRet = ssl.Connect();
-            else if (handShakeState == HandshakeState.Renegotiate)
+            }
+            else if (handShakeState == HandshakeState.RenegotiateInProcess ||
+                     handShakeState == HandshakeState.Renegotiate)
+            {
+                handShakeState = HandshakeState.RenegotiateInProcess;
                 nRet = ssl.DoHandshake();
+            }
 
             if (nRet <= 0)
             {
@@ -162,19 +168,16 @@ namespace DomDom.OpenSSL.SSL
                     }
                 }
             }
-
-            if (write_bio.BytesPending > 0)
+            else
             {
-                await this.WriteAsync(new byte[0], 0, 0);
-
-                await this.ReadAsync(new byte[0], 0, 0);
-                await this.ReadAsync(new byte[0], 0, 0);
-                handShakeState = HandshakeState.Complete;
+                // Successful handshake
+                ret = true;
             }
 
+            return ret;
         }
 
-		private int OnClientCertificate(Ssl ssl, out X509Certificate x509_cert, out CryptoKey key)
+        private int OnClientCertificate(Ssl ssl, out X509Certificate x509_cert, out CryptoKey key)
 		{
 			x509_cert = null;
 			key = null;

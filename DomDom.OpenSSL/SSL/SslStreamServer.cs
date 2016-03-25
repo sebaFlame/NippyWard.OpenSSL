@@ -71,29 +71,25 @@ namespace DomDom.OpenSSL.SSL
 			ssl.SetAcceptState();
 		}
 
-        //TODO: untested
-        public override async Task HandShake()
+        internal protected override bool ProcessHandshake()
         {
-            await base.HandShake();
-
-            int nRet = 0;
+            var nRet = 0;
 
             if (handShakeState == HandshakeState.InProcess)
+            {
                 nRet = ssl.Accept();
+            }
+            else if (handShakeState == HandshakeState.RenegotiateInProcess)
+            {
+                nRet = ssl.DoHandshake();
+            }
             else if (handShakeState == HandshakeState.Renegotiate)
             {
                 nRet = ssl.DoHandshake();
                 ssl.State = Ssl.SSL_ST_ACCEPT;
+                handShakeState = HandshakeState.RenegotiateInProcess;
             }
 
-            if (processHandshake(nRet))
-                await this.ReadAsync(new byte[0], 0, 0);
-            else
-                await this.WriteAsync(new byte[0], 0, 0);
-        }
-
-        private bool processHandshake(int nRet)
-        {
             var lastError = ssl.GetError(nRet);
             if (lastError == SslError.SSL_ERROR_WANT_READ ||
                 lastError == SslError.SSL_ERROR_WANT_WRITE ||
@@ -116,7 +112,7 @@ namespace DomDom.OpenSSL.SSL
             throw new OpenSslException();
         }
 
-		private void InitializeServerContext(
+        private void InitializeServerContext(
 			X509Certificate serverCertificate,
 			bool clientCertificateRequired,
 			X509Chain caCerts,
