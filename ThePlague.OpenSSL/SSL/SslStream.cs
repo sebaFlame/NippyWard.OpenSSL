@@ -213,6 +213,11 @@ namespace ThePlague.OpenSSL.SSL
 			InnerStream.Flush();
 		}
 
+        public override Task FlushAsync(CancellationToken cancellationToken)
+        {
+            return InnerStream.FlushAsync(cancellationToken);
+        }
+
         /// <summary>
         /// Gets the length in bytes of the stream.
         /// </summary>
@@ -257,41 +262,20 @@ namespace ThePlague.OpenSSL.SSL
         /// <returns></returns>
         public override int Read(byte[] buffer, int offset, int count)
         {
-            return EndRead(BeginRead(buffer, offset, count, null, null));
+            TestConnectionIsValid();
+
+            Task<int> read = this.ReadAsync(buffer, offset, count);
+            read.Wait();
+
+            return read.Result;
         }
 
-        /// <summary>
-        /// Begins an asynchronous read operation.
-        /// </summary>
-        /// <param name="buffer"></param>
-        /// <param name="offset"></param>
-        /// <param name="count"></param>
-        /// <param name="asyncCallback"></param>
-        /// <param name="asyncState"></param>
-        /// <returns></returns>
-        public override IAsyncResult BeginRead(
-			byte[] buffer,
-			int offset,
-			int count,
-			AsyncCallback asyncCallback,
-			Object asyncState)
-		{
-			TestConnectionIsValid();
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            TestConnectionIsValid();
 
-			return sslStream.BeginRead(buffer, offset, count, asyncCallback, asyncState);
-		}
-
-		/// <summary>
-		/// Waits for the pending asynchronous read to complete.
-		/// </summary>
-		/// <param name="asyncResult"></param>
-		/// <returns></returns>
-		public override int EndRead(IAsyncResult asyncResult)
-		{
-			TestConnectionIsValid();
-
-			return sslStream.EndRead(asyncResult);
-		}
+            return await sslStream.ReadAsync(buffer, offset, count, cancellationToken);
+        }
 
         /// <summary>
         /// Not supported
@@ -321,42 +305,17 @@ namespace ThePlague.OpenSSL.SSL
 		/// <param name="count"></param>
 		public override void Write(byte[] buffer, int offset, int count)
 		{
-			TestConnectionIsValid();
+            TestConnectionIsValid();
 
-			EndWrite(BeginWrite(buffer, offset, count, null, null));
+            this.WriteAsync(buffer, offset, count).Wait();
 		}
 
-		/// <summary>
-		/// Begins an asynchronous write operation.
-		/// </summary>
-		/// <param name="buffer"></param>
-		/// <param name="offset"></param>
-		/// <param name="count"></param>
-		/// <param name="asyncCallback"></param>
-		/// <param name="asyncState"></param>
-		/// <returns></returns>
-		public override IAsyncResult BeginWrite(
-			byte[] buffer,
-			int offset,
-			int count,
-			AsyncCallback asyncCallback,
-			Object asyncState)
-		{
-			TestConnectionIsValid();
+        public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            TestConnectionIsValid();
 
-			return sslStream.BeginWrite(buffer, offset, count, asyncCallback, asyncState);
-		}
-
-		/// <summary>
-		/// Ends an asynchronous write operation.
-		/// </summary>
-		/// <param name="asyncResult"></param>
-		public override void EndWrite(IAsyncResult asyncResult)
-		{
-			TestConnectionIsValid();
-
-			sslStream.EndWrite(asyncResult);
-		}
+            await sslStream.WriteAsync(buffer, offset, count, cancellationToken);
+        }
 
         public override void Close()
         {
@@ -366,7 +325,6 @@ namespace ThePlague.OpenSSL.SSL
                 sslStream.Close();
             }
         }
-
         #endregion
 
         #region Properties
@@ -403,87 +361,18 @@ namespace ThePlague.OpenSSL.SSL
 
         #region Methods
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="targetHost"></param>
-        public virtual void AuthenticateAsClient(string targetHost)
+        public virtual async Task AuthenticateAsClient(string targetHost)
         {
-            AuthenticateAsClient(targetHost, null, null, SslProtocols.Tls, SslStrength.All, false);
+            await AuthenticateAsClient(targetHost, null, null, SslProtocols.Tls, SslStrength.All, false, CancellationToken.None);
         }
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="targetHost"></param>
-        /// <param name="certificates"></param>
-        /// <param name="caCertificates"></param>
-        /// <param name="enabledSslProtocols"></param>
-        /// <param name="sslStrength"></param>
-        /// <param name="checkCertificateRevocation"></param>
-        public virtual void AuthenticateAsClient(
-            string targetHost,
-            X509List certificates,
-            X509Chain caCertificates,
-            SslProtocols enabledSslProtocols,
-            SslStrength sslStrength,
-            bool checkCertificateRevocation)
-        {
-            EndAuthenticateAsClient(BeginAuthenticateAsClient(
-                targetHost,
-                certificates,
-                caCertificates,
-                enabledSslProtocols,
-                sslStrength,
-                checkCertificateRevocation,
-                null,
-                null));
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="targetHost"></param>
-        /// <param name="asyncCallback"></param>
-        /// <param name="asyncState"></param>
-        /// <returns></returns>
-        public virtual IAsyncResult BeginAuthenticateAsClient(
-            string targetHost,
-            AsyncCallback asyncCallback,
-            Object asyncState)
-        {
-            return BeginAuthenticateAsClient(
-                targetHost,
-                null,
-                null,
-                SslProtocols.Tls,
-                SslStrength.All,
-                false,
-                asyncCallback,
-                asyncState);
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="targetHost"></param>
-        /// <param name="clientCertificates"></param>
-        /// <param name="caCertificates"></param>
-        /// <param name="enabledSslProtocols"></param>
-        /// <param name="sslStrength"></param>
-        /// <param name="checkCertificateRevocation"></param>
-        /// <param name="asyncCallback"></param>
-        /// <param name="asyncState"></param>
-        /// <returns></returns>
-        public virtual IAsyncResult BeginAuthenticateAsClient(
-            string targetHost,
+        public virtual async Task AuthenticateAsClient(string targetHost,
             X509List clientCertificates,
             X509Chain caCertificates,
             SslProtocols enabledSslProtocols,
             SslStrength sslStrength,
             bool checkCertificateRevocation,
-            AsyncCallback asyncCallback,
-            Object asyncState)
+            CancellationToken cancellationToken)
         {
             if (IsAuthenticated)
             {
@@ -503,82 +392,28 @@ namespace ThePlague.OpenSSL.SSL
                                     checkCertificateRevocation,
                                     remoteCertificateValidationCallback,
                                     localCertificateSelectionCallback);
+
             // set the internal stream
             sslStream = client_stream;
+
             // start the write operation
-            return BeginWrite(new byte[0], 0, 0, asyncCallback, asyncState);
-        }
+            await this.WriteAsync(new byte[0], 0, 0, cancellationToken);
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="ar"></param>
-        public virtual void EndAuthenticateAsClient(IAsyncResult ar)
-        {
             TestConnectionIsValid();
-
-            // Finish the async authentication.  The EndRead/EndWrite will complete successfully, or throw exception
-            EndWrite(ar);
         }
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="serverCertificate"></param>
-        public virtual void AuthenticateAsServer(X509Certificate serverCertificate)
+        public virtual async Task AuthenticateAsServer(X509Certificate serverCertificate)
         {
-            AuthenticateAsServer(serverCertificate, false, null, SslProtocols.Tls, SslStrength.All, false);
+            await AuthenticateAsServer(serverCertificate, false, null, SslProtocols.Tls, SslStrength.All, false, CancellationToken.None);
         }
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="serverCertificate"></param>
-        /// <param name="clientCertificateRequired"></param>
-        /// <param name="caCertificates"></param>
-        /// <param name="enabledSslProtocols"></param>
-        /// <param name="sslStrength"></param>
-        /// <param name="checkCertificateRevocation"></param>
-        public virtual void AuthenticateAsServer(
-            X509Certificate serverCertificate,
+        public virtual async Task AuthenticateAsServer(X509Certificate serverCertificate,
             bool clientCertificateRequired,
             X509Chain caCertificates,
             SslProtocols enabledSslProtocols,
             SslStrength sslStrength,
-            bool checkCertificateRevocation)
-        {
-            EndAuthenticateAsServer(BeginAuthenticateAsServer(
-                serverCertificate,
-                clientCertificateRequired,
-                caCertificates,
-                enabledSslProtocols,
-                sslStrength,
-                checkCertificateRevocation,
-                null,
-                null));
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="serverCertificate"></param>
-        /// <param name="clientCertificateRequired"></param>
-        /// <param name="caCerts"></param>
-        /// <param name="enabledSslProtocols"></param>
-        /// <param name="sslStrength"></param>
-        /// <param name="checkCertificateRevocation"></param>
-        /// <param name="asyncCallback"></param>
-        /// <param name="asyncState"></param>
-        /// <returns></returns>
-        public virtual IAsyncResult BeginAuthenticateAsServer(
-            X509Certificate serverCertificate,
-            bool clientCertificateRequired,
-            X509Chain caCerts,
-            SslProtocols enabledSslProtocols,
-            SslStrength sslStrength,
             bool checkCertificateRevocation,
-            AsyncCallback asyncCallback,
-            Object asyncState)
+            CancellationToken cancellationToken)
         {
             if (IsAuthenticated)
             {
@@ -592,98 +427,33 @@ namespace ThePlague.OpenSSL.SSL
                                     InnerStream,
                                     serverCertificate,
                                     clientCertificateRequired,
-                                    caCerts,
+                                    caCertificates,
                                     enabledSslProtocols,
                                     sslStrength,
                                     checkCertificateRevocation,
                                     remoteCertificateValidationCallback);
             // Set the internal sslStream
             sslStream = server_stream;
+
             // Start the read operation
-            return BeginRead(new byte[0], 0, 0, asyncCallback, asyncState);
-        }
+            await this.ReadAsync(new byte[0], 0, 0, cancellationToken);
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="serverCertificate"></param>
-        /// <param name="asyncCallback"></param>
-        /// <param name="asyncState"></param>
-        /// <returns></returns>
-        public virtual IAsyncResult BeginAuthenticateAsServer(
-            X509Certificate serverCertificate,
-            AsyncCallback asyncCallback,
-            Object asyncState)
-        {
-            return BeginAuthenticateAsServer(
-                serverCertificate,
-                false,
-                null,
-                SslProtocols.Tls,
-                SslStrength.All,
-                false,
-                asyncCallback,
-                asyncState);
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="ar"></param>
-        public virtual void EndAuthenticateAsServer(IAsyncResult ar)
-        {
             TestConnectionIsValid();
-
-            // Finish the async AuthenticateAsServer call - EndRead/Write call will throw exception on error
-            EndRead(ar);
         }
 
         /// <summary>
         ///
         /// </summary>
-        public void Renegotiate()
-        {
-            TestConnectionIsValid();
-
-            EndRenegotiate(BeginRenegotiate(null, null));
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="callback"></param>
-        /// <param name="state"></param>
-        /// <returns></returns>
-        public IAsyncResult BeginRenegotiate(AsyncCallback callback, object state)
+        public async Task Renegotiate(CancellationToken cancellationToken)
         {
             TestConnectionIsValid();
 
             sslStream.Renegotiate();
 
             if (sslStream is SslStreamClient)
-            {
-                return BeginWrite(new byte[0], 0, 0, callback, state);
-            }
-
-            return BeginRead(new byte[0], 0, 0, callback, state);
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="asyncResult"></param>
-        public void EndRenegotiate(IAsyncResult asyncResult)
-        {
-            TestConnectionIsValid();
-
-            if (sslStream is SslStreamClient)
-            {
-                EndWrite(asyncResult);
-            }
+                await this.WriteAsync(new byte[0], 0, 0, cancellationToken);
             else
-            {
-                EndRead(asyncResult);
-            }
+                await this.ReadAsync(new byte[0], 0, 0, cancellationToken);
         }
 
         #endregion
