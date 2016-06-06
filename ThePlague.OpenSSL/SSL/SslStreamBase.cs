@@ -328,7 +328,7 @@ namespace ThePlague.OpenSSL.SSL
                 // Check to see if we have data to return, if not, fire the async read again
                 if (!haveDataToReturn)
                 {
-                    return await this.ReadAsync(read_buffer, 0, read_buffer.Length, cancellationToken);
+                    return await this.ReadAsync(buffer, offset, count, cancellationToken);
                 }
                 else
                 {
