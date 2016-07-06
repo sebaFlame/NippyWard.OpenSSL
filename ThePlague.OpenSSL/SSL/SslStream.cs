@@ -274,7 +274,7 @@ namespace ThePlague.OpenSSL.SSL
         {
             TestConnectionIsValid();
 
-            return await sslStream.ReadAsync(buffer, offset, count, cancellationToken);
+            return await sslStream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -314,7 +314,7 @@ namespace ThePlague.OpenSSL.SSL
         {
             TestConnectionIsValid();
 
-            await sslStream.WriteAsync(buffer, offset, count, cancellationToken);
+            await sslStream.WriteAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
         }
 
         public override void Close()
@@ -363,7 +363,7 @@ namespace ThePlague.OpenSSL.SSL
 
         public virtual async Task AuthenticateAsClient(string targetHost)
         {
-            await AuthenticateAsClient(targetHost, null, null, SslProtocols.Tls, SslStrength.All, false, CancellationToken.None);
+            await AuthenticateAsClient(targetHost, null, null, SslProtocols.Tls, SslStrength.All, false, CancellationToken.None).ConfigureAwait(false);
         }
 
         public virtual async Task AuthenticateAsClient(string targetHost,
@@ -397,14 +397,14 @@ namespace ThePlague.OpenSSL.SSL
             sslStream = client_stream;
 
             // start the write operation
-            await this.WriteAsync(new byte[0], 0, 0, cancellationToken);
+            await this.WriteAsync(new byte[0], 0, 0, cancellationToken).ConfigureAwait(false);
 
             TestConnectionIsValid();
         }
 
         public virtual async Task AuthenticateAsServer(X509Certificate serverCertificate)
         {
-            await AuthenticateAsServer(serverCertificate, false, null, SslProtocols.Tls, SslStrength.All, false, CancellationToken.None);
+            await AuthenticateAsServer(serverCertificate, false, null, SslProtocols.Tls, SslStrength.All, false, CancellationToken.None).ConfigureAwait(false);
         }
 
         public virtual async Task AuthenticateAsServer(X509Certificate serverCertificate,
@@ -436,7 +436,7 @@ namespace ThePlague.OpenSSL.SSL
             sslStream = server_stream;
 
             // Start the read operation
-            await this.ReadAsync(new byte[0], 0, 0, cancellationToken);
+            await this.ReadAsync(new byte[0], 0, 0, cancellationToken).ConfigureAwait(false);
 
             TestConnectionIsValid();
         }
@@ -451,9 +451,9 @@ namespace ThePlague.OpenSSL.SSL
             sslStream.Renegotiate();
 
             if (sslStream is SslStreamClient)
-                await this.WriteAsync(new byte[0], 0, 0, cancellationToken);
+                await this.WriteAsync(new byte[0], 0, 0, cancellationToken).ConfigureAwait(false);
             else
-                await this.ReadAsync(new byte[0], 0, 0, cancellationToken);
+                await this.ReadAsync(new byte[0], 0, 0, cancellationToken).ConfigureAwait(false);
         }
 
         #endregion

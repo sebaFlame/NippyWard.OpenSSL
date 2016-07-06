@@ -244,7 +244,7 @@ namespace ThePlague.OpenSSL.SSL
             if (NeedHandshake)
             {
                 // Start the handshake
-                await HandShake(cancellationToken);
+                await HandShake(cancellationToken).ConfigureAwait(false);
             }
 
             if (cleartext.Position == cleartext.Length)
@@ -256,13 +256,13 @@ namespace ThePlague.OpenSSL.SSL
             if (cleartext.Length > 0 && (cleartext.Position != cleartext.Length))
             {
                 // Process the pre-existing data
-                return await cleartext.ReadAsync(buffer, offset, count, cancellationToken);
+                return await cleartext.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
             }
 
             bool haveDataToReturn = false;
             int bytesRead = 0;
 
-            if ((bytesRead = await innerStream.ReadAsync(read_buffer, 0, read_buffer.Length, cancellationToken)) > 0)
+            if ((bytesRead = await innerStream.ReadAsync(read_buffer, 0, read_buffer.Length, cancellationToken).ConfigureAwait(false)) > 0)
             {
                 // Copy encrypted data into the SSL read_bio
                 read_bio.Write(read_buffer, bytesRead);
@@ -290,8 +290,8 @@ namespace ThePlague.OpenSSL.SSL
                                 // Start the renegotiation by writing the write_bio data, and use the RenegotiationWriteCallback
                                 // to handle the rest of the renegotiation
                                 var buf = write_bio.ReadBytes((int)write_bio.BytesPending);
-                                await innerStream.WriteAsync(buf.Array, 0, buf.Count, cancellationToken);
-                                return await this.ReadAsync(buffer, offset, count, cancellationToken);
+                                await innerStream.WriteAsync(buf.Array, 0, buf.Count, cancellationToken).ConfigureAwait(false);
+                                return await this.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
                             }
                             // no data in the out bio, we just need more data to complete the record
                             //break;
@@ -328,12 +328,12 @@ namespace ThePlague.OpenSSL.SSL
                 // Check to see if we have data to return, if not, fire the async read again
                 if (!haveDataToReturn)
                 {
-                    return await this.ReadAsync(buffer, offset, count, cancellationToken);
+                    return await this.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
                     // Read the data into the buffer provided by the user (now hosted in the InternalAsyncResult)
-                    return await cleartext.ReadAsync(buffer, offset, count, cancellationToken);
+                    return await cleartext.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
                 }
             }
 
@@ -375,7 +375,7 @@ namespace ThePlague.OpenSSL.SSL
             if (NeedHandshake)
             {
                 // Start the handshake
-                await HandShake(cancellationToken);
+                await HandShake(cancellationToken).ConfigureAwait(false);
             }
 
             // Only write to the SSL object if we have data
@@ -399,7 +399,7 @@ namespace ThePlague.OpenSSL.SSL
                 var buf = write_bio.ReadBytes((int)bytesPending);
                 if (buf.Count > 0)
                 {
-                    await innerStream.WriteAsync(buf.Array, 0, buf.Count, cancellationToken);
+                    await innerStream.WriteAsync(buf.Array, 0, buf.Count, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -420,7 +420,7 @@ namespace ThePlague.OpenSSL.SSL
                 //!! if (readwriteAsyncResult.IsWriteOperation)
                 if (write_bio.BytesPending > 0)
                 {
-                    await this.WriteAsync(new byte[0], 0, 0, cancellationToken);
+                    await this.WriteAsync(new byte[0], 0, 0, cancellationToken).ConfigureAwait(false);
 
                     if (handShakeState == HandshakeState.Complete)
                         return;
@@ -432,12 +432,12 @@ namespace ThePlague.OpenSSL.SSL
                         throw new AggregateException(handshakeException);
 
                     // We wrote out the handshake data, now read to get the response
-                    await this.ReadAsync(new byte[0], 0, 0, cancellationToken);
-                    await this.HandShake(cancellationToken);
+                    await this.ReadAsync(new byte[0], 0, 0, cancellationToken).ConfigureAwait(false);
+                    await this.HandShake(cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    bytesRead = await this.ReadAsync(new byte[0], 0, 0, cancellationToken);
+                    bytesRead = await this.ReadAsync(new byte[0], 0, 0, cancellationToken).ConfigureAwait(false);
 
                     if (bytesRead > 0)
                     {
@@ -448,8 +448,8 @@ namespace ThePlague.OpenSSL.SSL
                             // last response packet.
                             if (write_bio.BytesPending > 0)
                             {
-                                await this.WriteAsync(new byte[0], 0, 0, cancellationToken);
-                                await this.HandShake(cancellationToken);
+                                await this.WriteAsync(new byte[0], 0, 0, cancellationToken).ConfigureAwait(false);
+                                await this.HandShake(cancellationToken).ConfigureAwait(false);
                             }
                             else
                                 return;
@@ -457,8 +457,8 @@ namespace ThePlague.OpenSSL.SSL
                         else
                         {
                             // Not complete with the handshake yet, write the handshake packet out
-                            await this.WriteAsync(new byte[0], 0, 0, cancellationToken);
-                            await this.HandShake(cancellationToken);
+                            await this.WriteAsync(new byte[0], 0, 0, cancellationToken).ConfigureAwait(false);
+                            await this.HandShake(cancellationToken).ConfigureAwait(false);
                         }
                     }
                     else
