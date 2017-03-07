@@ -27,7 +27,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	/// <summary>
 	/// Exposes the RAND_* functions.

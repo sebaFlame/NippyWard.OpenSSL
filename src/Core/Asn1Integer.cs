@@ -25,7 +25,7 @@
 
 using System;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	class Asn1Integer : Base
 	{

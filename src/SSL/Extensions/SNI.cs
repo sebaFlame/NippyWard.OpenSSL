@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-using ThePlague.OpenSSL.Core;
-using ThePlague.OpenSSL.SSL;
+using OpenSSL.Core.Core;
+using OpenSSL.Core.SSL;
 using ThePlague.Log;
 
-namespace ThePlague.OpenSSL.Extensions
+namespace OpenSSL.Core.Extensions
 {
 	/// <summary>
 	/// Sni callback.

@@ -23,7 +23,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using ThePlague.OpenSSL.X509;
+using OpenSSL.Core.X509;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -31,7 +31,7 @@ using System.Net.Security;
 using System.Threading.Tasks;
 using System.Threading;
 
-namespace ThePlague.OpenSSL.SSL
+namespace OpenSSL.Core.SSL
 {
 	/// <summary>
 	///

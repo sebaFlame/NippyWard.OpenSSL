@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace ThePlague.OpenSSL
+namespace OpenSSL.Core
 {
 	/// <summary>
 	/// Enum extensions.

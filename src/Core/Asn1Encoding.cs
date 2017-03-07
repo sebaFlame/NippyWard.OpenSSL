@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace ThePlague.OpenSSL
+namespace OpenSSL.Core
 {
 
 	[StructLayout(LayoutKind.Sequential)]

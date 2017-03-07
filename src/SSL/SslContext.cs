@@ -23,15 +23,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using ThePlague.OpenSSL.Core;
-using ThePlague.OpenSSL.Crypto;
-using ThePlague.OpenSSL.X509;
+using OpenSSL.Core.Core;
+using OpenSSL.Core.Crypto;
+using OpenSSL.Core.X509;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using ThePlague.OpenSSL.Extensions;
+using OpenSSL.Core.Extensions;
 
-namespace ThePlague.OpenSSL.SSL
+namespace OpenSSL.Core.SSL
 {
 	internal delegate int ClientCertCallbackHandler(
 		Ssl ssl,

@@ -1,7 +1,7 @@
 ﻿// Copyright © Microsoft Open Technologies, Inc.
 // All Rights Reserved
 
-namespace ThePlague.OpenSSL
+namespace OpenSSL.Core
 {
     /// <summary>
     ///

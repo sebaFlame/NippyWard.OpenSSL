@@ -23,10 +23,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using ThePlague.OpenSSL.Core;
+using OpenSSL.Core.Core;
 using System;
 
-namespace ThePlague.OpenSSL.Crypto.EC
+namespace OpenSSL.Core.Crypto.EC
 {
 	/// <summary>
 	///

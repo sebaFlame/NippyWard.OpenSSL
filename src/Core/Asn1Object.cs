@@ -25,7 +25,7 @@
 
 using System.Runtime.InteropServices;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	/// <summary>
 	/// Asn1 object.

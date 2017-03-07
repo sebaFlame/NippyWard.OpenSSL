@@ -31,7 +31,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	/// <summary>
 	///

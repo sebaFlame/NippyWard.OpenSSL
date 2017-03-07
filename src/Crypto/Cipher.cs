@@ -23,13 +23,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using ThePlague.OpenSSL.Core;
+using OpenSSL.Core.Core;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace ThePlague.OpenSSL.Crypto
+namespace OpenSSL.Core.Crypto
 {
 	#region Cipher
 	/// <summary>
