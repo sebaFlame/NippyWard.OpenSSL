@@ -5,4 +5,4 @@
 dotnet build
 dotnet pack
 //with nuget >= 3.3
-nuget add NCurses.version.nupkg -source $HOME/.nuget/packages
+nuget add OpenSSL.version.nupkg -expand -source $HOME/.nuget/packages
