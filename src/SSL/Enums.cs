@@ -25,7 +25,7 @@
 
 using System;
 
-namespace ThePlague.OpenSSL.SSL
+namespace OpenSSL.Core.SSL
 {
 	/// <summary>
 	///

@@ -27,7 +27,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	/// <summary>
 	/// This is a struct that contains a uint for the native openssl error code.

@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using ThePlague.Log;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	/// <summary>
 	///

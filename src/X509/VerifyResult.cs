@@ -24,7 +24,7 @@
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-namespace ThePlague.OpenSSL.X509
+namespace OpenSSL.Core.X509
 {
 	/// <summary>
 	/// X509_V_*

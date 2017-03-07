@@ -3,7 +3,7 @@ using System.Threading;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	/// <summary>
 	/// Threading.

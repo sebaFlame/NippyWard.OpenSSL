@@ -28,7 +28,7 @@ using System.Reflection;
 using ThePlague.Log;
 using System.Runtime.InteropServices;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	/// <summary>
 	/// Base class for all openssl wrapped objects.

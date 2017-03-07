@@ -26,7 +26,7 @@
 using System;
 using System.Globalization;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	class Asn1DateTime : Base
 	{

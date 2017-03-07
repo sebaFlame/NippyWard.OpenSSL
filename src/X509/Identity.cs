@@ -23,9 +23,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using ThePlague.OpenSSL.Crypto;
+using OpenSSL.Core.Crypto;
 
-namespace ThePlague.OpenSSL.X509
+namespace OpenSSL.Core.X509
 {
 	/// <summary>
 	/// Simple encapsulation of a local identity.

@@ -1,7 +1,7 @@
 ﻿// Copyright © Microsoft Open Technologies, Inc.
 // All Rights Reserved
 
-namespace ThePlague.OpenSSL.SSL
+namespace OpenSSL.Core.SSL
 {
     internal enum Errors : int
     {

@@ -25,7 +25,7 @@
 
 using System.Text;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	/// <summary>
 	/// Contains the set of elements that make up a Version.

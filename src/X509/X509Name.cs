@@ -23,12 +23,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using ThePlague.OpenSSL.Core;
-using ThePlague.OpenSSL.Crypto;
+using OpenSSL.Core.Core;
+using OpenSSL.Core.Crypto;
 using System;
 using System.Text;
 
-namespace ThePlague.OpenSSL.X509
+namespace OpenSSL.Core.X509
 {
 	/// <summary>
 	/// Encapsulates the X509_NAME_* functions

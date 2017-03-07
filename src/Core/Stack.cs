@@ -28,7 +28,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	/// <summary>
 	/// The Stack class can only contain objects marked with this interface.

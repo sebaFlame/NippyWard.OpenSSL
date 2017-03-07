@@ -26,7 +26,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	/// <summary>
 	/// Wraps ASN1_STRING_*

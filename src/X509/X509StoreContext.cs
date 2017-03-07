@@ -23,11 +23,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using ThePlague.OpenSSL.Core;
+using OpenSSL.Core.Core;
 using System;
 using System.Runtime.InteropServices;
 
-namespace ThePlague.OpenSSL.X509
+namespace OpenSSL.Core.X509
 {
 	/// <summary>
 	/// Wraps the X509_STORE_CTX object

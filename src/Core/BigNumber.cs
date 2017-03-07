@@ -26,7 +26,7 @@
 using System;
 using System.Text;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	/// <summary>
 	/// Wraps the BN_* set of functions.

@@ -28,7 +28,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using ThePlague.Log;
 
-namespace ThePlague.OpenSSL.Core
+namespace OpenSSL.Core.Core
 {
 	/// <summary>
 	/// Callback prototype. Must return the password or prompt for one.
