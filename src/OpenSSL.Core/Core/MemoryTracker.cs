@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using ThePlague.Log;
 
 namespace OpenSSL.Core.Core
 {
@@ -61,7 +60,7 @@ namespace OpenSSL.Core.Core
 				Type,
 				Size,
 				FreeCount,
-				StackTrace.GetFrame(0).GetMethod().Name,
+                StackTrace.GetFrames()[0].GetMethod().Name,
 				File,
 				Line
 			);
@@ -173,7 +172,7 @@ namespace OpenSSL.Core.Core
 							File = block.file,
 							Line = block.line,
 						};
-						Logger.WriteDebug(3, problem.ToString());
+						Debug.WriteLine(problem.ToString());
 						problems.Add(problem);
 					}
 				}
@@ -196,7 +195,7 @@ namespace OpenSSL.Core.Core
 				{
 					file = Native.StaticString(file),
 					line = line,
-					stack = new StackTrace(1, true),
+					stack = new StackTrace(null, true),
 					bytes = num,
 					ptr = Marshal.AllocHGlobal((int)num),
 				};
@@ -234,7 +233,7 @@ namespace OpenSSL.Core.Core
 
 				var block = new Block
 				{
-					stack = new StackTrace(1, true),
+					stack = new StackTrace(null, true),
 					file = Native.StaticString(file),
 					line = line,
 					bytes = num,

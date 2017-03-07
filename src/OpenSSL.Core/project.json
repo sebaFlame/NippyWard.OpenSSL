@@ -5,10 +5,17 @@
         "debugType": "portable"
     },
 
+    "dependencies": {
+        "OpenSSL": "1.0.2-k"
+    },
+
     "frameworks": {
         "netstandard1.6": {
             "dependencies": {
-                "NETStandard.Library": "1.6.0"
+                "NETStandard.Library": "1.6.0",
+                "System.Diagnostics.StackTrace": "4.0.2",
+                "System.Net.Security": "4.0.0",
+                "System.Threading.Thread":  "4.0.0"
             }
         }
     }

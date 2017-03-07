@@ -80,7 +80,7 @@ namespace OpenSSL.Core.X509
 				int serial = 1;
 				if (serialFile.Exists)
 				{
-					using (StreamReader sr = new StreamReader(serialFile.FullName))
+					using (StreamReader sr = new StreamReader(serialFile.OpenRead()))
 					{
 						string text = sr.ReadToEnd();
 						serial = Convert.ToInt32(text);
@@ -88,7 +88,7 @@ namespace OpenSSL.Core.X509
 					}
 				}
 
-				using (StreamWriter sr = new StreamWriter(serialFile.FullName))
+				using (StreamWriter sr = new StreamWriter(serialFile.OpenWrite()))
 				{
 					sr.Write(serial.ToString());
 				}

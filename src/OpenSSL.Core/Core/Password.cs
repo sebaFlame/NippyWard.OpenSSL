@@ -26,7 +26,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-using ThePlague.Log;
+using System.Diagnostics;
 
 namespace OpenSSL.Core.Core
 {
@@ -103,7 +103,7 @@ namespace OpenSSL.Core.Core
 			}
 			catch (Exception ex)
 			{
-				Logger.WriteError(ex);
+				Debug.WriteLine(ex.Message);
 				return -1;
 			}
 

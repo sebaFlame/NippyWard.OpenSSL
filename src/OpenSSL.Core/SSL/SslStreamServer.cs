@@ -28,6 +28,7 @@ using OpenSSL.Core.X509;
 using System;
 using System.IO;
 using System.Text;
+using System.Reflection;
 using OpenSSL.Core;
 using System.Threading.Tasks;
 
@@ -190,7 +191,7 @@ namespace OpenSSL.Core.SSL
 			// Set the private key
 			sslContext.UsePrivateKey(serverCertificate.PrivateKey);
 			// Set the session id context
-			sslContext.SetSessionIdContext(Encoding.ASCII.GetBytes(AppDomain.CurrentDomain.FriendlyName));
+			sslContext.SetSessionIdContext(Encoding.ASCII.GetBytes(Assembly.GetEntryAssembly().FullName));
 		}
 	}
 }

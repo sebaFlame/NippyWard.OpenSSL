@@ -99,8 +99,8 @@ namespace OpenSSL.Core.Core
 		/// This is the name of the DLL that P/Invoke loads and tries to bind all of
 		/// these native functions to.
 		/// </summary>
-		const string DLLNAME = "libeay32";
-		const string SSLDLLNAME = "ssleay32";
+		const string DLLNAME = "libcrypto";
+		const string SSLDLLNAME = "libssl";
 
 		#region Delegates
 
@@ -243,7 +243,7 @@ namespace OpenSSL.Core.Core
 		/// <returns></returns>
 		public static IntPtr OPENSSL_malloc(int cbSize)
 		{
-			return CRYPTO_malloc(cbSize, Assembly.GetExecutingAssembly().FullName, 0);
+			return CRYPTO_malloc(cbSize, Assembly.GetEntryAssembly().FullName, 0);
 		}
 
 		/// <summary>

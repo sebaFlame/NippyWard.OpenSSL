@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using OpenSSL.Core.Core;
 using OpenSSL.Core.SSL;
-using ThePlague.Log;
+using System.Diagnostics;
 
 namespace OpenSSL.Core.Extensions
 {
@@ -78,13 +78,13 @@ namespace OpenSSL.Core.Extensions
 				var isReused = SSL_session_reused(ssl) != 0;
 				var clientSniArgAck = !isReused && hnptr != IntPtr.Zero;
 #if DEBUG
-				Logger.WriteDebug(3, string.Format("Servername ack is {0}", clientSniArgAck));
+                Debug.WriteLine(string.Format("Servername ack is {0}", clientSniArgAck));
 #endif
 			}
 			else
 			{
 #if DEBUG
-				Logger.WriteError("Can't use SSL_get_servername");
+                Debug.WriteLine("Can't use SSL_get_servername");
 #endif
                 hnptr = IntPtr.Zero;
 				throw new Exception("Cant use servername extension");
@@ -103,7 +103,7 @@ namespace OpenSSL.Core.Extensions
 			if (!_serverName.Equals(extServerName))
 			{
 #if DEBUG
-				Logger.WriteError("Server names are not equal");
+                Debug.WriteLine("Server names are not equal");
 #endif
                 extServerNamePtr = IntPtr.Zero;
 				throw new Exception("Server names are not equal");

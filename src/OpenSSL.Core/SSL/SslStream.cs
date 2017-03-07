@@ -317,14 +317,6 @@ namespace OpenSSL.Core.SSL
             await sslStream.WriteAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
         }
 
-        public override void Close()
-        {
-            base.Close();
-            if (sslStream != null)
-            {
-                sslStream.Close();
-            }
-        }
         #endregion
 
         #region Properties

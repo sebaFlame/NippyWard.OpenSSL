@@ -25,7 +25,7 @@
 
 using System;
 using System.Reflection;
-using ThePlague.Log;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace OpenSSL.Core.Core
@@ -197,9 +197,9 @@ namespace OpenSSL.Core.Core
 		public void PrintRefCount()
 		{
 			var count = Marshal.ReadInt32(refPtr);
-			Logger.WriteDebug(3, string.Format("{0} ptr: {1}, ref_count: {2}",
-				this.GetType().Name, this.ptr, count
-			));
+            Debug.WriteLine(string.Format("{0} ptr: {1}, ref_count: {2}",
+                this.GetType().Name, this.ptr, count
+            ));
 		}
 
 		/// <summary>
