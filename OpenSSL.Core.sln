@@ -14,6 +14,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{86056B93-5
 EndProject
 Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "OpenSSL.Core", "src\OpenSSL.Core\OpenSSL.Core.xproj", "{3C43E9DD-033F-42BD-8F76-BCB7272EBBDD}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "OpenSSL", "OpenSSL", "{56F3041D-A465-4B29-8B8C-2A7085DB7D13}"
+	ProjectSection(SolutionItems) = preProject
+		OpenSSL\project.json = OpenSSL\project.json
+	EndProjectSection
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "OpenSSL.Core.Tests", "test\OpenSSL.Core.Tests\OpenSSL.Core.Tests.xproj", "{45792643-02E9-49BB-9622-D6401DC2B045}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,11 +31,16 @@ Global
 		{3C43E9DD-033F-42BD-8F76-BCB7272EBBDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3C43E9DD-033F-42BD-8F76-BCB7272EBBDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3C43E9DD-033F-42BD-8F76-BCB7272EBBDD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{45792643-02E9-49BB-9622-D6401DC2B045}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45792643-02E9-49BB-9622-D6401DC2B045}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45792643-02E9-49BB-9622-D6401DC2B045}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45792643-02E9-49BB-9622-D6401DC2B045}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{3C43E9DD-033F-42BD-8F76-BCB7272EBBDD} = {CF69F85A-EE31-4C07-961D-59FD74D5164F}
+		{45792643-02E9-49BB-9622-D6401DC2B045} = {86056B93-52B4-454D-88AD-D87E5244CF01}
 	EndGlobalSection
 EndGlobal
