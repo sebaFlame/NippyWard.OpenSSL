@@ -19,13 +19,13 @@ namespace OpenSSL.Core.Core
 
         internal static Type CreateOpenSSLWrapper<T>(string dllName)
         {
-            if (typeof(T).GetTypeInfo().IsInterface)
+            if (!typeof(T).GetTypeInfo().IsInterface)
                 throw new InvalidOperationException("Only interfaces allowed");
 
             if (moduleBuilder == null)
                 createModuleBuilder();
 
-            TypeBuilder typeBuilder = moduleBuilder.DefineType("NCursesWrapper", TypeAttributes.Public);
+            TypeBuilder typeBuilder = moduleBuilder.DefineType(typeof(T).Name.TrimStart('I'), TypeAttributes.Public);
             typeBuilder.AddInterfaceImplementation(typeof(T));
 
             MethodInfo[] interfaceMethod = typeof(T).GetTypeInfo().GetMethods();
