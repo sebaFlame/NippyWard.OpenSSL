@@ -386,11 +386,11 @@ namespace OpenSSL.Core.Core
 
 		internal class GeneratorThunk
 		{
-			private Native.bn_gencb_st gencb = new Native.bn_gencb_st();
+			private bn_gencb_st gencb = new bn_gencb_st();
 			private GeneratorHandler OnGenerator;
 			private object arg;
 
-			public Native.bn_gencb_st CallbackStruct
+			public bn_gencb_st CallbackStruct
 			{
 				get { return gencb; }
 			}

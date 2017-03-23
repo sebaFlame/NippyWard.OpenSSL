@@ -20,8 +20,8 @@ namespace OpenSSL.Core.Core
 		private const int CRYPTO_LOCK = 1;
 
 		// These are used to pin the functions down so they don't get yanked while in use
-		static Native.CRYPTO_locking_callback _ptrOnLocking = OnLocking;
-		static Native.CRYPTO_id_callback _ptrOnThreadId = OnThreadId;
+		static CRYPTO_locking_callback _ptrOnLocking = OnLocking;
+		static CRYPTO_id_callback _ptrOnThreadId = OnThreadId;
 
 		private static List<object> lock_objects;
 		private static List<uint> _threadIDs;

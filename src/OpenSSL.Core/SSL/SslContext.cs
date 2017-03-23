@@ -158,7 +158,7 @@ namespace OpenSSL.Core.SSL
 		public void SetVerify(VerifyMode mode, RemoteCertificateValidationHandler callback)
 		{
 			OnVerifyCert = callback;
-			Native.SSL_CTX_set_verify(ptr, (int)mode, callback == null ? null : (Native.VerifyCertCallback)OnVerifyCertThunk);
+			Native.SSL_CTX_set_verify(ptr, (int)mode, callback == null ? null : (VerifyCertCallback)OnVerifyCertThunk);
 		}
 
 		/// <summary>
@@ -245,7 +245,7 @@ namespace OpenSSL.Core.SSL
 		public void SetClientCertCallback(ClientCertCallbackHandler callback)
 		{
 			OnClientCert = callback;
-			Native.SSL_CTX_set_client_cert_cb(ptr, callback == null ? null : (Native.client_cert_cb)OnClientCertThunk);
+			Native.SSL_CTX_set_client_cert_cb(ptr, callback == null ? null : (client_cert_cb)OnClientCertThunk);
 		}
 
 		#endregion

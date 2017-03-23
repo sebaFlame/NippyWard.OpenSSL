@@ -89,9 +89,9 @@ namespace OpenSSL.Core.Core
 		}
 
 		// These are used to pin the functions down so they don't get yanked while in use
-		static Native.MallocFunctionPtr _ptrMalloc = malloc;
-		static Native.ReallocFunctionPtr _ptrRealloc = realloc;
-		static Native.FreeFunctionPtr _ptrFree = free;
+		static MallocFunctionPtr _ptrMalloc = malloc;
+		static ReallocFunctionPtr _ptrRealloc = realloc;
+		static FreeFunctionPtr _ptrFree = free;
 
 		static bool _tracking = false;
 		static Dictionary<IntPtr, Block> _memory = new Dictionary<IntPtr, Block>();
