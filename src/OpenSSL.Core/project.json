@@ -15,7 +15,8 @@
                 "NETStandard.Library": "1.6.0",
                 "System.Diagnostics.StackTrace": "4.0.2",
                 "System.Net.Security": "4.0.0",
-                "System.Threading.Thread": "4.0.0"
+                "System.Threading.Thread": "4.0.0",
+                "System.Reflection.Emit": "4.0.1"
             }
         }
     }
