@@ -87,7 +87,7 @@ namespace OpenSSL.Core.X509
 
 		internal override void OnNewHandle(IntPtr ptr)
 		{
-			raw = (X509_INFO)Marshal.PtrToStructure(this.ptr, typeof(X509_INFO));
+			raw = Marshal.PtrToStructure<X509_INFO>(this.ptr);
 		}
 
 		protected override void OnDispose()

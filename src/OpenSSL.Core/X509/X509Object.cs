@@ -115,7 +115,7 @@ namespace OpenSSL.Core.X509
 
 		internal override void OnNewHandle(IntPtr ptr)
 		{
-			raw = (X509_OBJECT)Marshal.PtrToStructure(this.ptr, typeof(X509_OBJECT));
+			raw = Marshal.PtrToStructure<X509_OBJECT>(this.ptr);
 		}
 
 		#endregion

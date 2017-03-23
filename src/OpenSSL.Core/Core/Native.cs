@@ -2957,7 +2957,7 @@ namespace OpenSSL.Core.Core
 
 		private void OnObjectName(IntPtr ptr, IntPtr arg)
 		{
-			var name = (OBJ_NAME)Marshal.PtrToStructure(ptr, typeof(OBJ_NAME));
+			var name = Marshal.PtrToStructure<OBJ_NAME>(ptr);
 			var str = Native.PtrToStringAnsi(name.name, false);
 			list.Add(str);
 		}

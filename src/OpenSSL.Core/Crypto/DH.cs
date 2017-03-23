@@ -325,7 +325,7 @@ namespace OpenSSL.Core.Crypto
 		#region Properties
 		private dh_st Raw
 		{
-			get { return (dh_st)Marshal.PtrToStructure(ptr, typeof(dh_st)); }
+			get { return Marshal.PtrToStructure<dh_st>(ptr); }
 			set { Marshal.StructureToPtr(value, ptr, false); }
 		}
 

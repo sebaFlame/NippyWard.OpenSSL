@@ -68,7 +68,7 @@ namespace OpenSSL.Core.Crypto.EC
 		{
 			var count = Native.EC_get_builtin_curves(IntPtr.Zero, 0);
 			var curves = new BuiltinCurve[count];
-			var ptr = Native.OPENSSL_malloc(Marshal.SizeOf(typeof(EC_builtin_curve)) * count);
+			var ptr = Native.OPENSSL_malloc(Marshal.SizeOf<EC_builtin_curve>() * count);
 
 			try
 			{
@@ -77,9 +77,9 @@ namespace OpenSSL.Core.Crypto.EC
 
 				for (var i = 0; i < count; i++)
 				{
-					var raw = (EC_builtin_curve)Marshal.PtrToStructure(pItem, typeof(EC_builtin_curve));
+					var raw = Marshal.PtrToStructure<EC_builtin_curve>(pItem);
 					curves[i] = new BuiltinCurve(raw.nid, raw.comment);
-					pItem = new IntPtr(pItem.ToInt64() + Marshal.SizeOf(typeof(EC_builtin_curve)));
+					pItem = new IntPtr(pItem.ToInt64() + Marshal.SizeOf<EC_builtin_curve>());
 				}
 			}
 			finally

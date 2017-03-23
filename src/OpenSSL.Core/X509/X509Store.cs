@@ -112,7 +112,7 @@ namespace OpenSSL.Core.X509
 		{
 			get
 			{
-				var raw = (X509_STORE)Marshal.PtrToStructure(ptr, typeof(X509_STORE));
+				var raw = Marshal.PtrToStructure<X509_STORE>(ptr);
 				return new Core.Stack<X509Object>(raw.objs, false);
 			}
 		}

@@ -41,7 +41,7 @@ namespace OpenSSL.Core.Crypto
 		internal Cipher(IntPtr ptr, bool owner)
 			: base(ptr, owner)
 		{
-			raw = (EVP_CIPHER)Marshal.PtrToStructure(this.ptr, typeof(EVP_CIPHER));
+			raw = Marshal.PtrToStructure<EVP_CIPHER>(this.ptr);
 		}
 
 		/// <summary>
@@ -544,7 +544,7 @@ namespace OpenSSL.Core.Crypto
 		/// </summary>
 		/// <param name="cipher"></param>
 		public CipherContext(Cipher cipher)
-			: base(Native.OPENSSL_malloc(Marshal.SizeOf(typeof(EVP_CIPHER_CTX))), true)
+			: base(Native.OPENSSL_malloc(Marshal.SizeOf<EVP_CIPHER_CTX>()), true)
 		{
 			Native.EVP_CIPHER_CTX_init(ptr);
 			this.cipher = cipher;
@@ -861,7 +861,7 @@ namespace OpenSSL.Core.Crypto
 
 		private EVP_CIPHER_CTX Raw
 		{
-			get { return (EVP_CIPHER_CTX)Marshal.PtrToStructure(ptr, typeof(EVP_CIPHER_CTX)); }
+			get { return Marshal.PtrToStructure<EVP_CIPHER_CTX>(ptr); }
 			set { Marshal.StructureToPtr(value, ptr, false); }
 		}
 		#endregion

@@ -179,7 +179,7 @@ namespace OpenSSL.Core.Crypto
 		#region Properties
 		private rsa_st Raw
 		{
-			get { return (rsa_st)Marshal.PtrToStructure(ptr, typeof(rsa_st)); }
+			get { return Marshal.PtrToStructure<rsa_st>(ptr); }
 			set { Marshal.StructureToPtr(value, ptr, false); }
 		}
 

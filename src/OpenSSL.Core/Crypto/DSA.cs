@@ -190,7 +190,7 @@ namespace OpenSSL.Core.Crypto
 		#region Properties
 		private dsa_st Raw
 		{
-			get { return (dsa_st)Marshal.PtrToStructure(ptr, typeof(dsa_st)); }
+			get { return Marshal.PtrToStructure<dsa_st>(ptr); }
 			set { Marshal.StructureToPtr(value, ptr, false); }
 		}
 

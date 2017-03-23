@@ -57,7 +57,7 @@ namespace OpenSSL.Core.X509
 		/// Calls OPENSSL_malloc()
 		/// </summary>
 		private X509V3Context()
-			: base(Native.OPENSSL_malloc(Marshal.SizeOf(typeof(X509V3_CTX))), true)
+			: base(Native.OPENSSL_malloc(Marshal.SizeOf<X509V3_CTX>()), true)
 		{ }
 
 		/// <summary>
@@ -87,7 +87,7 @@ namespace OpenSSL.Core.X509
 		/// </summary>
 		public void SetNoDB()
 		{
-			var db_offset = (int)Marshal.OffsetOf(typeof(X509V3_CTX), "db");
+			var db_offset = (int)Marshal.OffsetOf<X509V3_CTX>("db");
 			var db_param = new IntPtr((int)ptr + db_offset);
 			Marshal.WriteIntPtr(db_param, IntPtr.Zero);
 		}

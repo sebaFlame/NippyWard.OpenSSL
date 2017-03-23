@@ -73,7 +73,7 @@ namespace OpenSSL.Core.Core
 
 		private static void RemoveState(uint threadId)
 		{
-			var ptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(CRYPTO_THREADID)));
+			var ptr = Marshal.AllocHGlobal(Marshal.SizeOf<CRYPTO_THREADID>());
 			Native.CRYPTO_THREADID_set_numeric(ptr, threadId);
 			Native.ERR_remove_thread_state(ptr);
 			Marshal.FreeHGlobal(ptr);

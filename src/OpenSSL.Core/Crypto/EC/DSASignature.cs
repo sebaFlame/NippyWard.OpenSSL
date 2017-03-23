@@ -59,7 +59,7 @@ namespace OpenSSL.Core.Crypto.EC
 		#region Properties
 		private ECDSA_SIG_st Raw
 		{
-			get { return (ECDSA_SIG_st)Marshal.PtrToStructure(ptr, typeof(ECDSA_SIG_st)); }
+			get { return Marshal.PtrToStructure<ECDSA_SIG_st>(ptr); }
 			set { Marshal.StructureToPtr(value, ptr, false); }
 		}
 

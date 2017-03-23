@@ -238,7 +238,7 @@ namespace OpenSSL.Core.Crypto
 
 		private EVP_PKEY Raw
 		{
-			get { return (EVP_PKEY)Marshal.PtrToStructure(ptr, typeof(EVP_PKEY)); }
+			get { return Marshal.PtrToStructure<EVP_PKEY>(ptr); }
 		}
 
 		/// <summary>

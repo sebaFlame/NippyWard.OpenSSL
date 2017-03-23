@@ -56,7 +56,7 @@ namespace OpenSSL.Core.Crypto
 		public HMAC()
 			: base(IntPtr.Zero, true) {
 			// Allocate the context
-			ptr = Native.OPENSSL_malloc(Marshal.SizeOf(typeof(HMAC_CTX)));
+			ptr = Native.OPENSSL_malloc(Marshal.SizeOf<HMAC_CTX>());
 
 			// Initialize the context
 			Native.HMAC_CTX_init(ptr);

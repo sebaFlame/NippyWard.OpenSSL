@@ -265,9 +265,9 @@ namespace OpenSSL.Core.Core
 			///
 			/// </summary>
 			public Method()
-				: base(Marshal.AllocHGlobal(Marshal.SizeOf(typeof(rand_meth_st))), true)
+				: base(Marshal.AllocHGlobal(Marshal.SizeOf<rand_meth_st>()), true)
 			{
-				rand_meth_st raw = (rand_meth_st)Marshal.PtrToStructure(original, typeof(rand_meth_st));
+				rand_meth_st raw = Marshal.PtrToStructure<rand_meth_st>(original);
 				this.raw.add = raw.add;
 				this.raw.bytes = raw.bytes;
 				this.raw.seed = raw.seed;

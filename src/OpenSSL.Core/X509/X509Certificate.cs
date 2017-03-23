@@ -257,17 +257,17 @@ namespace OpenSSL.Core.X509
 
 		private X509 Raw
 		{
-			get { return (X509)Marshal.PtrToStructure(ptr, typeof(X509)); }
+			get { return Marshal.PtrToStructure<X509>(ptr); }
 		}
 
 		private X509_CINF RawCertInfo
 		{
-			get { return (X509_CINF)Marshal.PtrToStructure(Raw.cert_info, typeof(X509_CINF)); }
+			get { return Marshal.PtrToStructure<X509_CINF>(Raw.cert_info); }
 		}
 
 		private X509_VAL RawValidity
 		{
-			get { return (X509_VAL)Marshal.PtrToStructure(RawCertInfo.validity, typeof(X509_VAL)); }
+			get { return Marshal.PtrToStructure<X509_VAL>(RawCertInfo.validity); }
 		}
 
 		/// <summary>

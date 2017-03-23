@@ -159,13 +159,13 @@ namespace OpenSSL.Core.X509
 
 		private Core.Stack<X509Certificate> GetStackFromSigned()
 		{
-			var signed = (PKCS7_SIGNED)Marshal.PtrToStructure(raw.ptr, typeof(PKCS7_SIGNED));
+			var signed = Marshal.PtrToStructure<PKCS7_SIGNED>(raw.ptr);
 			return new Core.Stack<X509Certificate>(signed.cert, false);
 		}
 
 		private Core.Stack<X509Certificate> GetStackFromSignedAndEnveloped()
 		{
-			var envelope = (PKCS7_SIGN_ENVELOPE)Marshal.PtrToStructure(raw.ptr, typeof(PKCS7_SIGN_ENVELOPE));
+			var envelope =Marshal.PtrToStructure<PKCS7_SIGN_ENVELOPE>(raw.ptr);
 			return new Core.Stack<X509Certificate>(envelope.cert, false);
 		}
 
@@ -183,7 +183,7 @@ namespace OpenSSL.Core.X509
 
 		internal override void OnNewHandle(IntPtr ptr)
 		{
-			raw = (_PKCS7)Marshal.PtrToStructure(ptr, typeof(_PKCS7));
+			raw = Marshal.PtrToStructure<_PKCS7>(ptr);
 		}
 
 		#endregion

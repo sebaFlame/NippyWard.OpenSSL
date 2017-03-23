@@ -122,12 +122,12 @@ namespace OpenSSL.Core.X509
 
 		private X509_REQ Raw
 		{
-			get { return (X509_REQ)Marshal.PtrToStructure(ptr, typeof(X509_REQ)); }
+			get { return Marshal.PtrToStructure<X509_REQ>(ptr); }
 		}
 
 		private X509_REQ_INFO RawInfo
 		{
-			get { return (X509_REQ_INFO)Marshal.PtrToStructure(Raw.req_info, typeof(X509_REQ_INFO)); }
+			get { return Marshal.PtrToStructure<X509_REQ_INFO>(Raw.req_info); }
 		}
 
 		/// <summary>
