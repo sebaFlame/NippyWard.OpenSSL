@@ -105,7 +105,7 @@ namespace OpenSSL.Core.Core
 	/// <summary>
 	/// Exception class to provide OpenSSL specific information when errors occur.
 	/// </summary>
-	public class OpenSslException : Exception
+	public class OpenSslException : System.IO.IOException
 	{
 		private List<OpenSslError> errors = new List<OpenSslError>();
 
