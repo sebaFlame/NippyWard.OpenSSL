@@ -4,9 +4,10 @@
     <Description>A toolkit implementing SSL v2/v3 and TLS protocols with full-strength cryptography world-wide.</Description>
     <VersionPrefix>1.0.2-k</VersionPrefix>
     <TargetFramework>netstandard1.0</TargetFramework>
-    <AssemblyName>OpenSSL</AssemblyName>
-    <PackageId>OpenSSL</PackageId>
+    <PackageId>runtime.win.OpenSSL</PackageId>
     <PackageTags>openssl;cryptography</PackageTags>
+	<IncludeBuildOutput>false</IncludeBuildOutput>
+	<RuntimeIdentifiers>win7-x86;win7-x64;win8-x86;win8-x64;win81-x86;win81-x64;win10-x86;win10-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>

@@ -9,9 +9,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{CF69F85A-EE3
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{86056B93-52B4-454D-88AD-D87E5244CF01}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "OpenSSL", "OpenSSL", "{56F3041D-A465-4B29-8B8C-2A7085DB7D13}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "runtime.win.OpenSSL", "runtime.win.OpenSSL", "{56F3041D-A465-4B29-8B8C-2A7085DB7D13}"
 	ProjectSection(SolutionItems) = preProject
-		OpenSSL\OpenSSL.csproj = OpenSSL\OpenSSL.csproj
+		runtime.win.OpenSSL\runtime.win.OpenSSL.csproj = runtime.win.OpenSSL\runtime.win.OpenSSL.csproj
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenSSL.Core", "src\OpenSSL.Core\OpenSSL.Core.csproj", "{3C43E9DD-033F-42BD-8F76-BCB7272EBBDD}"
