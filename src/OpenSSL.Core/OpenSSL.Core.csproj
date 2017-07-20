@@ -7,7 +7,7 @@
     <PackageId>OpenSSL.Core</PackageId>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == '' OR $([System.String]::Copy('$(RuntimeIdentifier)').ToLower().Contains('win'))">
     <PackageReference Include="runtime.win.OpenSSL" Version="1.0.2-k" />
   </ItemGroup>
 
