@@ -3642,6 +3642,11 @@ namespace OpenSSL.Core.Core
             return SSLWrapper.SSLv23_client_method();
         }
 
+        public static IntPtr TLS_client_method()
+        {
+            return SSLWrapper.TLS_client_method();
+        }
+
         public static IntPtr TLSv1_method()
         {
             return SSLWrapper.TLSv1_method();

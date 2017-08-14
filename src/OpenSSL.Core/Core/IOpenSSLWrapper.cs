@@ -653,6 +653,7 @@ namespace OpenSSL.Core.Core
         IntPtr SSLv23_method();
         IntPtr SSLv23_server_method();
         IntPtr SSLv23_client_method();
+        IntPtr TLS_client_method();
         IntPtr TLSv1_method();
         IntPtr TLSv1_client_method();
         IntPtr TLSv1_server_method();
