@@ -135,15 +135,15 @@ namespace OpenSSL.Core.Core
             }
             else
             {
-                DLLNAME = "libcrypto";
-                SSLDLLNAME = "libssl";
+                DLLNAME = "libcrypto.so.1.0.0";
+                SSLDLLNAME = "libssl.so.1.0.0";
             }
 
             var lib = Version.Library;
             var wrapper = Version.Wrapper;
-            if (lib.Raw < wrapper.Raw)
-                throw new Exception(string.Format("Invalid version of {0}, expecting {1}, got: {2}",
-                    DLLNAME, wrapper, lib));
+            //if (lib.Raw < wrapper.Raw)
+            //    throw new Exception(string.Format("Invalid version of {0}, expecting {1}, got: {2}",
+            //        DLLNAME, wrapper, lib));
 
 #if MEMORY_TRACKER
 			MemoryTracker.Init();
@@ -3640,11 +3640,6 @@ namespace OpenSSL.Core.Core
         public static IntPtr SSLv23_client_method()
         {
             return SSLWrapper.SSLv23_client_method();
-        }
-
-        public static IntPtr TLS_client_method()
-        {
-            return SSLWrapper.TLS_client_method();
         }
 
         public static IntPtr TLSv1_method()
