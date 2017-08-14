@@ -71,10 +71,14 @@ namespace OpenSSL.Core.SSL
 			SslStrength sslStrength,
 			bool checkCertificateRevocation)
 		{
-			// Initialize the context with specified TLS version
-			sslContext = new SslContext(SslMethod.SSLv23_client_method, ConnectionEnd.Client);
 
-			var options = sslContext.Options;
+            // Initialize the context with specified TLS version
+            if (Core.Version.Library.Fix >= 2)
+                sslContext = new SslContext(SslMethod.SSLv23_client_method, ConnectionEnd.Client);
+            else
+                sslContext = new SslContext(SslMethod.TLS_client_method, ConnectionEnd.Client);
+
+            var options = sslContext.Options;
 
 			// Remove support for protocols not specified in the enabledSslProtocols
 			if (!EnumExtensions.HasFlag(enabledSslProtocols, SslProtocols.Ssl2))
