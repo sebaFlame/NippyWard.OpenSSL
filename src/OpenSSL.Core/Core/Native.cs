@@ -135,8 +135,8 @@ namespace OpenSSL.Core.Core
             }
             else
             {
-                DLLNAME = "libcrypto.so.1.0.0";
-                SSLDLLNAME = "libssl.so.1.0.0";
+                DLLNAME = "libcrypto.so.1.0.2";
+                SSLDLLNAME = "libssl.so.1.0.2";
             }
 
             var lib = Version.Library;
