@@ -61,6 +61,8 @@ namespace OpenSSL.Core.SSL
 
 		protected string srvName = "localhost";
 
+        private bool shutdowAlert = false;
+
         /// <summary>
         /// Override to implement client/server specific handshake processing
         /// </summary>
@@ -193,26 +195,26 @@ namespace OpenSSL.Core.SSL
 				return;
 
 			var nShutdownRet = ssl.Shutdown();
-			if (nShutdownRet == 0)
-			{
-				var nBytesToWrite = write_bio.BytesPending;
-				if (nBytesToWrite <= 0)
-				{
-					// unexpected error
-					//!!TODO log error
-					return;
-				}
-				var buf = write_bio.ReadBytes((int)nBytesToWrite);
-				if (buf.Count <= 0)
-				{
-					//!!TODO - log error
-				}
-				else
-				{
-					// Write the shutdown alert to the stream
-					innerStream.Write(buf.Array, 0, buf.Count);
-				}
-			}
+            if (nShutdownRet == 0)
+            {
+                var nBytesToWrite = write_bio.BytesPending;
+                if (nBytesToWrite <= 0)
+                {
+                    // unexpected error
+                    //!!TODO log error
+                    return;
+                }
+                var buf = write_bio.ReadBytes((int)nBytesToWrite);
+                if (buf.Count <= 0)
+                {
+                    //!!TODO - log error
+                }
+                else
+                {
+                    // Write the shutdown alert to the stream
+                    innerStream.Write(buf.Array, 0, buf.Count);
+                }
+            }
 		}
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
@@ -258,6 +260,9 @@ namespace OpenSSL.Core.SSL
                 // Process the pre-existing data
                 return await cleartext.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
             }
+
+            if (shutdowAlert)
+                return 0;
 
             bool haveDataToReturn = false;
             int bytesRead = 0;
@@ -305,6 +310,7 @@ namespace OpenSSL.Core.SSL
                         {
                             // Shutdown alert
                             SendShutdownAlert();
+                            shutdowAlert = true;
                             break;
                         }
                         else
