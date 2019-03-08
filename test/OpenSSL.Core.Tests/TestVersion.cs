@@ -1,12 +1,24 @@
-﻿using System;
-using Xunit;
-using OpenSSL.Core.Core;
-using Version = OpenSSL.Core.Core.Version;
+﻿using Xunit;
+using Xunit.Abstractions;
+
+using OpenSSL.Core.Interop;
+using Version = OpenSSL.Core.Interop.Version;
 
 namespace OpenSSL.Core.Tests
 {
-	public class TestVersion
+	public class TestVersion : TestBase
 	{
+        public TestVersion(ITestOutputHelper outputHelper)
+            : base(outputHelper) { }
+
+        [Fact]
+        public void CorrectVersion()
+        {
+            Version nativeVersion = Native.Version;
+            Version wrapperVersion = new Version(Native.WrapperVersion);
+            Assert.True(nativeVersion.Raw >= wrapperVersion.Raw);
+        }
+
 		[Fact]
 		public void Zero()
 		{
@@ -14,7 +26,7 @@ namespace OpenSSL.Core.Tests
 			Assert.Equal((uint)0, version.Major);
 			Assert.Equal((uint)0, version.Minor);
 			Assert.Equal((uint)0, version.Fix);
-			Assert.Equal(null, version.Patch);
+			Assert.Null(version.Patch);
 			Assert.Equal(Version.StatusType.Development, version.Status);
 			Assert.Equal((uint)0, version.Raw);
 			Assert.Equal("0.0.0 Development (0x00000000)", version.ToString());
@@ -40,7 +52,7 @@ namespace OpenSSL.Core.Tests
 			Assert.Equal((uint)1, version.Major);
 			Assert.Equal((uint)0, version.Minor);
 			Assert.Equal((uint)2, version.Fix);
-			Assert.Equal(null, version.Patch);
+			Assert.Null(version.Patch);
 			Assert.Equal(Version.StatusType.Release, version.Status);
 			Assert.Equal((uint)0x1000200f, version.Raw);
 			Assert.Equal("1.0.2 Release (0x1000200f)", version.ToString());

@@ -1,205 +1,85 @@
-﻿// Copyright (c) 2009 Frank Laub
-// All rights reserved.
-
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. The name of the author may not be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-// IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-// IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-// NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-// THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-using OpenSSL.Core.Core;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Text;
+
+using OpenSSL.Core.ASN1;
+using OpenSSL.Core.Interop;
+using OpenSSL.Core.Interop.SafeHandles;
+using OpenSSL.Core.Interop.SafeHandles.X509;
 
 namespace OpenSSL.Core.X509
 {
-	/// <summary>
-	/// Wraps the X509_EXTENSION object
-	/// </summary>
-	public class X509Extension : BaseValue, IStackable
-	{
-		#region Initialization
+    public class X509Extension : Base
+    {
+        internal SafeX509ExtensionHandle ExtensionHandle;
+        private X509ExtensionType extensionType;
 
-		/// <summary>
-		/// Calls X509_EXTENSION_new()
-		/// </summary>
-		public X509Extension()
-			: base(Native.ExpectNonNull(Native.X509_EXTENSION_new()), true)
-		{ }
+        public string Name => this.extensionType.LongName;
+        public bool Critical => this.CryptoWrapper.X509_EXTENSION_get_critical(this.ExtensionHandle) == 1;
 
-		internal X509Extension(IStack stack, IntPtr ptr)
-			: base(ptr, true)
-		{ }
+        string data;
+        public string Data => data ?? (data = this.CryptoWrapper.X509_EXTENSION_get_data(this.ExtensionHandle).Value);
 
-		/// <summary>
-		/// Calls X509V3_EXT_conf_nid()
-		/// </summary>
-		/// <param name="issuer"></param>
-		/// <param name="subject"></param>
-		/// <param name="name"></param>
-		/// <param name="critical"></param>
-		/// <param name="value"></param>
-		public X509Extension(X509Certificate issuer, X509Certificate subject, string name, bool critical, string value)
-			: base(IntPtr.Zero, true)
-		{
-			using (var ctx = new X509V3Context(issuer, subject, null))
-			{
-				ptr = Native.ExpectNonNull(Native.X509V3_EXT_conf_nid(IntPtr.Zero, ctx.Handle, Native.TextToNID(name), value));
-			}
-		}
+        internal X509Extension(SafeX509ExtensionHandle extensionHandle)
+            : base()
+        {
+            this.ExtensionHandle = extensionHandle;
+            this.extensionType = new X509ExtensionType(this.CryptoWrapper.X509_EXTENSION_get_object(this.ExtensionHandle));
+        }
 
-		#endregion
+        public X509Extension(string name, bool critical, string value)
+            : base()
+        {
+            this.extensionType = name;
+            this.ExtensionHandle = CreateHandle(this.extensionType, critical, value);
+        }
 
-		#region Properties
+        public X509Extension(X509ExtensionType type, bool critical, string value)
+            : base()
+        {
+            this.extensionType = type;
+            this.ExtensionHandle = CreateHandle(type, critical, value);
+        }
 
-		/// <summary>
-		/// Uses X509_EXTENSION_get_object() and OBJ_nid2ln()
-		/// </summary>
-		public string Name
-		{
-			get { return Native.StaticString(Native.OBJ_nid2ln(NID)); }
-		}
+        ~X509Extension()
+        {
+            this.Dispose();
+        }
 
-		/// <summary>
-		/// Uses X509_EXTENSION_get_object() and OBJ_obj2nid()
-		/// </summary>
-		public int NID
-		{
-			get
-			{
-				// Don't free the obj_ptr
-				var obj_ptr = Native.X509_EXTENSION_get_object(ptr);
+        //internal static SafeX509ExtensionHandle CreateHandle(X509ExtensionType type, bool critical, string value)
+        //{
+        //    SafeASN1OctetStringHandle stringHandle;
+        //    SafeX509ExtensionHandle extensionHandle = Native.CryptoWrapper.X509_EXTENSION_new();
+        //    using (stringHandle = Native.CryptoWrapper.ASN1_OCTET_STRING_new())
+        //    {
+        //        stringHandle.Value = value;
+        //        Native.CryptoWrapper.X509_EXTENSION_create_by_NID(ref extensionHandle, type.NID, critical ? 1 : 0, stringHandle);
+        //    }
+        //    return extensionHandle;
+        //}
 
-				if (obj_ptr != IntPtr.Zero)
-					return Native.OBJ_obj2nid(obj_ptr);
+        internal static SafeX509ExtensionHandle CreateHandle(X509ExtensionType type, bool critical, string value)
+        {
+            SafeASN1OctetStringHandle stringHandle = null;
+            if (!string.IsNullOrEmpty(value))
+            {
+                stringHandle = Native.CryptoWrapper.ASN1_OCTET_STRING_new();
+                stringHandle.Value = value;
 
-				return 0;
-			}
-		}
+            }
+            if (!(stringHandle is null))
+                return Native.CryptoWrapper.X509_EXTENSION_create_by_NID(IntPtr.Zero, type.NID, critical ? 1 : 0, stringHandle);
+            else
+                return Native.CryptoWrapper.X509_EXTENSION_create_by_NID(IntPtr.Zero, type.NID, critical ? 1 : 0, IntPtr.Zero);
+        }
 
-		/// <summary>
-		/// returns X509_EXTENSION_get_critical()
-		/// </summary>
-		public bool IsCritical
-		{
-			get
-			{
-				var nCritical = Native.X509_EXTENSION_get_critical(ptr);
-				return (nCritical == 1);
-			}
-		}
+        public override void Dispose()
+        {
+            if (!(this.ExtensionHandle is null) || !this.ExtensionHandle.IsInvalid)
+                this.ExtensionHandle.Dispose();
 
-		/// <summary>
-		/// Returns X509_EXTENSION_get_data()
-		/// </summary>
-		public byte[] Data
-		{
-			get
-			{
-				using (var str = new Asn1String(Native.X509_EXTENSION_get_data(ptr), false))
-				{
-					return str.Data;
-				}
-			}
-		}
-
-		#endregion
-
-		#region Overrides
-
-		/// <summary>
-		/// Calls X509_EXTENSION_free()
-		/// </summary>
-		protected override void OnDispose()
-		{
-			Native.X509_EXTENSION_free(ptr);
-		}
-
-		/// <summary>
-		/// Calls X509V3_EXT_print()
-		/// </summary>
-		/// <param name="bio"></param>
-		public override void Print(BIO bio)
-		{
-			Native.X509V3_EXT_print(bio.Handle, ptr, 0, 0);
-		}
-
-		/// <summary>
-		/// Calls X509_EXTENSION_dup()
-		/// </summary>
-		/// <returns></returns>
-		internal override IntPtr DuplicateHandle()
-		{
-			return Native.X509_EXTENSION_dup(ptr);
-		}
-
-		#endregion
-	}
-
-	/// <summary>
-	/// X509 Extension entry
-	/// </summary>
-	public class X509V3ExtensionValue
-	{
-		#region Initialization
-		/// <summary>
-		/// </summary>
-		/// <param name="name"></param>
-		/// <param name="critical"></param>
-		/// <param name="value"></param>
-		public X509V3ExtensionValue(string name, bool critical, string value)
-		{
-			this.name = name;
-			this.critical = critical;
-			this.value = value;
-		}
-		#endregion
-
-		#region Properties
-
-		/// <summary>
-		/// </summary>
-		public string Name
-		{
-			get { return name; }
-		}
-
-		/// <summary>
-		/// </summary>
-		public bool IsCritical
-		{
-			get { return critical; }
-		}
-
-		/// <summary>
-		/// </summary>
-		public string Value
-		{
-			get { return value; }
-		}
-
-		#endregion
-
-		#region Fields
-		private bool critical;
-		private string value;
-		private string name;
-		#endregion
-	}
+            if (!(this.extensionType is null))
+                this.extensionType.Dispose();
+        }
+    }
 }

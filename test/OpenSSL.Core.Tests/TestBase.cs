@@ -24,31 +24,46 @@
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+
 using Xunit;
-using OpenSSL.Core.Core;
-using System.Reflection;
-using System.IO;
-using OpenSSL.Core.X509;
+using Xunit.Abstractions;
+using OpenSSL.Core.Interop;
 
 namespace OpenSSL.Core.Tests
 {
 	public class TestBase : IDisposable
 	{
-		public TestBase()
-		{
-			MemoryTracker.Start();
-		}
+        protected readonly ITestOutputHelper OutputHelper;
+
+        protected TestBase(ITestOutputHelper outputHelper)
+        {
+            this.OutputHelper = outputHelper;
+            MemoryTracker.Start();
+        }
 
 		public virtual void Dispose()
 		{
-            //var errors = CryptoUtil.GetErrors();
-            //foreach (var err in errors)
-            //{
-            //	Console.WriteLine("ERROR: {0}", err);
-            //}
+            List<MemoryProblem> lstMemoryProblem = MemoryTracker.Finish();
+            foreach (var mem in lstMemoryProblem)
+            {
+                Debug.WriteLine("MEMORY: {0}", mem);
+                this.OutputHelper.WriteLine("MEMORY: {0}", mem);
+            }
 
-            Assert.True(MemoryTracker.Finish().Count == 0);
-//			CollectionAssert.IsEmpty(errors);
-		}
+            List<string> errors = OpenSslError.GetErrors();
+            foreach (var err in errors)
+            {
+                Debug.WriteLine("ERROR: {0}", err);
+                this.OutputHelper.WriteLine("ERROR: {0}", err);
+            }
+
+            Assert.Empty(errors);
+            //TODO: manually check output
+            //Assert.Empty(lstMemoryProblem);
+        }
 	}
 }

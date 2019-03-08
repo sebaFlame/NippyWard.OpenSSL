@@ -24,11 +24,14 @@
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
-using System.Collections.Generic;
 using System.Text;
-using OpenSSL;
-using OpenSSL.Core.Crypto;
+using System.Collections.Generic;
+
 using Xunit;
+using Xunit.Abstractions;
+
+using OpenSSL.Core.ASN1;
+using OpenSSL.Core.Digests;
 
 namespace OpenSSL.Core.Tests
 {
@@ -45,29 +48,55 @@ namespace OpenSSL.Core.Tests
 		};
 
 		const string bigret = "34-AA-97-3C-D4-C4-DA-A4-F6-1E-EB-2B-DB-AD-27-31-65-34-01-6F";
-		
-		[Fact]
-		public void TestCase()
-		{
-			using (MessageDigestContext ctx = new MessageDigestContext(MessageDigest.SHA1)) {
-				for (int i = 0; i < tests.Length; i++) {
-					byte[] msg = Encoding.ASCII.GetBytes(this.tests[i]);
-					byte[] ret = ctx.Digest(msg);
 
-					string str = BitConverter.ToString(ret);
-					Assert.Equal(results[i], str);
-				}
+        public TestSHA1(ITestOutputHelper outputHelper)
+            : base(outputHelper) { }
 
-				byte[] buf = Encoding.ASCII.GetBytes(new string('a', 1000));
-				ctx.Init();
-				for (int i = 0; i < 1000; i++) {
-					ctx.Update(buf);
-				}
+        [Fact]
+        public void TestDigestList()
+        {
+            HashSet<string> lstDigests = Digest.SupportedDigests;
+            Assert.NotNull(lstDigests);
+            Assert.NotEmpty(lstDigests);
+        }
 
-				byte[] retx = ctx.DigestFinal();
-				string strx = BitConverter.ToString(retx);
-				Assert.Equal(bigret, strx);
-			}
-		}
-	}
+        [Fact]
+        public void TestSingleUpdate()
+        {
+            Digest ctx;
+            for (int i = 0; i < tests.Length; i++)
+            {
+                byte[] msg, hash;
+                Span<byte> digest;
+                string res;
+                using (ctx = new Digest(DigestType.SHA1))
+                {
+                    msg = Encoding.ASCII.GetBytes(this.tests[i]);
+                    ctx.Update(new Span<byte>(msg));
+                    ctx.Finalize(out digest);
+
+                    hash = digest.ToArray();
+                    res = BitConverter.ToString(hash);
+                    Assert.Equal(results[i], res);
+                }
+            }
+        }
+
+        [Fact]
+        public void TestMultipleUpdate()
+        {
+            byte[] buf = Encoding.ASCII.GetBytes(new string('a', 1000));
+            using (Digest ctx = new Digest(DigestType.SHA1))
+            {
+                for (int i = 0; i < 1000; i++)
+                    ctx.Update(buf);
+
+                ctx.Finalize(out Span<byte> digest);
+
+                byte[] retx = digest.ToArray();
+                string strx = BitConverter.ToString(retx);
+                Assert.Equal(bigret, strx);
+            }
+        }
+    }
 }

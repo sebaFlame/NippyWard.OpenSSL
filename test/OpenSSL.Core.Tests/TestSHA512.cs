@@ -26,15 +26,18 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using OpenSSL;
-using OpenSSL.Core.Crypto;
+
 using Xunit;
+using Xunit.Abstractions;
+
+using OpenSSL.Core.ASN1;
+using OpenSSL.Core.Digests;
 
 namespace OpenSSL.Core.Tests
 {
 	public class TestSHA512 : TestBase
 	{
-		byte[][] app = {
+		private static byte[][] app = {
 			new byte[] {
 				0xdd,0xaf,0x35,0xa1,0x93,0x61,0x7a,0xba,
 				0xcc,0x41,0x73,0x49,0xae,0x20,0x41,0x31,
@@ -67,7 +70,7 @@ namespace OpenSSL.Core.Tests
 			},
 		};
 
-		byte[][] addenum = {
+        private static byte[][] addenum = {
 			new byte[] {
 				0xcb,0x00,0x75,0x3f,0x45,0xa3,0x5e,0x8b,
 				0xb5,0xa0,0x3d,0x69,0x9a,0xc6,0x50,0x07,
@@ -94,57 +97,82 @@ namespace OpenSSL.Core.Tests
 			},
 		};
 
-		[Fact]
-		public void TestCase()
-		{
-			using(MessageDigestContext ctx = new MessageDigestContext(MessageDigest.SHA512))
-				this.GenericTest("SHA-512", ctx, this.app, 288);
+        public static IEnumerable<object[]> GetDigestVerification =>
+            new List<object[]>
+            {
+                        new object[]{ DigestType.SHA512, app, 288 },
+                        new object[]{ DigestType.SHA384, addenum, 64 }
+            };
 
-			using (MessageDigestContext ctx = new MessageDigestContext(MessageDigest.SHA384))
-				this.GenericTest("SHA-384", ctx, this.addenum, 64);
-		}
+        public TestSHA512(ITestOutputHelper outputHelper)
+            : base(outputHelper) { }
 
-		private void GenericTest(string name, MessageDigestContext ctx, byte[][] results, int alen)
-		{
-			Console.WriteLine("Testing {0}", name);
+        [Theory]
+        [MemberData(nameof(GetDigestVerification))]
+        public void TestSingleUpdate(DigestType digestType, byte[][] results, int alen)
+        {
+            string str1, str2;
+            using (Digest ctx = new Digest(digestType))
+            {
+                ctx.Update(new Span<byte>(Encoding.ASCII.GetBytes("abc")));
+                ctx.Finalize(out Span<byte> digestSpan);
 
-			byte[] digest = ctx.Digest(Encoding.ASCII.GetBytes("abc"));
-			string str1 = BitConverter.ToString(digest);
-			string str2 = BitConverter.ToString(results[0]);
-			Assert.Equal(str2, str1);
+                byte[] digest = digestSpan.ToArray();
+                str1 = BitConverter.ToString(digest);
+                str2 = BitConverter.ToString(results[0]);
+            }
 
-			Console.Write(".");
+            Assert.Equal(str2, str1);
+        }
 
-			byte[] msg = Encoding.ASCII.GetBytes(
-				"abcdefgh" + "bcdefghi" + "cdefghij" + "defghijk" +
-				"efghijkl" + "fghijklm" + "ghijklmn" + "hijklmno" +
-				"ijklmnop" + "jklmnopq" + "klmnopqr" + "lmnopqrs" +
-				"mnopqrst" + "nopqrstu");
-			digest = ctx.Digest(msg);
-			str1 = BitConverter.ToString(digest);
-			str2 = BitConverter.ToString(results[1]);
-			Assert.Equal(str2, str1);
+        [Theory]
+        [MemberData(nameof(GetDigestVerification))]
+        public void TestSingleUpdate_2(DigestType digestType, byte[][] results, int alen)
+        {
+            string str1, str2;
+            using (Digest ctx = new Digest(digestType))
+            {
+                ctx.Update(new Span<byte>(Encoding.ASCII.GetBytes(
+                    "abcdefgh" + "bcdefghi" + "cdefghij" + "defghijk" +
+                    "efghijkl" + "fghijklm" + "ghijklmn" + "hijklmno" +
+                    "ijklmnop" + "jklmnopq" + "klmnopqr" + "lmnopqrs" +
+                    "mnopqrst" + "nopqrstu")));
+                ctx.Finalize(out Span<byte> digestSpan);
 
-			Console.Write(".");
+                byte[] digest = digestSpan.ToArray();
+                str1 = BitConverter.ToString(digest);
+                str2 = BitConverter.ToString(results[1]);
+            }
 
-			ctx.Init();
-			for (int i = 0; i < 1000000; i += alen)
-			{
-				msg = Encoding.ASCII.GetBytes(new string('a', alen));
-				int len = (1000000 - i) < alen ? 1000000 - i : alen;
-				byte[] tmp = new byte[len];
-				Buffer.BlockCopy(msg, 0, tmp, 0, len);
-				ctx.Update(tmp);
-			}
-			digest = ctx.DigestFinal();
+            Assert.Equal(str2, str1);
+        }
 
-			str1 = BitConverter.ToString(digest);
-			str2 = BitConverter.ToString(results[2]);
-			Assert.Equal(str2, str1);
+        [Theory]
+        [MemberData(nameof(GetDigestVerification))]
+        public void TestMultipleUpdate(DigestType digestType, byte[][] results, int alen)
+        {
+            byte[] msg = Encoding.ASCII.GetBytes(new string('a', alen));
+            string str1, str2;
 
-			Console.Write(".");
+            using (Digest ctx = new Digest(digestType))
+            {
+                int len;
+                byte[] tmp;
+                for (int i = 0; i < 1000000; i += alen)
+                {
+                    len = (1000000 - i) < alen ? 1000000 - i : alen;
+                    tmp = new byte[len];
+                    Buffer.BlockCopy(msg, 0, tmp, 0, len);
+                    ctx.Update(tmp);
+                }
+                ctx.Finalize(out Span<byte> digestSpan);
 
-			Console.WriteLine(" passed.");
-		}
+                byte[] digest = digestSpan.ToArray();
+                str1 = BitConverter.ToString(digest);
+                str2 = BitConverter.ToString(results[2]);
+            }
+
+            Assert.Equal(str2, str1);
+        }
 	}
 }

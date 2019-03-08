@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2007 Frank Laub
+﻿// Copyright (c) 2006-2007 Frank Laub
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -23,15 +23,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using System;
-using Xunit;
-using OpenSSL.Core.Crypto;
 using System.Text;
+
+using Xunit;
+using Xunit.Abstractions;
+
+using OpenSSL.Core.Ciphers;
+using OpenSSL.Core.ASN1;
 
 namespace OpenSSL.Core.Tests
 {
 	public class TestAES : TestBase
 	{
-		[Fact]
+        public TestAES(ITestOutputHelper outputHelper)
+            : base(outputHelper) { }
+
+        [Fact]
 		public void TestCase()
 		{
 			string magic = "Salted__";
@@ -42,16 +49,31 @@ namespace OpenSSL.Core.Tests
 			byte[] msg = new byte[input.Length - magic.Length - PKCS5_SALT_LEN];
 			Buffer.BlockCopy(input, magic.Length, salt, 0, salt.Length);
 			Buffer.BlockCopy(input, magic.Length + PKCS5_SALT_LEN, msg, 0, msg.Length);
+            byte[] password = Encoding.ASCII.GetBytes("example");
+            string text;
 
-			using (CipherContext cc = new CipherContext(Cipher.AES_256_CBC)) {
-				byte[] iv;
-				byte[] password = Encoding.ASCII.GetBytes("example");
-				byte[] key = cc.BytesToKey(MessageDigest.MD5, salt, password, 1, out iv);
-				byte[] output = cc.Decrypt(msg, key, iv);
-				string text = Encoding.ASCII.GetString(output);
-				Console.WriteLine(text);
-			}
-		}
+            byte[] decrypted;
+            using (CipherDecryption cc = new CipherDecryption(CipherType.AES_256_CBC, DigestType.MD5, salt, password))
+            {
+                byte[] tempBuf = new byte[cc.GetMaximumOutputLength(msg.Length)];
+                byte[] finalBuf = new byte[cc.GetCipherBlockSize()];
+
+                Span<byte> msgSpan = new Span<byte>(msg);
+                Span<byte> outputSpan = new Span<byte>(tempBuf);
+
+                int decryptedLength = cc.Update(msgSpan, ref outputSpan);
+
+                outputSpan = new Span<byte>(finalBuf);
+                int finalDecryptedLength = cc.Finalize(ref outputSpan);
+
+                decrypted = new byte[decryptedLength + finalDecryptedLength];
+                Buffer.BlockCopy(tempBuf, 0, decrypted, 0, decryptedLength);
+                Buffer.BlockCopy(finalBuf, 0, decrypted, decryptedLength, finalDecryptedLength);
+            }
+
+            text = Encoding.ASCII.GetString(decrypted, 0, decrypted.Length);
+            Assert.Equal("Hello world!\n", text);
+        }
 	}
 }
 
