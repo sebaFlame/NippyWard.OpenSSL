@@ -36,7 +36,6 @@ using OpenSSL.Core.Interop.Wrappers;
 
 [assembly: InternalsVisibleTo("OpenSSL.Core.Tests")]
 [assembly: InternalsVisibleTo("OpenSSL.Core.Interop.Dynamic")]
-[assembly: InternalsVisibleTo("OpenSSLEmitDump")]
 
 namespace OpenSSL.Core.Interop
 {
@@ -123,9 +122,12 @@ namespace OpenSSL.Core.Interop
             RandomNumberGenerator rng;
             using (rng = RandomNumberGenerator.Create())
             {
-                rng.GetBytes(seed);
-                Span<byte> seedSpan = new Span<byte>(seed);
-                CryptoWrapper.RAND_seed(seedSpan.GetPinnableReference(), seedSpan.Length);
+                do
+                {
+                    rng.GetBytes(seed);
+                    Span<byte> seedSpan = new Span<byte>(seed);
+                    CryptoWrapper.RAND_seed(seedSpan.GetPinnableReference(), seedSpan.Length);
+                } while (CryptoWrapper.RAND_status() != 1) ;
             }
         }
 

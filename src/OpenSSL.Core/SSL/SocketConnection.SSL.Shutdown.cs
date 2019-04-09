@@ -17,6 +17,7 @@ namespace OpenSSL.Core.SSL
             if (!this.encryptionEnabled)
                 return;
 
+            //TODO: throw exception
             if (!this.TrySetSslState(SslState.Established, SslState.Shutdown))
                 return;
 

@@ -165,6 +165,7 @@ namespace OpenSSL.Core.SSL
             if (this.encryptionEnabled)
                 return;
 
+            //TODO: throw exception
             if (!this.TrySetSslState(SslState.None, SslState.Handshake))
                 return;
 

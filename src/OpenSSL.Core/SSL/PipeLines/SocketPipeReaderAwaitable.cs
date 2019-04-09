@@ -15,24 +15,53 @@ namespace OpenSSL.Core.SSL.PipeLines
 
         private ValueTask<ReadResult> ResultTask;
         private ConfiguredValueTaskAwaitable<ReadResult>.ConfiguredValueTaskAwaiter ReaderAwaitable;
-        private ReadResult ReadResult;
 
         private ExecutionContext ExecutionContext;
 
-        public bool IsCompleted =>
-            this.SocketConnection.IsAvailable(out SslState sslState)
-            && this.ResultTask.IsCompleted;
+        public bool IsCompleted
+        {
+            get
+            {
+                lock (this._lock)
+                    return this.SocketConnection.IsAvailable(out SslState sslState)
+                        && this.CurrentState >= AwaitableState.Running
+                        && this.CurrentState < AwaitableState.NotStarted
+                        && this.ResultTask.IsCompleted;
+            }
+        }
 
-        public bool IsCompletedSuccessfully =>
-            this.SocketConnection.IsAvailable(out SslState sslState)
-            && this.ResultTask.IsCompletedSuccessfully;
+        public bool IsCompletedSuccessfully
+        {
+            get
+            {
+                lock (this._lock)
+                    return this.SocketConnection.IsAvailable(out SslState sslState)
+                        && this.CurrentState == AwaitableState.Running
+                        && this.ResultTask.IsCompletedSuccessfully;
+            }
+        }
 
-        public bool IsFaulted => this.ResultTask.IsFaulted;
-        public bool IsCanceled => this.ResultTask.IsCanceled;
+        public bool IsFaulted
+        {
+            get
+            {
+                lock (this._lock)
+                    return this.CurrentState == AwaitableState.Running && this.ResultTask.IsFaulted;
+            }
+        }
+
+        public bool IsCanceled
+        {
+            get
+            {
+                lock (this._lock)
+                    return this.CurrentState == AwaitableState.Running && this.ResultTask.IsCanceled;
+            }
+        }
 
         private Action CurrentContinuation;
-        private bool ResultDiscarded;
         private readonly object _lock;
+        private AwaitableState CurrentState;
 
         public SocketPipeReaderAwaitable(
             PipeReader socketReader, 
@@ -41,26 +70,28 @@ namespace OpenSSL.Core.SSL.PipeLines
             this.SocketConnection = socketConnection;
             this.SocketReader = socketReader;
 
-            this.CancellationToken = default;
-            this.ReaderAwaitable = default;
+            this.CancellationToken = CancellationToken.None;
             this.CurrentContinuation = null;
-            this.ExecutionContext = default;
-            this.ReadResult = default;
 
+            this.CurrentState = AwaitableState.None;
             this._lock = new object();
-            this.ResultDiscarded = false;
         }
 
         internal SocketPipeReaderAwaitable RunAsync(CancellationToken cancellationToken = default)
         {
-            if (!EqualityComparer<ValueTask<ReadResult>>.Default.Equals(this.ResultTask, default))
-                throw new InvalidOperationException("Read operation is already in progress");
-
             lock (this._lock)
             {
                 this.CancellationToken = cancellationToken;
-                this.ReadResult = default;
-                this.ResultTask = this.SocketReader.ReadAsync(this.CancellationToken);
+
+                if (!this.SocketConnection.IsAvailable(out SslState sslState))
+                {
+                    this.CurrentState = AwaitableState.NotStarted;
+                }
+                else
+                {
+                    this.ResultTask = this.SocketReader.ReadAsync(this.CancellationToken);
+                    this.CurrentState = AwaitableState.Running;
+                }
             }
 
             return this;
@@ -74,7 +105,7 @@ namespace OpenSSL.Core.SSL.PipeLines
 
             lock (this._lock)
             {
-                if (!this.ResultDiscarded)
+                if (this.CurrentState <= AwaitableState.Running)
                     return;
             }
 
@@ -83,39 +114,57 @@ namespace OpenSSL.Core.SSL.PipeLines
              * it should pass the verification method 
             */
 
-            //complete previous read if it completed successfully
-            if (this.ResultTask.IsCompletedSuccessfully)
-                this.SocketReader.AdvanceTo(this.ResultTask.Result.Buffer.Start);
-
+            bool cont = false;
             //start a new read, discarding previous result
             lock (this._lock)
-                this.ResultTask = this.SocketReader.ReadAsync(this.CancellationToken);
-
-            if (!this.ResultTask.IsCompleted)
             {
-                lock (this._lock)
-                    this.ReaderAwaitable = this.ResultTask.ConfigureAwait(false).GetAwaiter();
+                //TODO: correct?
+                if (this.IsCompletedSuccessfully)
+                    this.SocketReader.AdvanceTo(this.ResultTask.Result.Buffer.Start);
 
-                this.ReaderAwaitable.OnCompleted(this.ContinuationVerification);
+                this.ResultTask = this.SocketReader.ReadAsync(this.CancellationToken);
+                this.CurrentState = AwaitableState.Running;
+
+                if (!this.ResultTask.IsCompleted)
+                {
+                    if (this.CurrentContinuation is null)
+                        throw new InvalidOperationException("Invalid async state");
+
+                    this.ReaderAwaitable = this.ResultTask.ConfigureAwait(false).GetAwaiter();
+                    this.ReaderAwaitable.OnCompleted(this.ContinuationVerification);
+                }
+                else
+                    cont = true;
             }
-            else
+
+            if (cont)
                 this.FireContinuation();
         }
 
+        //TODO: ensure the following 2 methods get executed in succession
         public SocketPipeReaderAwaitable GetAwaiter()
         {
             lock (this._lock)
-                this.ReaderAwaitable = this.ResultTask.ConfigureAwait(false).GetAwaiter();
+            {
+                if (this.CurrentState == AwaitableState.Running)
+                    this.ReaderAwaitable = this.ResultTask.ConfigureAwait(false).GetAwaiter();
+            }
             return this;
         }
 
         public void OnCompleted(Action continuation)
         {
             lock (this._lock)
+            {
+                if (!(this.CurrentContinuation is null))
+                    throw new InvalidOperationException("Double continuation detected");
+
                 this.CurrentContinuation = continuation;
 
-            //set continuation to the verify method
-            this.ReaderAwaitable.OnCompleted(this.ContinuationVerification);
+                if(this.CurrentState == AwaitableState.Running)
+                    this.ReaderAwaitable.OnCompleted(this.ContinuationVerification);
+            }
+
         }
 
         private void ContinuationVerification()
@@ -124,10 +173,20 @@ namespace OpenSSL.Core.SSL.PipeLines
             {
                 lock (this._lock)
                 {
-                    this.ResultDiscarded = true;
+                    this.CurrentState = AwaitableState.Interrupted;
                     this.ExecutionContext = ExecutionContext.Capture();
                 }
                 return;
+            }
+
+            lock (this._lock)
+            {
+                if (!this.ResultTask.IsCompleted)
+                {
+                    this.CurrentState = AwaitableState.Canceled;
+                    this.ExecutionContext = ExecutionContext.Capture();
+                    return;
+                }
             }
 
             this.CurrentContinuation();
@@ -165,10 +224,10 @@ namespace OpenSSL.Core.SSL.PipeLines
             {
                 lock (this._lock)
                 {
-                    if (!EqualityComparer<ReadResult>.Default.Equals(this.ReadResult, default))
-                        return this.ReadResult;
+                    if (this.CurrentState > AwaitableState.Running)
+                        throw new InvalidOperationException($"Current operation in an invalid state: { this.CurrentState }");
 
-                    return (this.ReadResult = this.ResultTask.Result);
+                    return this.ResultTask.Result;
                 }
             }
             finally
@@ -181,14 +240,19 @@ namespace OpenSSL.Core.SSL.PipeLines
         {
             lock (this._lock)
             {
-                this.CancellationToken = default;
-                this.ResultTask = default;
-                this.ReaderAwaitable = default;
+                this.CancellationToken = CancellationToken.None;
                 this.CurrentContinuation = null;
-
-                this.ResultDiscarded = false;
                 this.ExecutionContext = null;
             }
+        }
+
+        private enum AwaitableState
+        {
+            None = 0,
+            Running = 1,
+            Interrupted = 2,
+            Canceled = 3,
+            NotStarted = 4
         }
     }
 }
