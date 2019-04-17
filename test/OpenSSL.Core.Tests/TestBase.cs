@@ -31,7 +31,9 @@ using System.Runtime.InteropServices;
 
 using Xunit;
 using Xunit.Abstractions;
+
 using OpenSSL.Core.Interop;
+using OpenSSL.Core.Error;
 
 namespace OpenSSL.Core.Tests
 {

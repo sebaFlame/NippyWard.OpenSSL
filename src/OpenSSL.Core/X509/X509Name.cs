@@ -7,7 +7,7 @@ using OpenSSL.Core.Interop.SafeHandles.X509;
 
 namespace OpenSSL.Core.X509
 {
-    internal class X509Name : Base
+    public class X509Name : Base
     {
         internal SafeX509NameHandle NameHandle { get; private set; }
 

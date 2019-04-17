@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Buffers;
 
-using OpenSSL.Core.SSL.Exceptions;
+using OpenSSL.Core.Error;
 using OpenSSL.Core.Interop;
 using System.IO.Pipelines;
 

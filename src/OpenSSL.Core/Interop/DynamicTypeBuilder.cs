@@ -70,6 +70,19 @@ namespace OpenSSL.Core.Interop
             return type;
         }
 
+        internal static Type GetConcreteNewType<T>()
+            where T : SafeBaseHandle
+        {
+            Type abstractType = typeof(T);
+
+            if (!abstractType.IsAbstract)
+                throw new InvalidOperationException("This operation is only supported for abstarct type");
+
+            AddConcreteType(abstractType);
+
+            return dictConcreteTypes[abstractType.Name].Item1;
+        }
+
         #region Native implementation generator
         private static void CreateInterfaceImplementation(string dllName, TypeBuilder typeBuilder, MethodInfo ifMethod)
         {
@@ -431,9 +444,7 @@ namespace OpenSSL.Core.Interop
             concreteType = parameter.ParameterType;
             NewSafeHandleAttribute newAttr;
             DontTakeOwnershipAttribute ownAttr;
-            TypeBuilder typeBuilderNew, typeBuilderOwn, typeBuilderRef;
-            ConstructorInfo baseCtor, ptrCtor = null;
-            Type parameterType, genericType = null;
+            Type parameterType;
 
             if (parameter.ParameterType.IsByRef)
                 parameterType = parameter.ParameterType.GetElementType();
@@ -443,38 +454,7 @@ namespace OpenSSL.Core.Interop
             if (!(parameterType.IsAbstract && IsSafeHandle<SafeBaseHandle>(parameterType)))
                 return false;
 
-            if (!dictConcreteTypes.ContainsKey(parameterType.Name))
-            {
-                if (parameterType.IsGenericType)
-                {
-                    genericType = parameterType.GetGenericTypeDefinition();
-
-                    if (genericType != typeof(SafeStackHandle<>))
-                        throw new InvalidOperationException("Unknown generic type");
-
-                    baseCtor = genericType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(bool), typeof(bool) }, null);
-                }
-                else
-                    baseCtor = parameterType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(bool), typeof(bool) }, null);
-
-                ptrCtor = typeof(SafeBaseHandle).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) }, null);
-
-                typeBuilderNew = CreateConcreteTypeWithDefaultConstructor(parameterType, "new", baseCtor, genericType ?? parameterType, true, true);
-                CreatePtrConstructor(typeBuilderNew, ptrCtor);
-
-                typeBuilderOwn = CreateConcreteTypeWithDefaultConstructor(parameterType, "own", baseCtor, genericType ?? parameterType, false, false);
-                CreatePtrConstructor(typeBuilderOwn, ptrCtor);
-
-                typeBuilderRef = CreateConcreteTypeWithDefaultConstructor(parameterType, "ref", baseCtor, genericType ?? parameterType, true, false);
-                CreatePtrConstructor(typeBuilderRef, ptrCtor);
-
-                dictConcreteTypes.Add(parameterType.Name, Tuple.Create<Type, Type, Type>
-                    (
-                        typeBuilderNew.CreateTypeInfo().AsType(),
-                        typeBuilderOwn.CreateTypeInfo().AsType(),
-                        typeBuilderRef.CreateTypeInfo().AsType()
-                    ));
-            }
+            AddConcreteType(parameterType);
 
             if (!((newAttr = parameter.GetCustomAttribute<NewSafeHandleAttribute>()) is null))
                 concreteType = dictConcreteTypes[parameterType.Name].Item1;
@@ -487,6 +467,46 @@ namespace OpenSSL.Core.Interop
                 concreteType = concreteType.MakeByRefType();
 
             return true;
+        }
+
+        private static void AddConcreteType(Type abstractType)
+        {
+            TypeBuilder typeBuilderNew, typeBuilderOwn, typeBuilderRef;
+            ConstructorInfo baseCtor, ptrCtor = null;
+            Type genericType = null;
+
+            if (dictConcreteTypes.ContainsKey(abstractType.Name))
+                return;
+
+            if (abstractType.IsGenericType)
+            {
+                genericType = abstractType.GetGenericTypeDefinition();
+
+                if (genericType != typeof(SafeStackHandle<>))
+                    throw new InvalidOperationException("Unknown generic type");
+
+                baseCtor = genericType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(bool), typeof(bool) }, null);
+            }
+            else
+                baseCtor = abstractType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(bool), typeof(bool) }, null);
+
+            ptrCtor = typeof(SafeBaseHandle).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) }, null);
+
+            typeBuilderNew = CreateConcreteTypeWithDefaultConstructor(abstractType, "new", baseCtor, genericType ?? abstractType, true, true);
+            CreatePtrConstructor(typeBuilderNew, ptrCtor);
+
+            typeBuilderOwn = CreateConcreteTypeWithDefaultConstructor(abstractType, "own", baseCtor, genericType ?? abstractType, false, false);
+            CreatePtrConstructor(typeBuilderOwn, ptrCtor);
+
+            typeBuilderRef = CreateConcreteTypeWithDefaultConstructor(abstractType, "ref", baseCtor, genericType ?? abstractType, true, false);
+            CreatePtrConstructor(typeBuilderRef, ptrCtor);
+
+            dictConcreteTypes.Add(abstractType.Name, Tuple.Create<Type, Type, Type>
+                (
+                    typeBuilderNew.CreateTypeInfo().AsType(),
+                    typeBuilderOwn.CreateTypeInfo().AsType(),
+                    typeBuilderRef.CreateTypeInfo().AsType()
+                ));
         }
 
         private static bool IsSafeHandle<T>(Type type)

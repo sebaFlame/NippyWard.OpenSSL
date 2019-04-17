@@ -26,19 +26,20 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using OpenSSL.Core.Interop;
-using OpenSSL.Core.Interop.Wrappers;
+using System.Linq;
 
-namespace OpenSSL.Core
+using OpenSSL.Core.Interop;
+
+namespace OpenSSL.Core.Error
 {
 	/// <summary>
 	/// Exception class to provide OpenSSL specific information when errors occur.
 	/// </summary>
 	public class OpenSslException : Exception
 	{
-		private List<OpenSslError> errors = new List<OpenSslError>();
+		private List<BaseOpenSslError> errors = new List<BaseOpenSslError>();
 
-		private OpenSslException(List<OpenSslError> context)
+		private OpenSslException(List<BaseOpenSslError> context)
 			: base(GetErrorMessage(context))
 		{
 			errors = context;
@@ -51,12 +52,14 @@ namespace OpenSSL.Core
         /// of each of these errors turned into strings using ERR_error_string_n().
         /// </summary>
         public OpenSslException()
-            : this(GetCurrentContext())
-        { }
+            : this(GetCurrentContext()) { }
 
-		public static List<OpenSslError> GetCurrentContext()
+        internal OpenSslException(params BaseOpenSslError[] errors)
+            : this(errors.ToList()) { }
+
+        public static List<BaseOpenSslError> GetCurrentContext()
 		{
-			var ret = new List<OpenSslError>();
+			var ret = new List<BaseOpenSslError>();
 
 			while (true)
 			{
@@ -71,7 +74,7 @@ namespace OpenSSL.Core
 			return ret;
 		}
 
-		private static string GetErrorMessage(List<OpenSslError> context)
+		private static string GetErrorMessage(List<BaseOpenSslError> context)
 		{
 			var sb = new StringBuilder();
 			var isFirst = true;
@@ -92,7 +95,7 @@ namespace OpenSSL.Core
 		/// <summary>
 		/// Returns the list of errors associated with this exception.
 		/// </summary>
-		public List<OpenSslError> Errors
+		public List<BaseOpenSslError> Errors
 		{
 			get { return errors; }
 		}

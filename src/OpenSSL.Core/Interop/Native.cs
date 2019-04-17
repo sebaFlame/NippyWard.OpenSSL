@@ -24,14 +24,12 @@
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
-using System.Collections.Generic;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading;
-using OpenSSL.Core.Interop.SafeHandles.Crypto;
+
+using OpenSSL.Core.Error;
 using OpenSSL.Core.Interop.Wrappers;
 
 [assembly: InternalsVisibleTo("OpenSSL.Core.Tests")]
@@ -202,11 +200,6 @@ namespace OpenSSL.Core.Interop
         public const int BIO_CLOSE = 0x01;
         public static byte[] ReadOnly = new byte[1] { (int)'r' };
         public static byte[] WriteOnly = new byte[1] { (int)'w' };
-
-        public const int SSL_VERIFY_NONE = 0x00;
-        public const int SSL_VERIFY_PEER = 0x01;
-        public const int SSL_VERIFY_FAIL_IF_NO_PEER_CERT = 0x02;
-        public const int SSL_VERIFY_CLIENT_ONCE = 0x04;
 
         public const ulong OPENSSL_INIT_NO_LOAD_CRYPTO_STRINGS = 0x00000001L;
         public const ulong OPENSSL_INIT_LOAD_CRYPTO_STRINGS = 0x00000002L;

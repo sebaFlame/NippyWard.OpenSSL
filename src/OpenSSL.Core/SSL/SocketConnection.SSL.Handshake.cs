@@ -10,9 +10,8 @@ using OpenSSL.Core.X509;
 using OpenSSL.Core.Keys;
 using OpenSSL.Core.SSL.Exceptions;
 using OpenSSL.Core.Interop;
-using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop.SafeHandles.SSL;
-using OpenSSL.Core.SSL.Pooling;
+using OpenSSL.Core.Error;
 
 namespace OpenSSL.Core.SSL
 {

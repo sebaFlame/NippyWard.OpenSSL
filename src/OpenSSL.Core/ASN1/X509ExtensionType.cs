@@ -12,6 +12,8 @@ namespace OpenSSL.Core.ASN1
         public static X509ExtensionType AuthorityKeyIdentifier = new X509ExtensionType("authorityKeyIdentifier");
         public static X509ExtensionType BasicConstraints = new X509ExtensionType("basicConstraints");
         public static X509ExtensionType KeyUsage = new X509ExtensionType("keyUsage");
+        public static X509ExtensionType OCSP = new X509ExtensionType("OCSP");
+        public static X509ExtensionType CAIssuers = new X509ExtensionType("caIssuers");
 
         internal X509ExtensionType(SafeAsn1ObjectHandle asn1Handle)
             : base(asn1Handle) { }

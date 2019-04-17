@@ -139,7 +139,7 @@ namespace OpenSSL.Core.X509
 
             //this.PrivateKey = PrivateKey.GetCorrectKey(keyHandle);
 
-            this.PrivateKey = new RSAKey(1025);
+            this.PrivateKey = new RSAKey(1024);
             this.PrivateKey.GenerateKey();
 
             this.CreateSafeHandle();

@@ -13,11 +13,11 @@ namespace OpenSSL.Core.Interop.Wrappers
 {
     //int (*client_cert_cb)(SSL *ssl, X509 **x509, EVP_PKEY **pkey)
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal delegate int client_cert_cb(SafeSslHandle ssl, out SafeX509CertificateHandle x509, out SafeKeyHandle pkey);
+    internal delegate int ClientCertificateCallback(SafeSslHandle ssl, out SafeX509CertificateHandle x509, out SafeKeyHandle pkey);
 
     //int (*verify_callback)(int, X509_STORE_CTX *)
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal delegate int VerifyCertCallback(int ok, SafeX509StoreContextHandle x509_store_ctx);
+    internal delegate int VerifyCertificateCallback(int preVerify, SafeX509StoreContextHandle x509_store_ctx);
 
     internal interface ILibSSLWrapper
     {
@@ -95,21 +95,33 @@ namespace OpenSSL.Core.Interop.Wrappers
         //long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg);
         int SSL_CTX_callback_ctrl(SafeSslContextHandle ctx, int cmd, IntPtr cb);
 
-        //STACK_OF(X509_NAME) *SSL_CTX_get_client_CA_list(const SSL_CTX *ctx);
-        SafeStackHandle<SafeX509NameHandle> SSL_CTX_get_client_CA_list(SafeSslContextHandle ctx);
-        //void SSL_CTX_set_cert_store(SSL_CTX *ctx, X509_STORE *store);
-        void SSL_CTX_set_cert_store(SafeSslContextHandle ctx, SafeX509StoreHandle cert_store);
-        //void SSL_CTX_set_verify(SSL_CTX *ctx, int mode, int (* verify_callback) (int, X509_STORE_CTX*));
-        void SSL_CTX_set_verify(SafeSslContextHandle ctx, int mode, VerifyCertCallback callback);
-        //void SSL_CTX_set_client_CA_list(SSL_CTX *ctx, STACK_OF(X509_NAME) *list);
-        void SSL_CTX_set_client_CA_list(SafeSslContextHandle ctx, SafeStackHandle<SafeX509NameHandle> name_list);
         //int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x);
         int SSL_CTX_use_certificate(SafeSslContextHandle ctx, SafeX509CertificateHandle cert);
-
+        //X509 *SSL_CTX_get0_certificate(const SSL_CTX *ctx)
+        SafeX509CertificateHandle SSL_CTX_get0_certificate(SafeSslContextHandle ctx);
         //int SSL_CTX_use_PrivateKey(SSL_CTX *ctx, EVP_PKEY *pkey);
         int SSL_CTX_use_PrivateKey(SafeSslContextHandle ctx, SafeKeyHandle pkey);
+        //EVP_PKEY *SSL_CTX_get0_privatekey(const SSL_CTX *ctx)
+        SafeKeyHandle SSL_CTX_get0_privatekey(SafeSslContextHandle ctx);
+
+        //void SSL_CTX_set_cert_store(SSL_CTX *ctx, X509_STORE *store);
+        void SSL_CTX_set_cert_store(SafeSslContextHandle ctx, SafeX509StoreHandle cert_store);
+        //X509_STORE *SSL_CTX_get_cert_store(const SSL_CTX *ctx);
+        SafeX509StoreHandle SSL_CTX_get_cert_store(SafeSslContextHandle ctx);
+
+        //void SSL_CTX_set_client_CA_list(SSL_CTX *ctx, STACK_OF(X509_NAME) *list);
+        void SSL_CTX_set_client_CA_list(SafeSslContextHandle ctx, SafeStackHandle<SafeX509NameHandle> name_list);
+        //STACK_OF(X509_NAME) *SSL_CTX_get_client_CA_list(const SSL_CTX *ctx);
+        SafeStackHandle<SafeX509NameHandle> SSL_CTX_get_client_CA_list(SafeSslContextHandle ctx);
+        //int SSL_CTX_add_client_CA(SSL_CTX *ctx, X509 *cacert);
+        int SSL_CTX_add_client_CA(SafeSslContextHandle ctx, SafeX509CertificateHandle cacert);
+        //long SSL_CTX_add_extra_chain_cert(SSL_CTX *ctx, X509 *x509);
+        long SSL_CTX_add_extra_chain_cert(SafeSslContextHandle ctx, SafeX509CertificateHandle x509);
         //void SSL_CTX_set_client_cert_cb(SSL_CTX *ctx, int (*client_cert_cb)(SSL *ssl, X509 **x509, EVP_PKEY **pkey));
-        void SSL_CTX_set_client_cert_cb(SafeSslContextHandle ctx, client_cert_cb callback);
+        void SSL_CTX_set_client_cert_cb(SafeSslContextHandle ctx, ClientCertificateCallback callback);
+
+        //void SSL_CTX_set_verify(SSL_CTX *ctx, int mode, int (* verify_callback) (int, X509_STORE_CTX*));
+        void SSL_CTX_set_verify(SafeSslContextHandle ctx, int mode, VerifyCertificateCallback callback);
         #endregion
 
         #region STACK_OF(SSL_CIPHER)

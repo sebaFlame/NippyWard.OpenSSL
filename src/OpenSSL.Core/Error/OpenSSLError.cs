@@ -3,15 +3,14 @@ using System.Collections.Generic;
 using System.Text;
 using OpenSSL.Core.Interop;
 
-namespace OpenSSL.Core
+namespace OpenSSL.Core.Error
 {
     /// <summary>
     /// This is a struct that contains a uint for the native openssl error code.
     /// It provides helper methods to convert this error code into strings.
     /// </summary>
-    public class OpenSslError
+    public class OpenSslError : BaseOpenSslError
     {
-        private ulong err;
         private string message;
 
         /// <summary>
@@ -19,24 +18,15 @@ namespace OpenSSL.Core
         /// </summary>
         /// <param name="err">The native error code</param>
         public OpenSslError(ulong err)
-        {
-            this.err = err;
-        }
+            : base(err) { }
 
-        /// <summary>
-        /// Returns the native error code
-        /// </summary>
-        public ulong ErrorCode
-        {
-            get { return err; }
-        }
 
         /// <summary>
         /// Returns the result of ERR_lib_error_string()
         /// </summary>
         public string Library
         {
-            get { return Native.PtrToStringAnsi(Native.CryptoWrapper.ERR_lib_error_string(err), false); }
+            get { return Native.PtrToStringAnsi(Native.CryptoWrapper.ERR_lib_error_string(this.ErrorCode), false); }
         }
 
         /// <summary>
@@ -44,7 +34,7 @@ namespace OpenSSL.Core
         /// </summary>
         public string Reason
         {
-            get { return Native.PtrToStringAnsi(Native.CryptoWrapper.ERR_reason_error_string(err), false); }
+            get { return Native.PtrToStringAnsi(Native.CryptoWrapper.ERR_reason_error_string(this.ErrorCode), false); }
         }
 
         /// <summary>
@@ -52,13 +42,13 @@ namespace OpenSSL.Core
         /// </summary>
         public string Function
         {
-            get { return Native.PtrToStringAnsi(Native.CryptoWrapper.ERR_func_error_string(err), false); }
+            get { return Native.PtrToStringAnsi(Native.CryptoWrapper.ERR_func_error_string(this.ErrorCode), false); }
         }
 
         /// <summary>
         /// Returns the results of ERR_error_string_n()
         /// </summary>
-        public string Message
+        public override string Message
         {
             get
             {
@@ -69,7 +59,7 @@ namespace OpenSSL.Core
                 {
                     byte* buf = stackalloc byte[1024];
                     Span<byte> span = new Span<byte>(buf, 1024);
-                    Native.CryptoWrapper.ERR_error_string_n(this.err, ref span.GetPinnableReference(), span.Length);
+                    Native.CryptoWrapper.ERR_error_string_n(this.ErrorCode, ref span.GetPinnableReference(), span.Length);
 
                     int length = 0;
                     byte b;

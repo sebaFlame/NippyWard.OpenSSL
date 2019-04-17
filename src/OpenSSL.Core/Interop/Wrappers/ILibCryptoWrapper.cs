@@ -354,7 +354,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         SafeKeyHandle X509_get_pubkey(SafeX509CertificateHandle x);
 
         //const char *X509_verify_cert_error_string(long n);
-        ref byte X509_verify_cert_error_string(int n);
+        IntPtr X509_verify_cert_error_string(int n);
 
         //X509_REQ *X509_to_X509_REQ(X509 *x, EVP_PKEY *pkey, const EVP_MD *md);
         SafeX509RequestHandle X509_to_X509_REQ(SafeX509CertificateHandle x, SafeKeyHandle pkey, SafeMessageDigestHandle md);
@@ -421,6 +421,33 @@ namespace OpenSSL.Core.Interop.Wrappers
         SafeASN1OctetStringHandle X509_EXTENSION_get_data(SafeX509ExtensionHandle ne);
         #endregion
 
+        #region X509_OBJECT
+        //X509_OBJECT *X509_OBJECT_new(void);
+        [return: NewSafeHandle]
+        SafeX509ObjectHandle X509_OBJECT_new();
+        //void X509_OBJECT_free(X509_OBJECT *a);
+        void X509_OBJECT_free(IntPtr a);
+
+        //X509 *X509_OBJECT_get0_X509(const X509_OBJECT *a);
+        [DontCheckReturnType]
+        SafeX509CertificateHandle X509_OBJECT_get0_X509(SafeX509ObjectHandle a);
+        //X509_LOOKUP_TYPE X509_OBJECT_get_type(const X509_OBJECT *a)
+        int X509_OBJECT_get_type(SafeX509ObjectHandle a);
+
+        //int X509_OBJECT_up_ref_count(X509_OBJECT *a);
+        int X509_OBJECT_up_ref_count(SafeX509ObjectHandle a);
+        #endregion
+
+        #region X509_INFO
+        //X509_INFO *X509_INFO_new(void);
+        SafeX509InfoHandle X509_INFO_new();
+        //void X509_INFO_free(X509_INFO* a);
+        void X509_INFO_free(SafeX509InfoHandle a);
+        //STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,  pem_password_cb* cb, void* u)
+        [return: NewSafeHandle]
+        SafeStackHandle<SafeX509InfoHandle> PEM_X509_INFO_read_bio(SafeBioHandle bp, SafeStackHandle<SafeX509InfoHandle> sk, pem_password_cb cb, IntPtr u);
+        #endregion
+
         #region X509_STORE
         //X509_STORE *X509_STORE_new(void);
         [return: NewSafeHandle]
@@ -432,6 +459,11 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         //int X509_STORE_add_cert(X509_STORE *ctx, X509 *x);
         int X509_STORE_add_cert(SafeX509StoreHandle ctx, SafeX509CertificateHandle x);
+        //STACK_OF(X509_OBJECT) *X509_STORE_get0_objects(X509_STORE *ctx);
+        SafeStackHandle<SafeX509ObjectHandle> X509_STORE_get0_objects(SafeX509StoreHandle ctx);
+
+        //int X509_STORE_load_locations(X509_STORE *ctx, const char* file, const char* dir);
+        int X509_STORE_load_locations(SafeX509StoreHandle ctx, in byte file, in byte dir);
         #endregion
 
         #region X509_STORE_CTX

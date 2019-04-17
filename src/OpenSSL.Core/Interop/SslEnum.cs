@@ -277,14 +277,6 @@ namespace OpenSSL.Core.Interop
 		SSL_MODE_NO_AUTO_CHAIN = 0x00000008
 	}
 
-	internal enum VerifyMode
-	{
-		SSL_VERIFY_NONE = 0x00,
-		SSL_VERIFY_PEER = 0x01,
-		SSL_VERIFY_FAIL_IF_NO_PEER_CERT = 0x02,
-		SSL_VERIFY_CLIENT_ONCE = 0x04,
-	}
-
     internal enum SslError
     {
         SSL_ERROR_NONE = 0,

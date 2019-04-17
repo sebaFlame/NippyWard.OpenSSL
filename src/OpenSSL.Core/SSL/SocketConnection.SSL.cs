@@ -4,11 +4,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.IO.Pipelines;
 using System.Buffers;
+using System.Runtime.CompilerServices;
 
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop.SafeHandles.SSL;
-using System.Runtime.CompilerServices;
+using OpenSSL.Core.Interop.SafeHandles.X509;
+using OpenSSL.Core.Interop.SafeHandles.Crypto;
+using OpenSSL.Core.X509;
+using OpenSSL.Core.Keys;
 
 namespace OpenSSL.Core.SSL
 {
@@ -27,7 +31,7 @@ namespace OpenSSL.Core.SSL
         #endregion
 
         #region SSL fields
-        private bool encryptionEnabled => this.SslState == SslState.Established;
+        private bool encryptionEnabled => this.IsAvailable(out SslState sslState) && sslState == SslState.Established;
 
         private int _sslState;
         internal SslState SslState
@@ -105,6 +109,81 @@ namespace OpenSSL.Core.SSL
 
                 throw new NotSupportedException("Unknown protocol detected");
             }
+        }
+
+        public X509Certificate RemoteCertificate
+        {
+            get
+            {
+                if (!this.IsAvailable(out SslState sslState))
+                    throw new InvalidOperationException(sslState == SslState.None ? "Encryption has not been enabled yet" : $"Current connection state: {sslState}");
+
+                return new X509Certificate(this.SSLWrapper.SSL_get_peer_certificate(this.sslHandle));
+            }
+        }
+
+        private ClientCertificateCallbackHandler clientCertificateCallbackHandler;
+        /// <summary>
+        /// This sets the Client Certificate Callback
+        /// </summary>
+        public ClientCertificateCallbackHandler ClientCertificateCallbackHandler
+        {
+            get => this.clientCertificateCallbackHandler;
+            set
+            {
+                if (this.clientCertificateCallbackHandler is null)
+                    this.SSLWrapper.SSL_CTX_set_client_cert_cb(this.sslContextHandle, this.ClientCertificateCallback);
+                else if (value is null)
+                    this.SSLWrapper.SSL_CTX_set_client_cert_cb(this.sslContextHandle, null);
+
+                this.clientCertificateCallbackHandler = value;
+            }
+        }
+
+        /// <summary>
+        /// Add a CA certificate to verify a client certificate in server mode
+        /// Using this method you can use internal certificate verification
+        /// This sends a list of valid CA to the client for correct client certificate selection
+        /// </summary>
+        /// <param name="caCertificate">The certificate to add</param>
+        /// <param name="addToChain">Add the certificate to the verification chain if it's not available in the current <see cref="CertificateStore"/></param>
+        public void AddClientCertificateCA(X509Certificate caCertificate, bool addToChain = true)
+        {
+            this.SSLWrapper.SSL_CTX_add_client_CA(this.sslContextHandle, caCertificate.X509Handle);
+            if (addToChain)
+                this.SSLWrapper.SSL_CTX_add_extra_chain_cert(this.sslContextHandle, caCertificate.X509Handle);
+        }
+
+        private RemoteCertificateValidationHandler remoteCertificateValidationHandler;
+        /// <summary>
+        /// Set correct callback using <see cref="SetRemoteValidation(VerifyMode, RemoteCertificateValidationHandler)"/>
+        /// </summary>
+        public RemoteCertificateValidationHandler RemoteCertificateValidationHandler => this.remoteCertificateValidationHandler;
+
+        public X509Store CertificateStore
+        {
+            get => new X509Store(this.SSLWrapper.SSL_CTX_get_cert_store(this.sslContextHandle));
+            set => this.SSLWrapper.SSL_CTX_set_cert_store(this.sslContextHandle, value.StoreHandle);
+        }
+
+        /// <summary>
+        /// Set.Get the certificate for this session.
+        /// Can also be used to set the client certificate
+        /// without using a client certificate callback
+        /// </summary>
+        public X509Certificate Certificate
+        {
+            get => new X509Certificate(this.SSLWrapper.SSL_CTX_get0_certificate(this.sslContextHandle));
+            set => this.SSLWrapper.SSL_CTX_use_certificate(this.sslContextHandle, value.X509Handle);
+        }
+
+        /// <summary>
+        /// Set/Gets the private key for this session
+        /// </summary>
+        public PrivateKey PrivateKey
+        {
+            get => PrivateKey.GetCorrectKey(this.SSLWrapper.SSL_CTX_get0_privatekey(this.sslContextHandle));
+            set => this.SSLWrapper.SSL_CTX_use_PrivateKey(this.sslContextHandle, value.KeyHandle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -284,5 +363,65 @@ namespace OpenSSL.Core.SSL
             //advance to the end of the last read frame
             this._receiveFromSocket.Reader.AdvanceTo(endPosition);
         }
+
+        #region OpenSSL callback options
+        /// <summary>
+        /// Set the certificate verification callback
+        /// </summary>
+        /// <param name="verifyMode">Verify mode(s) OR'd together</param>
+        /// <param name="remoteCertificateValidationHandler">The verification method to call. Can be null to reset</param>
+        public void SetRemoteValidation(VerifyMode verifyMode, RemoteCertificateValidationHandler remoteCertificateValidationHandler)
+        {
+            if (this.remoteCertificateValidationHandler is null)
+                this.SSLWrapper.SSL_CTX_set_verify(this.sslContextHandle, (int)verifyMode, this.VerifyCertificateCallback);
+            else if (remoteCertificateValidationHandler is null)
+                this.SSLWrapper.SSL_CTX_set_verify(this.sslContextHandle, 0, null);
+
+            this.remoteCertificateValidationHandler = remoteCertificateValidationHandler;
+        }
+
+        private int VerifyCertificateCallback(int preVerify, SafeX509StoreContextHandle x509_store_ctx)
+        {
+            if (this.remoteCertificateValidationHandler is null)
+                throw new InvalidOperationException("No verification callback has been defined");
+
+            SafeX509CertificateHandle certHandle = this.CryptoWrapper.X509_STORE_CTX_get_current_cert(x509_store_ctx);
+            using (SafeX509StoreHandle store = this.CryptoWrapper.X509_STORE_CTX_get0_store(x509_store_ctx))
+            {
+                using (X509CertificateList certList = new X509CertificateList(store))
+                {
+                    using (X509Certificate remoteCertificate = new X509Certificate(certHandle))
+                    {
+                        return this.remoteCertificateValidationHandler((VerifyResult)preVerify, remoteCertificate, certList) ? 1 : 0;
+                    }
+                }
+            }
+        }
+
+        private int ClientCertificateCallback(SafeSslHandle ssl, out SafeX509CertificateHandle x509, out SafeKeyHandle pkey)
+        {
+            if (this.clientCertificateCallbackHandler is null)
+                throw new InvalidOperationException("No client certificate callback has been defined");
+
+            bool succes = false;
+            x509 = null;
+            pkey = null;
+
+            using (SafeStackHandle<SafeX509NameHandle> nameStackHandle = this.SSLWrapper.SSL_get_client_CA_list(ssl))
+            {
+                X509Name[] validCA = new X509Name[nameStackHandle.Count];
+                for (int i = 0; i < nameStackHandle.Count; i++)
+                    validCA[i] = new X509Name(nameStackHandle[i]);
+
+                if (succes = this.clientCertificateCallbackHandler(validCA, out X509Certificate certificate, out PrivateKey privateKey))
+                {
+                    x509 = certificate.X509Handle;
+                    pkey = privateKey.KeyHandle;
+                }
+            }
+
+            return succes ? 1 : 0;
+        }
+        #endregion
     }
 }

@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 using OpenSSL.Core.Interop.Wrappers;
 using OpenSSL.Core.Interop;
-using OpenSSL.Core.Interop.SafeHandles;
 
 namespace OpenSSL.Core
 {
