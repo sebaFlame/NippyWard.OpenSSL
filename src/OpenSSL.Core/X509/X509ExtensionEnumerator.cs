@@ -62,7 +62,7 @@ namespace OpenSSL.Core.X509
         /// <param name="item">The extension to add</param>
         public void Add(X509Extension item)
         {
-            this.addExtension(item.ExtensionHandle);
+            this.addExtension(item.X509ExtensionWrapper.Handle);
         }
 
         //TODO: you can remove, but only by location

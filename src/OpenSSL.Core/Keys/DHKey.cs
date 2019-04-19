@@ -14,7 +14,7 @@ namespace OpenSSL.Core.Keys
         internal DHKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {
-            this.dhHandle = this.CryptoWrapper.EVP_PKEY_get1_DH(this.KeyHandle);
+            this.dhHandle = this.CryptoWrapper.EVP_PKEY_get1_DH(this.KeyWrapper.Handle);
         }
 
         public DHKey(int primeLength, ushort generator)
@@ -28,22 +28,20 @@ namespace OpenSSL.Core.Keys
             this.CryptoWrapper.DH_generate_key(this.dhHandle);
         }
 
-        internal override SafeKeyHandle GenerateKeyInternal()
+        internal override KeyInternal GenerateKeyInternal()
         {
             if (this.dhHandle is null || this.dhHandle.IsInvalid)
                 throw new InvalidOperationException("RSA key has not been created yet");
 
             SafeKeyHandle keyHandle = this.CryptoWrapper.EVP_PKEY_new();
             this.CryptoWrapper.EVP_PKEY_set1_DH(keyHandle, this.dhHandle);
-            return keyHandle;
+            return new KeyInternal(keyHandle);
         }
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
             if (!(this.dhHandle is null) && !this.dhHandle.IsInvalid)
                 this.dhHandle.Dispose();
-
-            base.Dispose();
         }
     }
 }

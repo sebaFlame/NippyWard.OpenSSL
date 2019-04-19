@@ -130,7 +130,7 @@ namespace OpenSSL.Core.Keys
 
         public void Write(Stream stream, string password, CipherType cipherType, FileEncoding fileEncoding = FileEncoding.PEM)
         {
-            if (this.KeyHandle is null || this.KeyHandle.IsInvalid)
+            if (this.KeyWrapper.Handle is null || this.KeyWrapper.Handle.IsInvalid)
                 throw new InvalidOperationException("Key has not been genrated yet");
 
             if (!stream.CanWrite)
@@ -168,27 +168,22 @@ namespace OpenSSL.Core.Keys
                     {
                         SafeCipherHandle cipherHandle;
                         using (cipherHandle = this.CryptoWrapper.EVP_get_cipherbyname(cipherType.ShortNamePtr))
-                            this.CryptoWrapper.PEM_write_bio_PrivateKey(bioHandle, this.KeyHandle, cipherHandle, IntPtr.Zero, 0, pass.Callback, IntPtr.Zero);
+                            this.CryptoWrapper.PEM_write_bio_PrivateKey(bioHandle, this.KeyWrapper.Handle, cipherHandle, IntPtr.Zero, 0, pass.Callback, IntPtr.Zero);
                         break;
                     }
                 case FileEncoding.DER:
-                    this.CryptoWrapper.i2d_PrivateKey_bio(bioHandle, this.KeyHandle);
+                    this.CryptoWrapper.i2d_PrivateKey_bio(bioHandle, this.KeyWrapper.Handle);
                     break;
                 case FileEncoding.PKCS12:
                     {
                         //TODO: cipherType incorrect? should be a PBE?
-                        SafePKCS12Handle pkcs12Handle = this.CryptoWrapper.PKCS12_create(password, "", this.KeyHandle, null, null, cipherType.NID, 0, 2048, 1, 0);
+                        SafePKCS12Handle pkcs12Handle = this.CryptoWrapper.PKCS12_create(password, "", this.KeyWrapper.Handle, null, null, cipherType.NID, 0, 2048, 1, 0);
                         this.CryptoWrapper.i2d_PKCS12_bio(bioHandle, pkcs12Handle);
                         break;
                     }
                 default:
                     throw new ArgumentOutOfRangeException(nameof(fileEncoding), fileEncoding, "Encoding not supported");
             }
-        }
-
-        public override void Dispose()
-        {
-            base.Dispose();
         }
     }
 }

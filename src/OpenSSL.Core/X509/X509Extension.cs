@@ -9,36 +9,44 @@ using OpenSSL.Core.Interop.SafeHandles.X509;
 
 namespace OpenSSL.Core.X509
 {
-    public class X509Extension : Base
+    public class X509Extension : OpenSslWrapperBase
     {
-        internal SafeX509ExtensionHandle ExtensionHandle;
+        internal class X509ExtensionInternal : SafeHandleWrapper<SafeX509ExtensionHandle>
+        {
+            internal X509ExtensionInternal(SafeX509ExtensionHandle safeHandle)
+                : base(safeHandle) { }
+        }
+
+        internal X509ExtensionInternal X509ExtensionWrapper { get; private set; }
+        internal override ISafeHandleWrapper HandleWrapper => this.X509ExtensionWrapper;
+
         private X509ExtensionType extensionType;
 
         public string Name => this.extensionType.LongName;
-        public bool Critical => this.CryptoWrapper.X509_EXTENSION_get_critical(this.ExtensionHandle) == 1;
+        public bool Critical => this.CryptoWrapper.X509_EXTENSION_get_critical(this.X509ExtensionWrapper.Handle) == 1;
 
         string data;
-        public string Data => data ?? (data = this.CryptoWrapper.X509_EXTENSION_get_data(this.ExtensionHandle).Value);
+        public string Data => data ?? (data = this.CryptoWrapper.X509_EXTENSION_get_data(this.X509ExtensionWrapper.Handle).Value);
 
         internal X509Extension(SafeX509ExtensionHandle extensionHandle)
             : base()
         {
-            this.ExtensionHandle = extensionHandle;
-            this.extensionType = new X509ExtensionType(this.CryptoWrapper.X509_EXTENSION_get_object(this.ExtensionHandle));
+            this.X509ExtensionWrapper = new X509ExtensionInternal(extensionHandle);
+            this.extensionType = new X509ExtensionType(this.CryptoWrapper.X509_EXTENSION_get_object(this.X509ExtensionWrapper.Handle));
         }
 
         public X509Extension(string name, bool critical, string value)
             : base()
         {
             this.extensionType = name;
-            this.ExtensionHandle = CreateHandle(this.extensionType, critical, value);
+            this.X509ExtensionWrapper = new X509ExtensionInternal(CreateHandle(this.extensionType, critical, value));
         }
 
         public X509Extension(X509ExtensionType type, bool critical, string value)
             : base()
         {
             this.extensionType = type;
-            this.ExtensionHandle = CreateHandle(type, critical, value);
+            this.X509ExtensionWrapper = new X509ExtensionInternal(CreateHandle(type, critical, value));
         }
 
         ~X509Extension()
@@ -73,11 +81,8 @@ namespace OpenSSL.Core.X509
                 return Native.CryptoWrapper.X509_EXTENSION_create_by_NID(IntPtr.Zero, type.NID, critical ? 1 : 0, IntPtr.Zero);
         }
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            if (!(this.ExtensionHandle is null) || !this.ExtensionHandle.IsInvalid)
-                this.ExtensionHandle.Dispose();
-
             if (!(this.extensionType is null))
                 this.extensionType.Dispose();
         }

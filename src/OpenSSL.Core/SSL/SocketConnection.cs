@@ -108,7 +108,7 @@ namespace OpenSSL.Core.SSL
     /// Reperesents a duplex pipe over managed sockets
     /// Based on https://github.com/mgravell/Pipelines.Sockets.Unofficial
     /// </summary>
-    public sealed partial class SocketConnection : Base, IMeasuredDuplexPipe, IDisposable
+    public sealed partial class SocketConnection : OpenSslBase, IMeasuredDuplexPipe, IDisposable
     {
 #if DEBUG
         ~SocketConnection() => Helpers.Incr(Counter.SocketConnectionCollectedWithoutDispose);
@@ -193,7 +193,7 @@ namespace OpenSSL.Core.SSL
         /// <summary>
         /// Release any resources held by this instance
         /// </summary>
-        public override void Dispose()
+        public void Dispose()
         {
             TrySetShutdown(PipeShutdownKind.PipeDisposed);
 #if DEBUG
@@ -207,9 +207,17 @@ namespace OpenSSL.Core.SSL
             try { Socket.Close(); } catch { }
             try { Socket.Dispose(); } catch { }
 
+            //complete all pipes (again?)
+            this._sendToSocket.Writer.Complete();
+            this._sendToSocket.Reader.Complete();
+
+            //writer only, data could still be in the pipe
+            this._receiveFromSocket.Writer.Complete();
+
+            //TODO: causes shutdown too prematurely
             // make sure that the async operations end ... can be twitchy!
-            try { _readerArgs?.Abort(); } catch { }
-            try { _writerArgs?.Abort(); } catch { }
+            //try { _readerArgs?.Abort(); } catch { }
+            //try { _writerArgs?.Abort(); } catch { }
         }
 
         private void Reset()

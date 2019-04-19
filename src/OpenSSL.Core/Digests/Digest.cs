@@ -15,7 +15,7 @@ namespace OpenSSL.Core.Digests
         public Digest(DigestType digestType)
             : base(digestType)
         {
-            this.CryptoWrapper.EVP_DigestInit(this.digestCtxHandle, this.digestHandle);
+            this.CryptoWrapper.EVP_DigestInit(this.digestCtxHandle, this.DigestWrapper.Handle);
         }
 
         public void Update(Span<byte> buffer)

@@ -64,8 +64,8 @@ namespace OpenSSL.Core.Ciphers
 
             for (int i = 0; i < this.publicKeys.Length; i++)
             {
-                keyHandles[i] = (this.publicKeys[i] as Key).KeyHandle.DangerousGetHandle();
-                ek[i] = Marshal.AllocHGlobal(this.CryptoWrapper.EVP_PKEY_size((this.publicKeys[i] as Key).KeyHandle));
+                keyHandles[i] = (this.publicKeys[i] as Key).KeyWrapper.Handle.DangerousGetHandle();
+                ek[i] = Marshal.AllocHGlobal(this.CryptoWrapper.EVP_PKEY_size((this.publicKeys[i] as Key).KeyWrapper.Handle));
             }
 
             Span<int> lenSpan = new Span<int>(keyLengths);
@@ -74,7 +74,7 @@ namespace OpenSSL.Core.Ciphers
                 if (this.ivLength > 0 && !(this.IV is null))
                 {
                     Span<byte> ivSpan = new Span<byte>(this.IV);
-                    this.CryptoWrapper.EVP_SealInit(this.CipherContextHandle, this.CipherHandle,
+                    this.CryptoWrapper.EVP_SealInit(this.CipherContextHandle, this.CipherWrapper.Handle,
                         ek,
                         lenSpan.GetPinnableReference(),
                         ivSpan.GetPinnableReference(),
@@ -82,7 +82,7 @@ namespace OpenSSL.Core.Ciphers
                         this.publicKeys.Length);
                 }
                 else
-                    this.CryptoWrapper.EVP_SealInit(this.CipherContextHandle, this.CipherHandle,
+                    this.CryptoWrapper.EVP_SealInit(this.CipherContextHandle, this.CipherWrapper.Handle,
                         ek,
                         lenSpan.GetPinnableReference(),
                         IntPtr.Zero,

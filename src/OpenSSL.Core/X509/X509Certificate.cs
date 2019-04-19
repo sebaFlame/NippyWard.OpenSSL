@@ -1,26 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Buffers;
 
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop.SafeHandles.Crypto;
 using OpenSSL.Core.Interop.SafeHandles.X509;
-using OpenSSL.Core.Interop.Wrappers;
 using OpenSSL.Core.Keys;
 using OpenSSL.Core.ASN1;
-using System.Collections;
 
 namespace OpenSSL.Core.X509
 {
     public class X509Certificate : X509CertificateBase, IEquatable<X509Certificate>
     {
+        internal class X509CertificateInternal : SafeHandleWrapper<SafeX509CertificateHandle>
+        {
+            internal X509CertificateInternal(SafeX509CertificateHandle safeHandle)
+                : base(safeHandle) { }
+        }
+
         private X509ExtensionEnumerator x509ExtensionEnumerator;
 
-        internal SafeX509CertificateHandle X509Handle;
+        internal X509CertificateInternal X509Wrapper { get; private set; }
+        internal override ISafeHandleWrapper HandleWrapper => this.X509Wrapper;
 
         public ICollection<X509Extension> X509Extensions => this.x509ExtensionEnumerator;
 
@@ -28,28 +31,28 @@ namespace OpenSSL.Core.X509
 
         public DateTime NotBefore
         {
-            get => this.CryptoWrapper.X509_get0_notBefore(this.X509Handle).DateTime;
+            get => this.CryptoWrapper.X509_get0_notBefore(this.X509Wrapper.Handle).DateTime;
             set
             {
                 SafeAsn1DateTimeHandle timeHandle, timeHandleDup;
                 using (timeHandle = this.CryptoWrapper.ASN1_TIME_new())
                 {
                     using (timeHandleDup = this.CryptoWrapper.ASN1_TIME_set(timeHandle, SafeAsn1DateTimeHandle.DateTimeToTimeT(value)))
-                        this.CryptoWrapper.X509_set1_notBefore(this.X509Handle, timeHandleDup);
+                        this.CryptoWrapper.X509_set1_notBefore(this.X509Wrapper.Handle, timeHandleDup);
                 }
             }
         }
 
         public DateTime NotAfter
         {
-            get => this.CryptoWrapper.X509_get0_notAfter(this.X509Handle).DateTime;
+            get => this.CryptoWrapper.X509_get0_notAfter(this.X509Wrapper.Handle).DateTime;
             set
             {
                 SafeAsn1DateTimeHandle timeHandle, timeHandleDup;
                 using (timeHandle = this.CryptoWrapper.ASN1_TIME_new())
                 {
                     using (timeHandleDup = this.CryptoWrapper.ASN1_TIME_set(timeHandle, SafeAsn1DateTimeHandle.DateTimeToTimeT(value)))
-                        this.CryptoWrapper.X509_set1_notAfter(this.X509Handle, timeHandle);
+                        this.CryptoWrapper.X509_set1_notAfter(this.X509Wrapper.Handle, timeHandle);
                 }
             }
         }
@@ -59,7 +62,7 @@ namespace OpenSSL.Core.X509
             get
             {
                 SafeAsn1IntegerHandle integer;
-                using (integer = this.CryptoWrapper.X509_get_serialNumber(this.X509Handle))
+                using (integer = this.CryptoWrapper.X509_get_serialNumber(this.X509Wrapper.Handle))
                     return integer.Value;
             }
             set
@@ -68,15 +71,15 @@ namespace OpenSSL.Core.X509
                 using (integer = this.CryptoWrapper.ASN1_INTEGER_new())
                 {
                     integer.Value = value;
-                    this.CryptoWrapper.X509_set_serialNumber(this.X509Handle, integer);
+                    this.CryptoWrapper.X509_set_serialNumber(this.X509Wrapper.Handle, integer);
                 }
             }
         }
 
         public override int Version
         {
-            get => (int)this.CryptoWrapper.X509_get_version(this.X509Handle);
-            set => this.CryptoWrapper.X509_set_version(this.X509Handle, value);
+            get => (int)this.CryptoWrapper.X509_get_version(this.X509Wrapper.Handle);
+            set => this.CryptoWrapper.X509_set_version(this.X509Wrapper.Handle, value);
         }
 
         #endregion
@@ -86,7 +89,7 @@ namespace OpenSSL.Core.X509
         internal X509Certificate(SafeX509CertificateHandle x509Handle)
             : base()
         {
-            this.X509Handle = x509Handle;
+            this.X509Wrapper = new X509CertificateInternal(x509Handle);
             this.GuaranteeEnumerator();
         }
 
@@ -94,7 +97,7 @@ namespace OpenSSL.Core.X509
         internal X509Certificate(SafeX509CertificateHandle x509Handle, SafeKeyHandle keyHandle)
             : base(keyHandle)
         {
-            this.X509Handle = x509Handle;
+            this.X509Wrapper = new X509CertificateInternal(x509Handle);
             this.GuaranteeEnumerator();
         }
 
@@ -210,20 +213,20 @@ namespace OpenSSL.Core.X509
 
         internal override void WriteCertificate(SafeBioHandle bioHandle, string password, CipherType cipherType, FileEncoding fileEncoding)
         {
-            if (this.X509Handle is null || this.X509Handle.IsInvalid)
+            if (this.X509Wrapper.Handle is null || this.X509Wrapper.Handle.IsInvalid)
                 throw new InvalidOperationException("Key has not been genrated yet");
 
             PasswordCallback callBack = new PasswordCallback(password);
             PasswordThunk pass = new PasswordThunk(callBack.OnPassword);
 
             if (fileEncoding == FileEncoding.PEM)
-                this.CryptoWrapper.PEM_write_bio_X509(bioHandle, this.X509Handle);
+                this.CryptoWrapper.PEM_write_bio_X509(bioHandle, this.X509Wrapper.Handle);
             else if (fileEncoding == FileEncoding.DER)
-                this.CryptoWrapper.i2d_X509_bio(bioHandle, this.X509Handle);
+                this.CryptoWrapper.i2d_X509_bio(bioHandle, this.X509Wrapper.Handle);
             else if (fileEncoding == FileEncoding.PKCS12)
             {
                 //TODO: cipherType incorrect? should be a PBE?
-                SafePKCS12Handle pkcs12Handle = this.CryptoWrapper.PKCS12_create(password, "", this.PrivateKey?.KeyHandle, this.X509Handle, null, cipherType.NID, 0, 2048, 1, 0);
+                SafePKCS12Handle pkcs12Handle = this.CryptoWrapper.PKCS12_create(password, "", this.PrivateKey?.KeyWrapper.Handle, this.X509Wrapper.Handle, null, cipherType.NID, 0, 2048, 1, 0);
                 this.CryptoWrapper.i2d_PKCS12_bio(bioHandle, pkcs12Handle);
             }
             else
@@ -240,8 +243,8 @@ namespace OpenSSL.Core.X509
             SafeMessageDigestHandle md;
             using (md = this.CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr))
             {
-                this.CryptoWrapper.X509_sign(this.X509Handle, this.PrivateKey.KeyHandle, md);
-                this.CryptoWrapper.X509_set_issuer_name(this.X509Handle, this.X509Name.NameHandle);
+                this.CryptoWrapper.X509_sign(this.X509Wrapper.Handle, this.PrivateKey.KeyWrapper.Handle, md);
+                this.CryptoWrapper.X509_set_issuer_name(this.X509Wrapper.Handle, this.X509Name.X509NameWrapper.Handle);
             }
         }
 
@@ -256,22 +259,22 @@ namespace OpenSSL.Core.X509
 
         internal void SetIssuer(X509Name x509Name)
         {
-            this.CryptoWrapper.X509_set_issuer_name(this.X509Handle, x509Name.NameHandle);
+            this.CryptoWrapper.X509_set_issuer_name(this.X509Wrapper.Handle, x509Name.X509NameWrapper.Handle);
         }
 
         internal SafeX509ExtensionHandle GetExtension(int index)
         {
-            return this.CryptoWrapper.X509_get_ext(this.X509Handle, index);
+            return this.CryptoWrapper.X509_get_ext(this.X509Wrapper.Handle, index);
         }
 
         internal int GetMaxExtensionCount()
         {
-            return this.CryptoWrapper.X509_get_ext_count(this.X509Handle);
+            return this.CryptoWrapper.X509_get_ext_count(this.X509Wrapper.Handle);
         }
 
         internal void AddExtension(SafeX509ExtensionHandle extensionHandle)
         {
-            this.CryptoWrapper.X509_add_ext(this.X509Handle, extensionHandle, -1);
+            this.CryptoWrapper.X509_add_ext(this.X509Wrapper.Handle, extensionHandle, -1);
         }
 
         private void GuaranteeEnumerator()
@@ -286,24 +289,24 @@ namespace OpenSSL.Core.X509
 
         internal override void CreateSafeHandle()
         {
-            this.X509Handle = this.CryptoWrapper.X509_new();
+            this.X509Wrapper = new X509CertificateInternal(this.CryptoWrapper.X509_new());
         }
 
         internal override void SetPublicKey(PrivateKey privateKey)
         {
-            this.CryptoWrapper.X509_set_pubkey(this.X509Handle, privateKey.KeyHandle);
+            this.CryptoWrapper.X509_set_pubkey(this.X509Wrapper.Handle, privateKey.KeyWrapper.Handle);
         }
 
         internal override PublicKey GetPublicKey()
         {
-            return new PublicKey(this.CryptoWrapper.X509_get_pubkey(this.X509Handle));
+            return new PublicKey(this.CryptoWrapper.X509_get_pubkey(this.X509Wrapper.Handle));
         }
 
         public override bool VerifyPublicKey(IPublicKey key)
         {
             try
             {
-                return this.CryptoWrapper.X509_verify(this.X509Handle, ((Key)key).KeyHandle) == 1;
+                return this.CryptoWrapper.X509_verify(this.X509Wrapper.Handle, ((Key)key).KeyWrapper.Handle) == 1;
             }
             finally
             {
@@ -315,7 +318,7 @@ namespace OpenSSL.Core.X509
         {
             try
             {
-                return this.CryptoWrapper.X509_check_private_key(this.X509Handle, key.KeyHandle) == 1;
+                return this.CryptoWrapper.X509_check_private_key(this.X509Wrapper.Handle, key.KeyWrapper.Handle) == 1;
             }
             finally
             {
@@ -325,25 +328,25 @@ namespace OpenSSL.Core.X509
 
         internal override SafeX509NameHandle GetSubject()
         {
-            return this.CryptoWrapper.X509_get_subject_name(this.X509Handle);
+            return this.CryptoWrapper.X509_get_subject_name(this.X509Wrapper.Handle);
         }
 
         internal override void Sign(SafeKeyHandle key, SafeMessageDigestHandle md)
         {
-            this.CryptoWrapper.X509_sign(this.X509Handle, key, md);
+            this.CryptoWrapper.X509_sign(this.X509Wrapper.Handle, key, md);
         }
 
         #endregion
 
         public bool Equals(X509Certificate other)
         {
-            if (other.X509Handle is null || other.X509Handle.IsInvalid)
+            if (other.X509Wrapper.Handle is null || other.X509Wrapper.Handle.IsInvalid)
                 throw new InvalidOperationException("Certificate hasn't been generated yet");
 
-            if (this.X509Handle is null || this.X509Handle.IsInvalid)
+            if (this.X509Wrapper.Handle is null || this.X509Wrapper.Handle.IsInvalid)
                 throw new InvalidOperationException("Certificate hasn't been generated yet");
 
-            return this.CryptoWrapper.X509_cmp(this.X509Handle, other.X509Handle) == 0;
+            return this.CryptoWrapper.X509_cmp(this.X509Wrapper.Handle, other.X509Wrapper.Handle) == 0;
         }
 
         public override bool Equals(object obj)
@@ -364,7 +367,7 @@ namespace OpenSSL.Core.X509
             IntPtr algorithm = new IntPtr();
             using (stringHandle = this.CryptoWrapper.ASN1_BIT_STRING_new())
             {
-                this.CryptoWrapper.X509_get0_signature(out stringHandle, algorithm, this.X509Handle);
+                this.CryptoWrapper.X509_get0_signature(out stringHandle, algorithm, this.X509Wrapper.Handle);
                 Span<byte> sig = stringHandle.Value;
                 this.hashCode = sig.GetHashCode();
             }
@@ -372,15 +375,12 @@ namespace OpenSSL.Core.X509
             return this.hashCode;
         }
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            if (!(this.X509Handle is null) && !this.X509Handle.IsInvalid)
-                this.X509Handle.Dispose();
-
             if (this.x509ExtensionEnumerator != null)
                 this.x509ExtensionEnumerator.Dispose();
 
-            base.Dispose();
+            base.Dispose(disposing);
         }
     }
 }

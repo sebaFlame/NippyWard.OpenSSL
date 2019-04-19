@@ -14,7 +14,7 @@ namespace OpenSSL.Core.Digests
         public Verify(DigestType digestType)
             : base(digestType)
         {
-            this.CryptoWrapper.EVP_VerifyInit_ex(this.digestCtxHandle, this.digestHandle, null);
+            this.CryptoWrapper.EVP_VerifyInit_ex(this.digestCtxHandle, this.DigestWrapper.Handle, null);
         }
 
         public void Update(Span<byte> buffer)
@@ -30,7 +30,7 @@ namespace OpenSSL.Core.Digests
             if (this.finalized)
                 throw new InvalidOperationException("Sign has already been finalized");
 
-            return this.CryptoWrapper.EVP_VerifyFinal(this.digestCtxHandle, signature.GetPinnableReference(), (uint)signature.Length, key.KeyHandle) > 0;
+            return this.CryptoWrapper.EVP_VerifyFinal(this.digestCtxHandle, signature.GetPinnableReference(), (uint)signature.Length, key.KeyWrapper.Handle) > 0;
         }
     }
 }

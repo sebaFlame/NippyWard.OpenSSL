@@ -7,9 +7,16 @@ using OpenSSL.Core.Interop.SafeHandles.X509;
 
 namespace OpenSSL.Core.X509
 {
-    public class X509Name : Base
+    public class X509Name : OpenSslWrapperBase
     {
-        internal SafeX509NameHandle NameHandle { get; private set; }
+        internal class X509NameInternal : SafeHandleWrapper<SafeX509NameHandle>
+        {
+            internal X509NameInternal(SafeX509NameHandle safeHandle)
+                : base(safeHandle) { }
+        }
+
+        internal X509NameInternal X509NameWrapper { get; private set; }
+        internal override ISafeHandleWrapper HandleWrapper => this.X509NameWrapper;
 
         /// <summary>
         /// Accessor to the name entry for 'CN'
@@ -122,7 +129,7 @@ namespace OpenSSL.Core.X509
         internal X509Name(SafeX509NameHandle nameHandle)
             : base()
         {
-            this.NameHandle = nameHandle;
+            this.X509NameWrapper = new X509NameInternal(nameHandle);
         }
 
         private void AddEntryByName(string field, string value)
@@ -141,7 +148,8 @@ namespace OpenSSL.Core.X509
                     Encoding.ASCII.GetEncoder().Convert(valChar, value.Length, valEncoded, byteCount, true, out charsUsed, out bytesUsed, out completed);
                     Span<byte> valSpan = new Span<byte>(valEncoded, byteCount);
 
-                    this.CryptoWrapper.X509_NAME_add_entry_by_txt(this.NameHandle,
+                    this.CryptoWrapper.X509_NAME_add_entry_by_txt(
+                        this.X509NameWrapper.Handle,
                         fieldSpan.GetPinnableReference(),
                         Native.MBSTRING_ASC,
                         valSpan.GetPinnableReference(),
@@ -158,7 +166,7 @@ namespace OpenSSL.Core.X509
             int nid = this.CryptoWrapper.OBJ_txt2nid(field);
 
             //get length of the value of the field
-            int length = this.CryptoWrapper.X509_NAME_get_text_by_NID(this.NameHandle, nid, IntPtr.Zero, 0);
+            int length = this.CryptoWrapper.X509_NAME_get_text_by_NID(this.X509NameWrapper.Handle, nid, IntPtr.Zero, 0);
             length++; //make room for final null
 
             string val = string.Empty;
@@ -166,17 +174,16 @@ namespace OpenSSL.Core.X509
             {
                 byte* valBytes = stackalloc byte[length];
                 Span<byte> valSpan = new Span<byte>(valBytes, length);
-                this.CryptoWrapper.X509_NAME_get_text_by_NID(this.NameHandle, nid, ref valSpan.GetPinnableReference(), length);
+                this.CryptoWrapper.X509_NAME_get_text_by_NID(this.X509NameWrapper.Handle, nid, ref valSpan.GetPinnableReference(), length);
                 val = Encoding.ASCII.GetString(valBytes, length -1);
             }
 
             return val;
         }
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            if (!(this.NameHandle is null) && !this.NameHandle.IsInvalid)
-                this.NameHandle.Dispose();
+            //NOP
         }
     }
 }

@@ -30,7 +30,7 @@ namespace OpenSSL.Core.Keys
         internal ECKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {
-            this.ecHandle = this.CryptoWrapper.EVP_PKEY_get1_EC_KEY(this.KeyHandle);
+            this.ecHandle = this.CryptoWrapper.EVP_PKEY_get1_EC_KEY(this.KeyWrapper.Handle);
         }
 
         //TODO: more options?
@@ -53,7 +53,7 @@ namespace OpenSSL.Core.Keys
             this.CryptoWrapper.EC_KEY_generate_key(this.ecHandle);
         }
 
-        internal override SafeKeyHandle GenerateKeyInternal()
+        internal override KeyInternal GenerateKeyInternal()
         {
             if (this.ecHandle is null || this.ecHandle.IsInvalid)
                 throw new InvalidOperationException("RSA key has not been created yet");
@@ -62,15 +62,13 @@ namespace OpenSSL.Core.Keys
 
             SafeKeyHandle keyHandle = this.CryptoWrapper.EVP_PKEY_new();
             this.CryptoWrapper.EVP_PKEY_set1_EC_KEY(keyHandle, this.ecHandle);
-            return keyHandle;
+            return new KeyInternal(keyHandle);
         }
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
             if (!(this.ecHandle is null) && !this.ecHandle.IsInvalid)
                 this.ecHandle.Dispose();
-
-            base.Dispose();
         }
     }
 }

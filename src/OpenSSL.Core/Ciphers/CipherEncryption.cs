@@ -88,10 +88,10 @@ namespace OpenSSL.Core.Ciphers
             if (this.ivLength > 0 && !(this.IV is null))
             {
                 Span<byte> iv = new Span<byte>(this.IV);
-                this.CryptoWrapper.EVP_EncryptInit(this.CipherContextHandle, this.CipherHandle, key.GetPinnableReference(), iv.GetPinnableReference());
+                this.CryptoWrapper.EVP_EncryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), iv.GetPinnableReference());
             }
             else
-                this.CryptoWrapper.EVP_EncryptInit(this.CipherContextHandle, this.CipherHandle, key.GetPinnableReference(), IntPtr.Zero);
+                this.CryptoWrapper.EVP_EncryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), IntPtr.Zero);
         }
 
         protected override int UpdateInternal(in Span<byte> inputBuffer, ref Span<byte> outputBuffer)

@@ -46,7 +46,7 @@ namespace OpenSSL.Core.Tests
 			using (RSAKey lhs = new RSAKey(1024))
 			{
 				lhs.GenerateKey();
-				using (Key rhs = PrivateKey.GetCorrectKey(lhs.KeyHandle))
+				using (Key rhs = PrivateKey.GetCorrectKey(lhs.KeyWrapper.Handle))
 				{
 					Assert.Equal(lhs, rhs);
 
@@ -65,7 +65,7 @@ namespace OpenSSL.Core.Tests
 			using (DSAKey lhs = new DSAKey(1024))
             {
                 lhs.GenerateKey();
-                using (Key rhs = PrivateKey.GetCorrectKey(lhs.KeyHandle))
+                using (Key rhs = PrivateKey.GetCorrectKey(lhs.KeyWrapper.Handle))
                 {
                     Assert.Equal(lhs, rhs);
 
@@ -84,7 +84,7 @@ namespace OpenSSL.Core.Tests
             using (DHKey lhs = new DHKey(32, 2))
             {
                 lhs.GenerateKey();
-                using (Key rhs = PrivateKey.GetCorrectKey(lhs.KeyHandle))
+                using (Key rhs = PrivateKey.GetCorrectKey(lhs.KeyWrapper.Handle))
                 {
                     Assert.Equal(lhs, rhs);
 
@@ -104,7 +104,7 @@ namespace OpenSSL.Core.Tests
 			{
 				lhs.GenerateKey();
 
-                using (Key rhs = PrivateKey.GetCorrectKey(lhs.KeyHandle))
+                using (Key rhs = PrivateKey.GetCorrectKey(lhs.KeyWrapper.Handle))
                 {
                     Assert.Equal(lhs, rhs);
 

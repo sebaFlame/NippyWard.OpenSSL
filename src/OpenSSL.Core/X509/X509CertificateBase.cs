@@ -14,7 +14,7 @@ using OpenSSL.Core.Keys;
 
 namespace OpenSSL.Core.X509
 {
-    public abstract class X509CertificateBase : Base, IFile
+    public abstract class X509CertificateBase : OpenSslWrapperBase, IFile
     {
         private X509Name x509name;
         internal X509Name X509Name => x509name ?? (x509name = new X509Name(this.GetSubject()));
@@ -162,7 +162,7 @@ namespace OpenSSL.Core.X509
             SafeMessageDigestHandle md;
             using (md = this.CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr))
             {
-                this.Sign(key.KeyHandle, md);
+                this.Sign(key.KeyWrapper.Handle, md);
             }
         }
 
@@ -229,12 +229,12 @@ namespace OpenSSL.Core.X509
 
         #endregion
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
             if (!(this.x509name is null))
                 this.x509name.Dispose();
 
-            if (this.ownsPrivateKey && !(this.PrivateKey is null) && !this.PrivateKey.KeyHandle.IsInvalid)
+            if (this.ownsPrivateKey && !(this.PrivateKey is null) && !this.PrivateKey.KeyWrapper.Handle.IsInvalid)
                 this.PrivateKey.Dispose();
         }
     }

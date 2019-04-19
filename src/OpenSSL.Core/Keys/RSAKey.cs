@@ -14,7 +14,7 @@ namespace OpenSSL.Core.Keys
         internal RSAKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {
-            this.rsaHandle = this.CryptoWrapper.EVP_PKEY_get1_RSA(this.KeyHandle);
+            this.rsaHandle = this.CryptoWrapper.EVP_PKEY_get1_RSA(this.KeyWrapper.Handle);
         }
 
         public RSAKey(int bits)
@@ -22,8 +22,7 @@ namespace OpenSSL.Core.Keys
         {
             this.rsaHandle = this.CryptoWrapper.RSA_new();
 
-            SafeBigNumberHandle bn;
-            using (bn = this.CryptoWrapper.BN_new())
+            using (SafeBigNumberHandle bn = this.CryptoWrapper.BN_new())
             {
                 this.CryptoWrapper.BN_rand(bn, 24, 65537, 1);
                 this.CryptoWrapper.BN_set_bit(bn, 0); //TODO: check if uneven
@@ -31,7 +30,7 @@ namespace OpenSSL.Core.Keys
             }
         }
 
-        internal override SafeKeyHandle GenerateKeyInternal()
+        internal override KeyInternal GenerateKeyInternal()
         {
             if(this.rsaHandle is null || this.rsaHandle.IsInvalid)
                 throw new InvalidOperationException("RSA key has not been created yet");
@@ -40,15 +39,13 @@ namespace OpenSSL.Core.Keys
 
             SafeKeyHandle keyHandle = this.CryptoWrapper.EVP_PKEY_new();
             this.CryptoWrapper.EVP_PKEY_set1_RSA(keyHandle, this.rsaHandle);
-            return keyHandle;
+            return new KeyInternal(keyHandle);
         }
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
             if (!(this.rsaHandle is null) && !this.rsaHandle.IsInvalid)
                 this.rsaHandle.Dispose();
-
-            base.Dispose();
         }
     }
 }

@@ -7,9 +7,17 @@ using OpenSSL.Core.Interop.SafeHandles.Crypto;
 
 namespace OpenSSL.Core.Digests
 {
-    public abstract class DigestBase : Base
+    public abstract class DigestBase : OpenSslWrapperBase
     {
-        internal SafeMessageDigestHandle digestHandle { get; private set; }
+        internal class DigestInternal : SafeHandleWrapper<SafeMessageDigestHandle>
+        {
+            internal DigestInternal(SafeMessageDigestHandle safeHandle)
+                : base(safeHandle) { }
+        }
+
+        internal DigestInternal DigestWrapper { get; private set; }
+        internal override ISafeHandleWrapper HandleWrapper => this.DigestWrapper;
+
         internal SafeMessageDigestContextHandle digestCtxHandle { get; private set; }
 
         private static HashSet<string> supportedDigests;
@@ -28,17 +36,14 @@ namespace OpenSSL.Core.Digests
         protected DigestBase(DigestType digestType)
             : base()
         {
-            this.digestHandle = this.CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr);
+            this.DigestWrapper = new DigestInternal(this.CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr));
             this.digestCtxHandle = this.CryptoWrapper.EVP_MD_CTX_new();
         }
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
             if (!(this.digestCtxHandle is null) && !this.digestCtxHandle.IsInvalid)
                 this.digestCtxHandle.Dispose();
-
-            if (!(this.digestHandle is null) && !this.digestHandle.IsInvalid)
-                this.digestHandle.Dispose();
         }
     }
 }

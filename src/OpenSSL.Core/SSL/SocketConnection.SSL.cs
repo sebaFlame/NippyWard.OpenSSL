@@ -13,6 +13,7 @@ using OpenSSL.Core.Interop.SafeHandles.X509;
 using OpenSSL.Core.Interop.SafeHandles.Crypto;
 using OpenSSL.Core.X509;
 using OpenSSL.Core.Keys;
+using OpenSSL.Core.Collections;
 
 namespace OpenSSL.Core.SSL
 {
@@ -31,7 +32,7 @@ namespace OpenSSL.Core.SSL
         #endregion
 
         #region SSL fields
-        private bool encryptionEnabled => this.IsAvailable(out SslState sslState) && sslState == SslState.Established;
+        private bool encryptionEnabled => this.IsAvailable(out SslState sslState) && sslState >= SslState.Established;
 
         private int _sslState;
         internal SslState SslState
@@ -149,9 +150,9 @@ namespace OpenSSL.Core.SSL
         /// <param name="addToChain">Add the certificate to the verification chain if it's not available in the current <see cref="CertificateStore"/></param>
         public void AddClientCertificateCA(X509Certificate caCertificate, bool addToChain = true)
         {
-            this.SSLWrapper.SSL_CTX_add_client_CA(this.sslContextHandle, caCertificate.X509Handle);
+            this.SSLWrapper.SSL_CTX_add_client_CA(this.sslContextHandle, caCertificate.X509Wrapper.Handle);
             if (addToChain)
-                this.SSLWrapper.SSL_CTX_add_extra_chain_cert(this.sslContextHandle, caCertificate.X509Handle);
+                this.SSLWrapper.SSL_CTX_add_extra_chain_cert(this.sslContextHandle, caCertificate.X509Wrapper.Handle);
         }
 
         private RemoteCertificateValidationHandler remoteCertificateValidationHandler;
@@ -163,18 +164,18 @@ namespace OpenSSL.Core.SSL
         public X509Store CertificateStore
         {
             get => new X509Store(this.SSLWrapper.SSL_CTX_get_cert_store(this.sslContextHandle));
-            set => this.SSLWrapper.SSL_CTX_set_cert_store(this.sslContextHandle, value.StoreHandle);
+            set => this.SSLWrapper.SSL_CTX_set_cert_store(this.sslContextHandle, value.StoreWrapper.Handle);
         }
 
         /// <summary>
         /// Set.Get the certificate for this session.
-        /// Can also be used to set the client certificate
+        /// Can also be used to set the client certificate in client mode
         /// without using a client certificate callback
         /// </summary>
         public X509Certificate Certificate
         {
             get => new X509Certificate(this.SSLWrapper.SSL_CTX_get0_certificate(this.sslContextHandle));
-            set => this.SSLWrapper.SSL_CTX_use_certificate(this.sslContextHandle, value.X509Handle);
+            set => this.SSLWrapper.SSL_CTX_use_certificate(this.sslContextHandle, value.X509Wrapper.Handle);
         }
 
         /// <summary>
@@ -183,7 +184,7 @@ namespace OpenSSL.Core.SSL
         public PrivateKey PrivateKey
         {
             get => PrivateKey.GetCorrectKey(this.SSLWrapper.SSL_CTX_get0_privatekey(this.sslContextHandle));
-            set => this.SSLWrapper.SSL_CTX_use_PrivateKey(this.sslContextHandle, value.KeyHandle);
+            set => this.SSLWrapper.SSL_CTX_use_PrivateKey(this.sslContextHandle, value.KeyWrapper.Handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -385,12 +386,11 @@ namespace OpenSSL.Core.SSL
             if (this.remoteCertificateValidationHandler is null)
                 throw new InvalidOperationException("No verification callback has been defined");
 
-            SafeX509CertificateHandle certHandle = this.CryptoWrapper.X509_STORE_CTX_get_current_cert(x509_store_ctx);
-            using (SafeX509StoreHandle store = this.CryptoWrapper.X509_STORE_CTX_get0_store(x509_store_ctx))
+            using (X509Certificate remoteCertificate = new X509Certificate(this.CryptoWrapper.X509_STORE_CTX_get_current_cert(x509_store_ctx)))
             {
-                using (X509CertificateList certList = new X509CertificateList(store))
+                using (X509Store store = new X509Store(this.CryptoWrapper.X509_STORE_CTX_get0_store(x509_store_ctx)))
                 {
-                    using (X509Certificate remoteCertificate = new X509Certificate(certHandle))
+                    using (OpenSslReadOnlyCollection<X509Certificate> certList = store.GetCertificates())
                     {
                         return this.remoteCertificateValidationHandler((VerifyResult)preVerify, remoteCertificate, certList) ? 1 : 0;
                     }
@@ -409,14 +409,13 @@ namespace OpenSSL.Core.SSL
 
             using (SafeStackHandle<SafeX509NameHandle> nameStackHandle = this.SSLWrapper.SSL_get_client_CA_list(ssl))
             {
-                X509Name[] validCA = new X509Name[nameStackHandle.Count];
-                for (int i = 0; i < nameStackHandle.Count; i++)
-                    validCA[i] = new X509Name(nameStackHandle[i]);
-
-                if (succes = this.clientCertificateCallbackHandler(validCA, out X509Certificate certificate, out PrivateKey privateKey))
+                if (succes = this.clientCertificateCallbackHandler(
+                    OpenSslReadOnlyCollection<X509Name>.CreateFromSafeHandle(nameStackHandle), 
+                    out X509Certificate certificate, 
+                    out PrivateKey privateKey))
                 {
-                    x509 = certificate.X509Handle;
-                    pkey = privateKey.KeyHandle;
+                    x509 = certificate.X509Wrapper.Handle;
+                    pkey = privateKey.KeyWrapper.Handle;
                 }
             }
 

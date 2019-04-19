@@ -11,9 +11,17 @@ using OpenSSL.Core.Interop.SafeHandles.Crypto;
 
 namespace OpenSSL.Core
 {
-    public abstract class Cipher : Base
+    public abstract class Cipher : OpenSslWrapperBase
     {
-        internal SafeCipherHandle CipherHandle { get; private set; }
+        internal class CipherInternal : SafeHandleWrapper<SafeCipherHandle>
+        {
+            internal CipherInternal(SafeCipherHandle safeHandle)
+                : base(safeHandle) { }
+        }
+
+        internal CipherInternal CipherWrapper { get; private set; }
+        internal override ISafeHandleWrapper HandleWrapper => this.CipherWrapper;
+
         internal SafeCipherContextHandle CipherContextHandle { get; private set; }
 
         private bool finalized;
@@ -34,7 +42,7 @@ namespace OpenSSL.Core
         protected Cipher(CipherType cipherType)
             : base()
         {
-            this.CipherHandle = this.CryptoWrapper.EVP_get_cipherbyname(cipherType.ShortNamePtr);
+            this.CipherWrapper = new CipherInternal(this.CryptoWrapper.EVP_get_cipherbyname(cipherType.ShortNamePtr));
             this.CipherContextHandle = this.CryptoWrapper.EVP_CIPHER_CTX_new();
         }
 
@@ -45,13 +53,13 @@ namespace OpenSSL.Core
 
         public int GetOutputBufferLength(Span<byte> inputBuffer)
         {
-            return inputBuffer.Length + (this.CryptoWrapper.EVP_CIPHER_block_size(this.CipherHandle) - 1);
+            return inputBuffer.Length + (this.CryptoWrapper.EVP_CIPHER_block_size(this.CipherWrapper.Handle) - 1);
         }
 
-        protected int GetIVLength() => this.CryptoWrapper.EVP_CIPHER_iv_length(this.CipherHandle);
-        protected int GetKeyLength() => this.CryptoWrapper.EVP_CIPHER_key_length(this.CipherHandle);
+        protected int GetIVLength() => this.CryptoWrapper.EVP_CIPHER_iv_length(this.CipherWrapper.Handle);
+        protected int GetKeyLength() => this.CryptoWrapper.EVP_CIPHER_key_length(this.CipherWrapper.Handle);
 
-        public int GetCipherBlockSize() => this.CryptoWrapper.EVP_CIPHER_block_size(this.CipherHandle);
+        public int GetCipherBlockSize() => this.CryptoWrapper.EVP_CIPHER_block_size(this.CipherWrapper.Handle);
         public int GetMaximumOutputLength(int intputLength) => this.GetCipherBlockSize() + intputLength - 1;
 
         //padding is enabled by default
@@ -95,7 +103,7 @@ namespace OpenSSL.Core
             SafeMessageDigestHandle digestHandle = this.CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr);
 
             this.CryptoWrapper.EVP_BytesToKey(
-                this.CipherHandle,
+                this.CipherWrapper.Handle,
                 digestHandle,
                 salt.GetPinnableReference(),
                 data.GetPinnableReference(),
@@ -129,13 +137,10 @@ namespace OpenSSL.Core
         //    this.CryptoWrapper.EVP_CIPHER_CTX_reset(this.CipherContextHandle);
         //}
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
             if (!(this.CipherContextHandle is null) && !this.CipherContextHandle.IsInvalid)
                 this.CipherContextHandle.Dispose();
-
-            if (!(this.CipherHandle is null) && !this.CipherHandle.IsInvalid)
-                this.CipherHandle.Dispose();
         }
     }
 }

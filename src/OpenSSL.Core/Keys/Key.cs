@@ -14,17 +14,24 @@ using OpenSSL.Core.Interop.SafeHandles.X509;
 
 namespace OpenSSL.Core.Keys
 {
-    public abstract class Key : Base, IEquatable<Key>
+    public abstract class Key : OpenSslWrapperBase, IEquatable<Key>
     {
+        internal class KeyInternal : SafeHandleWrapper<SafeKeyHandle>
+        {
+            internal KeyInternal(SafeKeyHandle safeHandle)
+                : base(safeHandle) { }
+        }
+
+        internal KeyInternal KeyWrapper { get; private set; }
+        internal override ISafeHandleWrapper HandleWrapper => this.KeyWrapper;
+
         private SafeKeyContextHandle keyContextEncryptHandle;
         private SafeKeyContextHandle keyContextDecryptHandle;
-        private SafeKeyHandle keyHandle;
 
         public abstract KeyType KeyType { get; }
-        internal SafeKeyHandle KeyHandle => this.keyHandle ?? throw new InvalidOperationException("Key has not been generated yet");
 
-        public int Bits => this.CryptoWrapper.EVP_PKEY_bits(this.KeyHandle);
-        public int Size => this.CryptoWrapper.EVP_PKEY_size(this.KeyHandle);
+        public int Bits => this.CryptoWrapper.EVP_PKEY_bits(this.KeyWrapper.Handle);
+        public int Size => this.CryptoWrapper.EVP_PKEY_size(this.KeyWrapper.Handle);
 
         protected Key()
             : base() { }
@@ -32,7 +39,7 @@ namespace OpenSSL.Core.Keys
         internal Key(SafeKeyHandle keyHandle)
             : this()
         {
-            this.keyHandle = keyHandle;
+            this.KeyWrapper = new KeyInternal(keyHandle);
         }
 
         ~Key()
@@ -40,20 +47,20 @@ namespace OpenSSL.Core.Keys
             this.Dispose();
         }
 
-        internal abstract SafeKeyHandle GenerateKeyInternal();
+        internal abstract KeyInternal GenerateKeyInternal();
 
         public void GenerateKey()
         {
-            if (!(this.keyHandle is null))
+            if (!(this.KeyWrapper is null))
                 throw new InvalidOperationException("Key has already been generated");
 
-            this.keyHandle = this.GenerateKeyInternal();
+            this.KeyWrapper = this.GenerateKeyInternal();
         }
 
         private void InitializeEncryptionContext()
         {
             if (!(this.keyContextEncryptHandle is null)) return;
-            this.keyContextEncryptHandle = this.CryptoWrapper.EVP_PKEY_CTX_new(this.KeyHandle, null);
+            this.keyContextEncryptHandle = this.CryptoWrapper.EVP_PKEY_CTX_new(this.KeyWrapper.Handle, null);
             this.CryptoWrapper.EVP_PKEY_encrypt_init(this.keyContextEncryptHandle); //TODO: make it possible to customize this operation after this call
         }
 
@@ -82,7 +89,7 @@ namespace OpenSSL.Core.Keys
         private void InitializeDecryptionContext()
         {
             if (!(this.keyContextDecryptHandle is null)) return;
-            this.keyContextDecryptHandle = this.CryptoWrapper.EVP_PKEY_CTX_new(this.KeyHandle, null);
+            this.keyContextDecryptHandle = this.CryptoWrapper.EVP_PKEY_CTX_new(this.KeyWrapper.Handle, null);
             this.CryptoWrapper.EVP_PKEY_decrypt_init(this.keyContextDecryptHandle); //TODO: make it possible to customize this operation after this call
         }
 
@@ -110,13 +117,13 @@ namespace OpenSSL.Core.Keys
 
         public bool Equals(Key other)
         {
-            if (other.KeyHandle is null || other.KeyHandle.IsInvalid)
+            if (other.KeyWrapper.Handle is null || other.KeyWrapper.Handle.IsInvalid)
                 throw new InvalidOperationException("Key hasn't been generated yet");
 
-            if (this.KeyHandle is null || this.KeyHandle.IsInvalid)
+            if (this.KeyWrapper.Handle is null || this.KeyWrapper.Handle.IsInvalid)
                 throw new InvalidOperationException("Key hasn't been generated yet");
 
-            return this.CryptoWrapper.EVP_PKEY_cmp(this.KeyHandle, other.KeyHandle) == 1;
+            return this.CryptoWrapper.EVP_PKEY_cmp(this.KeyWrapper.Handle, other.KeyWrapper.Handle) == 1;
         }
 
         public override bool Equals(object obj)
@@ -132,16 +139,13 @@ namespace OpenSSL.Core.Keys
             return base.GetHashCode();
         }
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
             if (!(this.keyContextEncryptHandle is null) && !this.keyContextEncryptHandle.IsInvalid)
                 this.keyContextEncryptHandle.Dispose();
 
             if (!(this.keyContextDecryptHandle is null) && !this.keyContextDecryptHandle.IsInvalid)
                 this.keyContextDecryptHandle.Dispose();
-
-            if (!(this.keyHandle is null) && !this.keyHandle.IsInvalid)
-                this.keyHandle.Dispose();
         }
     }
 }

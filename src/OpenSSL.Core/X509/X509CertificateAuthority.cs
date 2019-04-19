@@ -37,7 +37,7 @@ namespace OpenSSL.Core.X509
 	/// Duties include processing incoming X509 requests and responding
 	/// with signed X509 certificates, signed by this CA's private key.
 	/// </summary>
-	public class X509CertificateAuthority : Base
+	public class X509CertificateAuthority : OpenSslBase, IDisposable
     {
         private X509Certificate caCert;
         private PrivateKey caKey;
@@ -93,14 +93,14 @@ namespace OpenSSL.Core.X509
             SafeX509CertificateHandle certHandle = this.CryptoWrapper.X509_new();
 
             //set the correct subjects
-            SafeX509NameHandle x509Name = this.CryptoWrapper.X509_REQ_get_subject_name(request.RequestHandle);
+            SafeX509NameHandle x509Name = this.CryptoWrapper.X509_REQ_get_subject_name(request.X509RequestWrapper.Handle);
             this.CryptoWrapper.X509_set_subject_name(certHandle, x509Name);
 
             //set the correct issues
-            this.CryptoWrapper.X509_set_issuer_name(certHandle, this.caCert.X509Name.NameHandle);
+            this.CryptoWrapper.X509_set_issuer_name(certHandle, this.caCert.X509Name.X509NameWrapper.Handle);
 
             //set the public key
-            SafeKeyHandle pubKey = this.CryptoWrapper.X509_REQ_get_pubkey(request.RequestHandle);
+            SafeKeyHandle pubKey = this.CryptoWrapper.X509_REQ_get_pubkey(request.X509RequestWrapper.Handle);
             this.CryptoWrapper.X509_set_pubkey(certHandle, pubKey);
 
             //create managed wrapper
@@ -127,7 +127,7 @@ namespace OpenSSL.Core.X509
 		/// <summary>
 		/// Dispose the key, certificate, and the configuration
 		/// </summary>
-		public override void Dispose()
+		public void Dispose()
 		{
 			if (!(this.caKey is null))
 				caKey.Dispose();

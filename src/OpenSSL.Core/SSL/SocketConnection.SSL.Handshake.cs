@@ -153,8 +153,8 @@ namespace OpenSSL.Core.SSL
             if (!serverCertificate.VerifyPrivateKey(privateKey))
                 throw new InvalidOperationException("Public and private key do not match");
 
-            this.SSLWrapper.SSL_CTX_use_certificate(this.sslContextHandle, serverCertificate.X509Handle);
-            this.SSLWrapper.SSL_CTX_use_PrivateKey(this.sslContextHandle, privateKey.KeyHandle);
+            this.SSLWrapper.SSL_CTX_use_certificate(this.sslContextHandle, serverCertificate.X509Wrapper.Handle);
+            this.SSLWrapper.SSL_CTX_use_PrivateKey(this.sslContextHandle, privateKey.KeyWrapper.Handle);
         }
         #endregion
 
@@ -177,6 +177,10 @@ namespace OpenSSL.Core.SSL
 
             this.sslHandle = this.SSLWrapper.SSL_new(this.sslContextHandle);
             this.SSLWrapper.SSL_set_bio(this.sslHandle, this.readHandle, this.writeHandle);
+
+            //add references for correct disposal
+            this.readHandle.AddRef();
+            this.writeHandle.AddRef();
 
             //set correct connection endpoint options
             if (isServer)

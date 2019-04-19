@@ -16,24 +16,33 @@ namespace OpenSSL.Core.X509
 {
     public class X509CertificateRequest : X509CertificateBase
     {
-        internal SafeX509RequestHandle RequestHandle;
+        internal class X509CertificateRequestInternal : SafeHandleWrapper<SafeX509RequestHandle>
+        {
+            internal X509CertificateRequestInternal(SafeX509RequestHandle safeHandle)
+                : base(safeHandle) { }
+        }
+
+        internal X509CertificateRequestInternal X509RequestWrapper { get; private set; }
+        internal override ISafeHandleWrapper HandleWrapper => this.X509RequestWrapper;
 
         internal X509CertificateRequest(SafeX509RequestHandle requestHandle)
             : base()
         {
-            this.RequestHandle = requestHandle;
+            this.X509RequestWrapper = new X509CertificateRequestInternal(requestHandle);
         }
 
         //only use for CA?
         internal X509CertificateRequest(SafeX509RequestHandle x509RequestHandle, SafeKeyHandle keyHandle)
             : base(keyHandle)
         {
-            this.RequestHandle = x509RequestHandle;
+            this.X509RequestWrapper = new X509CertificateRequestInternal(x509RequestHandle);
         }
 
         public X509CertificateRequest(int bits)
             : base(bits)
-        { }
+        {
+            this.Version = 2;
+        }
 
         public X509CertificateRequest(int bits, string OU, string CN)
             : this(bits)
@@ -44,7 +53,9 @@ namespace OpenSSL.Core.X509
 
         public X509CertificateRequest(PrivateKey privateKey)
             : base(privateKey)
-        { }
+        {
+            this.Version = 2;
+        }
 
         public X509CertificateRequest(PrivateKey privateKey, string OU, string CN)
             : this(privateKey)
@@ -55,43 +66,43 @@ namespace OpenSSL.Core.X509
 
         public override int Version
         {
-            get => (int)this.CryptoWrapper.X509_REQ_get_version(this.RequestHandle);
-            set => this.CryptoWrapper.X509_REQ_set_version(this.RequestHandle, value);
+            get => (int)this.CryptoWrapper.X509_REQ_get_version(this.X509RequestWrapper.Handle);
+            set => this.CryptoWrapper.X509_REQ_set_version(this.X509RequestWrapper.Handle, value);
         }
 
         public override bool VerifyPrivateKey(PrivateKey key)
         {
-            return this.CryptoWrapper.X509_REQ_check_private_key(this.RequestHandle, key.KeyHandle) == 1;
+            return this.CryptoWrapper.X509_REQ_check_private_key(this.X509RequestWrapper.Handle, key.KeyWrapper.Handle) == 1;
         }
 
         public override bool VerifyPublicKey(IPublicKey key)
         {
-            return this.CryptoWrapper.X509_REQ_verify(this.RequestHandle, ((Key)key).KeyHandle) == 1;
+            return this.CryptoWrapper.X509_REQ_verify(this.X509RequestWrapper.Handle, ((Key)key).KeyWrapper.Handle) == 1;
         }
 
         internal override void CreateSafeHandle()
         {
-            this.RequestHandle = this.CryptoWrapper.X509_REQ_new();
+            this.X509RequestWrapper = new X509CertificateRequestInternal(this.CryptoWrapper.X509_REQ_new());
         }
 
         internal override PublicKey GetPublicKey()
         {
-            return new PublicKey(this.CryptoWrapper.X509_REQ_get_pubkey(this.RequestHandle));
+            return new PublicKey(this.CryptoWrapper.X509_REQ_get_pubkey(this.X509RequestWrapper.Handle));
         }
 
         internal override SafeX509NameHandle GetSubject()
         {
-            return this.CryptoWrapper.X509_REQ_get_subject_name(this.RequestHandle);
+            return this.CryptoWrapper.X509_REQ_get_subject_name(this.X509RequestWrapper.Handle);
         }
 
         internal override void SetPublicKey(PrivateKey privateKey)
         {
-            this.CryptoWrapper.X509_REQ_set_pubkey(this.RequestHandle, privateKey.KeyHandle);
+            this.CryptoWrapper.X509_REQ_set_pubkey(this.X509RequestWrapper.Handle, privateKey.KeyWrapper.Handle);
         }
 
         internal override void Sign(SafeKeyHandle keyHandle, SafeMessageDigestHandle md)
         {
-            this.CryptoWrapper.X509_REQ_sign(this.RequestHandle, keyHandle, md);
+            this.CryptoWrapper.X509_REQ_sign(this.X509RequestWrapper.Handle, keyHandle, md);
         }
 
         public static X509CertificateRequest Read(string filePath, string password, FileEncoding fileEncoding = FileEncoding.PEM)
@@ -148,26 +159,18 @@ namespace OpenSSL.Core.X509
 
         internal override void WriteCertificate(SafeBioHandle bioHandle, string password, CipherType cipherType, FileEncoding fileEncoding)
         {
-            if (this.RequestHandle is null || this.RequestHandle.IsInvalid)
+            if (this.X509RequestWrapper.Handle is null || this.X509RequestWrapper.Handle.IsInvalid)
                 throw new InvalidOperationException("Key has not been genrated yet");
 
             PasswordCallback callBack = new PasswordCallback(password);
             PasswordThunk pass = new PasswordThunk(callBack.OnPassword);
 
             if (fileEncoding == FileEncoding.PEM)
-                this.CryptoWrapper.PEM_write_bio_X509_REQ(bioHandle, this.RequestHandle);
+                this.CryptoWrapper.PEM_write_bio_X509_REQ(bioHandle, this.X509RequestWrapper.Handle);
             else if (fileEncoding == FileEncoding.DER)
-                this.CryptoWrapper.i2d_X509_REQ_bio(bioHandle, this.RequestHandle);
+                this.CryptoWrapper.i2d_X509_REQ_bio(bioHandle, this.X509RequestWrapper.Handle);
             else
                 throw new FormatException("Encoding not supported");
-        }
-
-        public override void Dispose()
-        {
-            if (!(this.RequestHandle is null) && !this.RequestHandle.IsInvalid)
-                this.RequestHandle.Dispose();
-
-            base.Dispose();
         }
     }
 }

@@ -7,9 +7,16 @@ using OpenSSL.Core.Interop.SafeHandles;
 
 namespace OpenSSL.Core.ASN1
 {
-    public class ASN1Object : Base
+    public class ASN1Object : OpenSslWrapperBase
     {
-        private SafeAsn1ObjectHandle asn1Handle;
+        internal class ASN1ObjectInternal : SafeHandleWrapper<SafeAsn1ObjectHandle>
+        {
+            internal ASN1ObjectInternal(SafeAsn1ObjectHandle safeHandle)
+                : base(safeHandle) { }
+        }
+
+        internal ASN1ObjectInternal ASN1ObjectWrapper { get; private set; }
+        internal override ISafeHandleWrapper HandleWrapper => this.ASN1ObjectWrapper;
 
         private int nid;
         public int NID
@@ -17,7 +24,7 @@ namespace OpenSSL.Core.ASN1
             get
             {
                 return nid == 0  
-                    ? (nid = this.CryptoWrapper.OBJ_obj2nid(this.asn1Handle))
+                    ? (nid = this.CryptoWrapper.OBJ_obj2nid(this.ASN1ObjectWrapper.Handle))
                     : nid;
             }
         }
@@ -44,7 +51,7 @@ namespace OpenSSL.Core.ASN1
             }
         }
 
-        internal IntPtr ShortNamePtr => this.asn1Handle.ShortName;
+        internal IntPtr ShortNamePtr => this.ASN1ObjectWrapper.Handle.ShortName;
 
         private ASN1Object()
             : base()
@@ -53,7 +60,7 @@ namespace OpenSSL.Core.ASN1
         internal ASN1Object(SafeAsn1ObjectHandle asn1Handle)
             : this()
         {
-            this.asn1Handle = asn1Handle;
+            this.ASN1ObjectWrapper = new ASN1ObjectInternal(asn1Handle);
         }
 
         public ASN1Object(int nid)
@@ -104,11 +111,10 @@ namespace OpenSSL.Core.ASN1
             }
         }
 
-        public override void Dispose()
+        //does not need to be disposed, free shouldn't do anything
+        protected override void Dispose(bool disposing)
         {
-            //does not need to be disposed, free shouldn't do anything
-            if (!(this.asn1Handle is null) && !this.asn1Handle.IsInvalid)
-                this.asn1Handle.Dispose();
+            //NOP
         }
     }
 }

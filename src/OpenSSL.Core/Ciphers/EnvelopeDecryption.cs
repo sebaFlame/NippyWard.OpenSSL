@@ -47,19 +47,19 @@ namespace OpenSSL.Core.Ciphers
             if (this.ivLength > 0 && !(this.IV is null))
             {
                 Span<byte> ivSpan = new Span<byte>(this.IV);
-                this.CryptoWrapper.EVP_OpenInit(this.CipherContextHandle, this.CipherHandle,
+                this.CryptoWrapper.EVP_OpenInit(this.CipherContextHandle, this.CipherWrapper.Handle,
                     keySpan.GetPinnableReference(),
                     keySpan.Length,
                     ivSpan.GetPinnableReference(),
-                    this.PrivateKey.KeyHandle);
+                    this.PrivateKey.KeyWrapper.Handle);
             }
             else
             {
-                this.CryptoWrapper.EVP_OpenInit(this.CipherContextHandle, this.CipherHandle,
+                this.CryptoWrapper.EVP_OpenInit(this.CipherContextHandle, this.CipherWrapper.Handle,
                     keySpan.GetPinnableReference(),
                     keySpan.Length,
                     IntPtr.Zero,
-                    this.PrivateKey.KeyHandle);
+                    this.PrivateKey.KeyWrapper.Handle);
             }
         }
 

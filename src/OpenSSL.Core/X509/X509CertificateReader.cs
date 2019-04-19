@@ -5,13 +5,14 @@ using System.IO;
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop.SafeHandles.X509;
+using OpenSSL.Core.Collections;
 
 namespace OpenSSL.Core.X509
 {
     public class X509CertificateReader : IDisposable
     {
         private SafeBioHandle currentBioHandle;
-        public X509CertificateList Certificates { get; private set; }
+        public OpenSslList<X509Certificate> Certificates { get; private set; }
 
         /// <summary>
         /// Read from a stream concatenated PEM formatted CA file
@@ -72,7 +73,7 @@ namespace OpenSSL.Core.X509
             }
         }
 
-        private X509CertificateList ProcessBio(SafeBioHandle currentBio)
+        private OpenSslList<X509Certificate> ProcessBio(SafeBioHandle currentBio)
         {
             SafeStackHandle<SafeX509InfoHandle> currentInfoStack = Native.CryptoWrapper.PEM_X509_INFO_read_bio(currentBio, null, null, IntPtr.Zero);
             SafeStackHandle<SafeX509CertificateHandle> certificates = Native.CryptoWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
@@ -86,15 +87,15 @@ namespace OpenSSL.Core.X509
                 certificates.Add(certificate);
             }
 
-            return new X509CertificateList(certificates);
+            return OpenSslList<X509Certificate>.CreateFromSafeHandle(certificates);
         }
 
         //TODO: add exception handling
-        private X509CertificateList ProcessDir(DirectoryInfo dir)
+        private OpenSslList<X509Certificate> ProcessDir(DirectoryInfo dir)
         {
             SafeStackHandle<SafeX509CertificateHandle> certificates = Native.CryptoWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
             this.GetCertificates(dir, certificates);
-            return new X509CertificateList(certificates);
+            return OpenSslList<X509Certificate>.CreateFromSafeHandle(certificates);
         }
 
         private void GetCertificates(DirectoryInfo dir, SafeStackHandle<SafeX509CertificateHandle> certificates)

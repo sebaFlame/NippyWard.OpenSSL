@@ -7,17 +7,25 @@ using System.Text;
 using OpenSSL.Core.Error;
 using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop.SafeHandles.X509;
+using OpenSSL.Core.Collections;
 
 namespace OpenSSL.Core.X509
 {
-    public class X509Store : Base
+    public class X509Store : OpenSslWrapperBase
     {
-        internal SafeX509StoreHandle StoreHandle { get; private set; }
+        internal class X509StoreInternal : SafeHandleWrapper<SafeX509StoreHandle>
+        {
+            internal X509StoreInternal(SafeX509StoreHandle safeHandle)
+                : base(safeHandle) { }
+        }
+
+        internal X509StoreInternal StoreWrapper { get; private set; }
+        internal override ISafeHandleWrapper HandleWrapper => this.StoreWrapper;
 
         public X509Store()
             : base()
         {
-            this.StoreHandle = this.CryptoWrapper.X509_STORE_new();
+            this.StoreWrapper = new X509StoreInternal(this.CryptoWrapper.X509_STORE_new());
         }
 
         public X509Store(FileInfo CAFile)
@@ -38,9 +46,22 @@ namespace OpenSSL.Core.X509
                 certPathSpan = GetCorrectPath(certPath.FullName);
 
             this.CryptoWrapper.X509_STORE_load_locations(
-                this.StoreHandle,
+                this.StoreWrapper.Handle,
                 caFileSpan.GetPinnableReference(),
                 certPathSpan.GetPinnableReference());
+        }
+
+        internal X509Store(SafeX509StoreHandle storeHandle)
+            : base()
+        {
+            this.StoreWrapper = new X509StoreInternal(storeHandle);
+        }
+
+        internal X509Store(SafeStackHandle<SafeX509CertificateHandle> stackHandle)
+            : this()
+        {
+            foreach (SafeX509CertificateHandle cert in stackHandle)
+                this.CryptoWrapper.X509_STORE_add_cert(this.StoreWrapper.Handle, cert);
         }
 
         private static ReadOnlySpan<byte> GetCorrectPath(string fullName)
@@ -56,27 +77,24 @@ namespace OpenSSL.Core.X509
             throw new NotSupportedException("Unknown OS detected");
         }
 
-        internal X509Store(SafeX509StoreHandle storeHandle)
-            : base()
-        {
-            this.StoreHandle = storeHandle;
-        }
-
-        internal X509Store(SafeStackHandle<SafeX509CertificateHandle> stackHandle)
-            : this()
-        {
-            foreach (SafeX509CertificateHandle cert in stackHandle)
-                this.CryptoWrapper.X509_STORE_add_cert(this.StoreHandle, cert);
-        }
-
         public void AddCertificate(X509Certificate certificate)
         {
-            this.CryptoWrapper.X509_STORE_add_cert(this.StoreHandle, certificate.X509Handle);
+            this.CryptoWrapper.X509_STORE_add_cert(this.StoreWrapper.Handle, certificate.X509Wrapper.Handle);
         }
 
-        public X509CertificateList GetCertificates()
+        public OpenSslReadOnlyCollection<X509Certificate> GetCertificates()
         {
-            return new X509CertificateList(this.StoreHandle);
+            SafeStackHandle<SafeX509ObjectHandle> safeObjHandle = this.CryptoWrapper.X509_STORE_get0_objects(this.StoreWrapper.Handle);
+            SafeStackHandle<SafeX509CertificateHandle> safeCertHandle = this.CryptoWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
+
+            SafeX509CertificateHandle certificate;
+            foreach (SafeX509ObjectHandle obj in safeObjHandle)
+            {
+                if (!((certificate = this.CryptoWrapper.X509_OBJECT_get0_X509(obj)) is null))
+                    safeCertHandle.Add(certificate);
+            }
+
+            return OpenSslReadOnlyCollection<X509Certificate>.CreateFromSafeHandle(safeCertHandle);
         }
 
         /// <summary>
@@ -85,11 +103,15 @@ namespace OpenSSL.Core.X509
         /// <param name="cert">The certificate to check</param>
         /// <param name="extraChain">Extra certificates not available int the current store</param>
         /// <returns></returns>
-        public bool Verify(X509Certificate cert, out VerifyResult verifyResult, X509CertificateList extraChain = null)
+        public bool Verify(X509Certificate cert, out VerifyResult verifyResult, OpenSslEnumerable<X509Certificate> extraChain = null)
         {
             using (SafeX509StoreContextHandle ctx = this.CryptoWrapper.X509_STORE_CTX_new())
             {
-                this.CryptoWrapper.X509_STORE_CTX_init(ctx, this.StoreHandle, cert.X509Handle, extraChain is null ? null : extraChain.X509StackHandle);
+                this.CryptoWrapper.X509_STORE_CTX_init(
+                    ctx, 
+                    this.StoreWrapper.Handle, 
+                    cert.X509Wrapper.Handle, 
+                    extraChain is null ? null : (SafeStackHandle<SafeX509CertificateHandle>)extraChain.InternalEnumerable.Handle);
                 try
                 {
                     return this.CryptoWrapper.X509_verify_cert(ctx) == 1;
@@ -102,10 +124,9 @@ namespace OpenSSL.Core.X509
             }
         }
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            if (!(this.StoreHandle is null) && !this.StoreHandle.IsInvalid)
-                this.StoreHandle.Dispose();
+            //NOP
         }
     }
 }

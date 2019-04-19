@@ -14,7 +14,7 @@ namespace OpenSSL.Core.Keys
         internal DSAKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {
-            this.dsaHandle = this.CryptoWrapper.EVP_PKEY_get1_DSA(this.KeyHandle);
+            this.dsaHandle = this.CryptoWrapper.EVP_PKEY_get1_DSA(this.KeyWrapper.Handle);
         }
 
         public DSAKey(int bits, Span<byte> seed)
@@ -37,22 +37,20 @@ namespace OpenSSL.Core.Keys
             this.CryptoWrapper.DSA_generate_key(this.dsaHandle);
         }
 
-        internal override SafeKeyHandle GenerateKeyInternal()
+        internal override KeyInternal GenerateKeyInternal()
         {
             if (this.dsaHandle is null || this.dsaHandle.IsInvalid)
                 throw new InvalidOperationException("RSA key has not been created yet");
 
             SafeKeyHandle keyHandle = this.CryptoWrapper.EVP_PKEY_new();
             this.CryptoWrapper.EVP_PKEY_set1_DSA(keyHandle, this.dsaHandle);
-            return keyHandle;
+            return new KeyInternal(keyHandle);
         }
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
             if (!(this.dsaHandle is null) && !this.dsaHandle.IsInvalid)
                 this.dsaHandle.Dispose();
-
-            base.Dispose();
         }
     }
 }
