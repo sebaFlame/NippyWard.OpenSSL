@@ -70,18 +70,32 @@ namespace OpenSSL.Core.SSL
             }
         }
 
-        public async Task ConnectAsync()
+        public async Task ConnectAsync(EndPoint endPoint)
         {
-            if (this.Socket is null)
-                throw new NullReferenceException("Socket has not been assigned");
+            if (!(this.Socket is null) && this.Socket.Connected)
+                throw new InvalidOperationException("Socket is still connected");
+
+            Socket socket = InitializeSocket(endPoint);
+            SetRecommendedClientOptions(socket);
+
+            this.Socket = socket;
+            await ConnectAsync(socket, endPoint, this.SocketConnectionOptions, this.Name).ConfigureAwait(false);
+
+            this.InitializeDefaultThreads(false);
+        }
+
+        public async Task ConnectAsync(Socket socket)
+        {
+            if (!(this.Socket is null) && this.Socket.Connected)
+                throw new InvalidOperationException("Socket is still connected");
 
             EndPoint endPoint = this.Socket.RemoteEndPoint;
+            SetRecommendedClientOptions(socket);
 
-            this.Reset();
-
+            this.Socket = socket;
             await ConnectAsync(this.Socket, endPoint, this.SocketConnectionOptions, this.Name).ConfigureAwait(false);
 
-            this.InitializeDefaultThreads();
+            this.InitializeDefaultThreads(false);
         }
 
         internal static void SetFastLoopbackOption(Socket socket)

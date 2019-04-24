@@ -5,6 +5,7 @@ using System.IO.Pipelines;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 using OpenSSL.Core.SSL.PipeLines;
 
@@ -200,7 +201,7 @@ namespace OpenSSL.Core.SSL
             GC.SuppressFinalize(this);
 #endif
 
-            this.ShutdownSSL(false).Wait();
+            this.ShutdownSSL().Wait();
 
             try { Socket.Shutdown(SocketShutdown.Receive); } catch { }
             try { Socket.Shutdown(SocketShutdown.Send); } catch { }
@@ -214,19 +215,48 @@ namespace OpenSSL.Core.SSL
             //writer only, data could still be in the pipe
             this._receiveFromSocket.Writer.Complete();
 
+            //try to prevent circular references
+            this.SslContextWrapper = null;
+
             //TODO: causes shutdown too prematurely
             // make sure that the async operations end ... can be twitchy!
             //try { _readerArgs?.Abort(); } catch { }
             //try { _writerArgs?.Abort(); } catch { }
         }
 
-        private void Reset()
+        public async Task Reset()
         {
-            this.ShutdownSSL(true).Wait();
+            await this.ShutdownSSL();
 
             try { this.Socket.Shutdown(SocketShutdown.Receive); } catch { }
             try { this.Socket.Shutdown(SocketShutdown.Send); } catch { }
-            try { this.Socket.Disconnect(true); } catch { } //allow reuse
+            try { this.Socket.Close(); } catch { }
+            try { this.Socket.Dispose(); } catch { }
+
+            //discard all data
+            this._sendToSocket.Writer.Complete();
+            this._sendToSocket.Reader.Complete();
+
+            //discard all data
+            this._receiveFromSocket.Writer.Complete();
+            this._receiveFromSocket.Reader.Complete();
+
+            //wait on read/write thread to finish
+            await this.receiveTask;
+            await this.sendTask;
+
+            //reset socket pipe state
+            this._sendToSocket.Reset();
+            this._receiveFromSocket.Reset();
+
+            //reset intermediate pipe state
+            //should already be completed
+            this._socketReader.OutputPipe.Reset();
+            this._socketWriter.InputPipe.Reset();
+
+            //reset connection state
+            //all threads should be stopped by now
+            Interlocked.Exchange(ref this._sslState, 0);
         }
 
         /// <summary>
@@ -303,37 +333,36 @@ namespace OpenSSL.Core.SSL
             this.InitializeDefaultThreads();
         }
 
-        internal CancellationTokenSource HandshakeCancellation;
-
-        private void InitializeDefaultThreads()
+        private void InitializeDefaultThreads(bool initialSetup = true)
         {
-            this.HandshakeCancellation = new CancellationTokenSource();
-
-            _sendToSocket.Writer.OnReaderCompleted((ex, state) => 
+            if (initialSetup)
             {
-                this._socketWriter.Complete(ex);
-                TrySetShutdown(ex, state, PipeShutdownKind.OutputReaderCompleted);
-            }, this);
+                _sendToSocket.Writer.OnReaderCompleted((ex, state) =>
+                {
+                    this._socketWriter.Complete(ex);
+                    TrySetShutdown(ex, state, PipeShutdownKind.OutputReaderCompleted);
+                }, this);
 
-            _sendToSocket.Reader.OnWriterCompleted((ex, state) =>
-            {
-                this._socketWriter.Complete(ex);
-                TrySetShutdown(ex, state, PipeShutdownKind.OutputWriterCompleted);
-            }, this);
+                _sendToSocket.Reader.OnWriterCompleted((ex, state) =>
+                {
+                    this._socketWriter.Complete(ex);
+                    TrySetShutdown(ex, state, PipeShutdownKind.OutputWriterCompleted);
+                }, this);
 
-            _receiveFromSocket.Reader.OnWriterCompleted((ex, state) =>
-            {
-                this._socketReader.Complete(ex);
-                TrySetShutdown(ex, state, PipeShutdownKind.InputWriterCompleted);
-            }, this);
+                _receiveFromSocket.Reader.OnWriterCompleted((ex, state) =>
+                {
+                    this._socketReader.Complete(ex);
+                    TrySetShutdown(ex, state, PipeShutdownKind.InputWriterCompleted);
+                }, this);
 
-            _receiveFromSocket.Writer.OnReaderCompleted((ex, state) =>
-            {
-                this._socketReader.Complete(ex);
-                TrySetShutdown(ex, state, PipeShutdownKind.InputReaderCompleted);
-                try { ((SocketConnection)state).Socket.Shutdown(SocketShutdown.Receive); }
-                catch { }
-            }, this);
+                _receiveFromSocket.Writer.OnReaderCompleted((ex, state) =>
+                {
+                    this._socketReader.Complete(ex);
+                    TrySetShutdown(ex, state, PipeShutdownKind.InputReaderCompleted);
+                    try { ((SocketConnection)state).Socket.Shutdown(SocketShutdown.Receive); }
+                    catch { }
+                }, this);
+            }
 
             this._sendOptions.ReaderScheduler.Schedule(s_DoSendAsync, this);
             this._receiveOptions.ReaderScheduler.Schedule(s_DoReceiveAsync, this);

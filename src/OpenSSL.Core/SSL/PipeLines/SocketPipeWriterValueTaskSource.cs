@@ -474,7 +474,6 @@ namespace OpenSSL.Core.SSL.PipeLines
             {
                 this.CurrentState = SocketPipeWriterValueTaskState.None;
                 this.SocketResultTask = default;
-                this.InputResultTask = default;
                 this.ReadResultTask = default;
                 this.CancellationToken = default;
 

@@ -11,7 +11,9 @@ namespace OpenSSL.Core.SSL
     /// </summary>
     public abstract class SocketServer : IDisposable
     {
-        private Socket _listener;
+        public Socket Listener { get; private set; }
+
+        internal SocketConnection.SslContextRefWrapper SslContextWrapper { get; private set; }
 
         /// <summary>
         /// Start listening as a server
@@ -23,12 +25,12 @@ namespace OpenSSL.Core.SSL
             ProtocolType protocolType = ProtocolType.Tcp,
             PipeOptions sendOptions = null, PipeOptions receiveOptions = null)
         {
-            if (_listener != null) throw new InvalidOperationException("Server is already running");
+            if (Listener != null) throw new InvalidOperationException("Server is already running");
             Socket listener = new Socket(addressFamily, socketType, protocolType);
             listener.Bind(endPoint);
             listener.Listen(20);
 
-            _listener = listener;
+            Listener = listener;
             StartOnScheduler(receiveOptions?.ReaderScheduler, _ => FireAndForget(ListenForConnectionsAsync(
                 sendOptions ?? PipeOptions.Default, receiveOptions ?? PipeOptions.Default)), null);
 
@@ -40,8 +42,8 @@ namespace OpenSSL.Core.SSL
         /// </summary>
         public void Stop()
         {
-            var socket = _listener;
-            _listener = null;
+            var socket = Listener;
+            Listener = null;
             if (socket != null)
             {
                 try { socket.Dispose(); } catch { }
@@ -79,6 +81,8 @@ namespace OpenSSL.Core.SSL
         /// </summary>
         protected SocketServer()
         {
+            this.SslContextWrapper = new SocketConnection.SslContextRefWrapper();
+
             RunClientAsync = async boxed =>
             {
                 var client = (ClientConnection)boxed;
@@ -118,12 +122,13 @@ namespace OpenSSL.Core.SSL
             {
                 while (true)
                 {
-                    var clientSocket = await _listener.AcceptAsync().ConfigureAwait(false);
+                    var clientSocket = await Listener.AcceptAsync().ConfigureAwait(false);
                     SocketConnection.SetRecommendedServerOptions(clientSocket);
-                    var pipe = SocketConnection.Create(clientSocket, sendOptions, receiveOptions);
+                    SocketConnection client = SocketConnection.Create(clientSocket, sendOptions, receiveOptions);
+                    client.SslContextWrapper = this.SslContextWrapper;
 
                     StartOnScheduler(receiveOptions.ReaderScheduler, RunClientAsync,
-                        new ClientConnection(pipe, clientSocket.RemoteEndPoint)); // boxed, but only once per client
+                        new ClientConnection(client, clientSocket.RemoteEndPoint)); // boxed, but only once per client
                 }
             }
             catch (NullReferenceException) { }

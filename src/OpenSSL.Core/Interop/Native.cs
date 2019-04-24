@@ -229,6 +229,15 @@ namespace OpenSSL.Core.Interop
 
         public const int SSL_CTRL_MODE = 33;
 
+        public const int SSL_SESS_CACHE_OFF = 0x0000;
+        public const int SSL_SESS_CACHE_CLIENT = 0x0001;
+        public const int SSL_SESS_CACHE_SERVER = 0x0002;
+        public const int SSL_SESS_CACHE_BOTH = (SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_SERVER);
+        public const int SSL_SESS_CACHE_NO_AUTO_CLEAR = 0x0080;
+        public const int SSL_SESS_CACHE_NO_INTERNAL_LOOKUP = 0x0100;
+        public const int SSL_SESS_CACHE_NO_INTERNAL_STORE = 0x0200;
+        public const int SSL_SESS_CACHE_NO_INTERNAL = (SSL_SESS_CACHE_NO_INTERNAL_LOOKUP | SSL_SESS_CACHE_NO_INTERNAL_STORE);
+
         #endregion
 
         #region Utilities

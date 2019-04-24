@@ -5,16 +5,17 @@ using System.IO.Pipelines;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+using System.Buffers;
 
 using OpenSSL.Core.SSL.Exceptions;
-using OpenSSL.Core.Interop;
-using System.Buffers;
 
 namespace OpenSSL.Core.SSL
 {
     public partial class SocketConnection
     {
         private SocketAwaitableEventArgs _readerArgs;
+        private Task receiveTask;
 
         /// <summary>
         /// The total number of bytes read from the socket
@@ -30,7 +31,13 @@ namespace OpenSSL.Core.SSL
 
         long IMeasuredDuplexPipe.TotalBytesReceived => BytesRead;
 
-        private async Task DoReceiveAsync()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Task DoReceiveAsync()
+        {
+            return (this.receiveTask = DoReceiveAsyncInternal());
+        }
+
+        private async Task DoReceiveAsyncInternal()
         {
             Exception error = null;
             DebugLog("starting receive loop");

@@ -89,15 +89,18 @@ namespace OpenSSL.Core.SSL
         //all SSL object use these
         private bool CreateContexthandle(bool isServer, SslStrength? sslStrength, SslProtocol? sslProtocol, IEnumerable<string> ciphers)
         {
-            if (!(this.sslContextHandle is null))
+            if (this.SslContextWrapper is null)
+                this.SslContextWrapper = new SslContextRefWrapper();
+
+            if (!(this.SslContextWrapper.SslContextHandle is null))
                 return false;
 
-            if(isServer)
-                this.sslContextHandle = this.SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultServerMethod);
+            if (isServer)
+                this.SslContextWrapper.SslContextHandle = this.SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultServerMethod);
             else
-                this.sslContextHandle = this.SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultCientMethod);
+                this.SslContextWrapper.SslContextHandle = this.SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultCientMethod);
 
-            this.SSLWrapper.SSL_CTX_ctrl(this.sslContextHandle, Native.SSL_CTRL_MODE, (int)SslMode.SSL_MODE_ENABLE_PARTIAL_WRITE, IntPtr.Zero);
+            this.SSLWrapper.SSL_CTX_ctrl(this.SslContextWrapper.SslContextHandle, Native.SSL_CTRL_MODE, (int)SslMode.SSL_MODE_ENABLE_PARTIAL_WRITE, IntPtr.Zero);
 
             SslOptions protocolOptions = SslOptions.SSL_OP_ALL;
             if(!(sslProtocol is null))
@@ -117,7 +120,7 @@ namespace OpenSSL.Core.SSL
                 //TODO: TLS1.3
             }
 
-            this.SSLWrapper.SSL_CTX_set_options(this.sslContextHandle, (long)protocolOptions);
+            this.SSLWrapper.SSL_CTX_set_options(this.SslContextWrapper.SslContextHandle, (long)protocolOptions);
 
             if(!(ciphers is null))
             {
@@ -137,13 +140,13 @@ namespace OpenSSL.Core.SSL
                         byte* b = stackalloc byte[count];
                         Encoding.ASCII.GetEncoder().GetBytes(ch, chSpan.Length, b, count, true);
                         ReadOnlySpan<byte> bSpan = new ReadOnlySpan<byte>(b, count);
-                        this.SSLWrapper.SSL_CTX_set_cipher_list(this.sslContextHandle, bSpan.GetPinnableReference());
+                        this.SSLWrapper.SSL_CTX_set_cipher_list(this.SslContextWrapper.SslContextHandle, bSpan.GetPinnableReference());
                     }
                 }
             }
 
             if(!(sslStrength is null))
-                this.SSLWrapper.SSL_CTX_set_security_level(this.sslContextHandle, (int)sslStrength);
+                this.SSLWrapper.SSL_CTX_set_security_level(this.SslContextWrapper.SslContextHandle, (int)sslStrength);
 
             return true;
         }
@@ -153,14 +156,17 @@ namespace OpenSSL.Core.SSL
             if (!serverCertificate.VerifyPrivateKey(privateKey))
                 throw new InvalidOperationException("Public and private key do not match");
 
-            this.SSLWrapper.SSL_CTX_use_certificate(this.sslContextHandle, serverCertificate.X509Wrapper.Handle);
-            this.SSLWrapper.SSL_CTX_use_PrivateKey(this.sslContextHandle, privateKey.KeyWrapper.Handle);
+            this.SSLWrapper.SSL_CTX_use_certificate(this.SslContextWrapper.SslContextHandle, serverCertificate.X509Wrapper.Handle);
+            this.SSLWrapper.SSL_CTX_use_PrivateKey(this.SslContextWrapper.SslContextHandle, privateKey.KeyWrapper.Handle);
         }
         #endregion
 
         //TOOD: ensure socket pipe is empty
         private async Task DoHandshake(bool isServer)
         {
+            if (!this.Socket.Connected)
+                throw new InvalidOperationException("Socket not connected");
+
             if (this.encryptionEnabled)
                 return;
 
@@ -175,7 +181,7 @@ namespace OpenSSL.Core.SSL
             this.readHandle = this.CryptoWrapper.BIO_new(this.CryptoWrapper.BIO_s_mem());
             this.writeHandle = this.CryptoWrapper.BIO_new(this.CryptoWrapper.BIO_s_mem());
 
-            this.sslHandle = this.SSLWrapper.SSL_new(this.sslContextHandle);
+            this.sslHandle = this.SSLWrapper.SSL_new(this.SslContextWrapper.SslContextHandle);
             this.SSLWrapper.SSL_set_bio(this.sslHandle, this.readHandle, this.writeHandle);
 
             //add references for correct disposal
@@ -189,8 +195,8 @@ namespace OpenSSL.Core.SSL
                 this.SSLWrapper.SSL_set_connect_state(this.sslHandle);
 
             //reuse session if any was set in other connection/before reset
-            if (!(this.sessionHandle is null))
-                this.SSLWrapper.SSL_set_session(this.sslHandle, this.sessionHandle);
+            if (!(this.SessionHandle is null))
+                this.SSLWrapper.SSL_set_session(this.sslHandle, this.SessionHandle);
 
             try
             {
@@ -225,8 +231,8 @@ namespace OpenSSL.Core.SSL
 
             //save current session if it's a new one
             //TODO: renegotiation
-            if (this.sessionHandle is null || this.SSLWrapper.SSL_session_reused(this.sslHandle) == 0)
-                this.sessionHandle = this.SSLWrapper.SSL_get_session(this.sslHandle);
+            if (this.SessionHandle is null || this.SSLWrapper.SSL_session_reused(this.sslHandle) == 0)
+                this.SessionHandle = this.SSLWrapper.SSL_get_session(this.sslHandle);
 
             //set state to established
             this.TrySetSslState(SslState.Handshake, SslState.Established);

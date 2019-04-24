@@ -57,6 +57,9 @@ namespace OpenSSL.Core.Error
         internal OpenSslException(params BaseOpenSslError[] errors)
             : this(errors.ToList()) { }
 
+        internal OpenSslException(string message)
+            : base(message) { }
+
         public static List<BaseOpenSslError> GetCurrentContext()
 		{
 			var ret = new List<BaseOpenSslError>();

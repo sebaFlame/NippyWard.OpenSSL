@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,8 +25,15 @@ namespace OpenSSL.Core.SSL
         private long _totalBytesSent;
 
         private SocketAwaitableEventArgs _writerArgs;
+        private Task sendTask;
 
-        private async Task DoSendAsync()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Task DoSendAsync()
+        {
+            return (this.sendTask = DoSendAsyncInternal());
+        }
+
+        private async Task DoSendAsyncInternal()
         {
             Exception error = null;
             DebugLog("starting send loop");

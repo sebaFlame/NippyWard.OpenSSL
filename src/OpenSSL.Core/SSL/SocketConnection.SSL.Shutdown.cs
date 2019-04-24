@@ -12,7 +12,7 @@ namespace OpenSSL.Core.SSL
 {
     public partial class SocketConnection
     {
-        public async Task ShutdownSSL(bool keepConnection = false)
+        public async Task ShutdownSSL(bool biDerictionalShutdown = false)
         {
             if (!this.encryptionEnabled)
                 return;
@@ -32,7 +32,7 @@ namespace OpenSSL.Core.SSL
                 if ((result = this.SSLWrapper.SSL_get_error(this.sslHandle, ret_code)) == (int)SslError.SSL_ERROR_SSL)
                     throw new OpenSslException();
 
-                if (keepConnection)
+                if (biDerictionalShutdown && this.Socket.Connected)
                 {
                     flushResult = this.WritePending();
                     if (!flushResult.IsCompleted)

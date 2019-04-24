@@ -86,14 +86,18 @@ namespace OpenSSL.Core.Interop.Wrappers
         int SSL_CTX_use_PrivateKey_file(SafeSslContextHandle ctx, string file, int type);
         //int SSL_CTX_check_private_key(const SSL_CTX *ctx);
         int SSL_CTX_check_private_key(SafeSslContextHandle ctx);
-        //int SSL_CTX_set_session_id_context(SSL_CTX *ctx, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
-        int SSL_CTX_set_session_id_context(SafeSslContextHandle ctx, in byte sid_ctx, uint sid_ctx_len);
         //void SSL_CTX_set_default_passwd_cb_userdata(SSL_CTX *ctx, void *u);
         void SSL_CTX_set_default_passwd_cb_userdata(SafeSslContextHandle ctx, IntPtr data);
         //void SSL_CTX_set_default_passwd_cb(SSL_CTX *ctx, pem_password_cb *cb);
         void SSL_CTX_set_default_passwd_cb(SafeSslContextHandle ctx, pem_password_cb callback);
         //long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg);
-        int SSL_CTX_callback_ctrl(SafeSslContextHandle ctx, int cmd, IntPtr cb);
+        long SSL_CTX_ctrl(SafeSslContextHandle ctx, int cmd, long larg, IntPtr parg);
+
+        //int SSL_CTX_set_session_id_context(SSL_CTX *ctx, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
+        int SSL_CTX_set_session_id_context(SafeSslContextHandle ctx, in byte sid_ctx, uint sid_ctx_len);
+        //int SSL_CTX_add_session(SSL_CTX *ctx, SSL_SESSION *c)
+        [DontCheckReturnType]
+        int SSL_CTX_add_session(SafeSslContextHandle ctx, SafeSslSessionHandle c);
 
         //int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x);
         int SSL_CTX_use_certificate(SafeSslContextHandle ctx, SafeX509CertificateHandle cert);

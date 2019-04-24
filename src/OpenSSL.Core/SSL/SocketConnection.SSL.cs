@@ -14,6 +14,7 @@ using OpenSSL.Core.Interop.SafeHandles.Crypto;
 using OpenSSL.Core.X509;
 using OpenSSL.Core.Keys;
 using OpenSSL.Core.Collections;
+using OpenSSL.Core.Error;
 
 namespace OpenSSL.Core.SSL
 {
@@ -23,12 +24,18 @@ namespace OpenSSL.Core.SSL
     */
     public partial class SocketConnection
     {
+        internal class SslContextRefWrapper
+        {
+            internal SafeSslContextHandle SslContextHandle { get; set; }
+        }
+
         #region native handles
-        private SafeSslContextHandle sslContextHandle;
+        internal SslContextRefWrapper SslContextWrapper { get; set; }
+        internal SafeSslSessionHandle SessionHandle { get; private set; }
+
         private SafeBioHandle readHandle;
         private SafeBioHandle writeHandle;
         private SafeSslHandle sslHandle;
-        private SafeSslSessionHandle sessionHandle;
         #endregion
 
         #region SSL fields
@@ -123,6 +130,19 @@ namespace OpenSSL.Core.SSL
             }
         }
 
+        public bool SessionReused => !(this.SessionHandle is null) && this.SSLWrapper.SSL_session_reused(this.sslHandle) == 1;
+
+        public SocketConnection ParentSession
+        {
+            set
+            {
+                if (!(value.SessionHandle is null))
+                    this.SessionHandle = value.SessionHandle;
+                else
+                    throw new InvalidOperationException("No session set for parent connection");
+            }
+        }
+
         private ClientCertificateCallbackHandler clientCertificateCallbackHandler;
         /// <summary>
         /// This sets the Client Certificate Callback
@@ -133,9 +153,9 @@ namespace OpenSSL.Core.SSL
             set
             {
                 if (this.clientCertificateCallbackHandler is null)
-                    this.SSLWrapper.SSL_CTX_set_client_cert_cb(this.sslContextHandle, this.ClientCertificateCallback);
+                    this.SSLWrapper.SSL_CTX_set_client_cert_cb(this.SslContextWrapper.SslContextHandle, this.ClientCertificateCallback);
                 else if (value is null)
-                    this.SSLWrapper.SSL_CTX_set_client_cert_cb(this.sslContextHandle, null);
+                    this.SSLWrapper.SSL_CTX_set_client_cert_cb(this.SslContextWrapper.SslContextHandle, null);
 
                 this.clientCertificateCallbackHandler = value;
             }
@@ -150,9 +170,9 @@ namespace OpenSSL.Core.SSL
         /// <param name="addToChain">Add the certificate to the verification chain if it's not available in the current <see cref="CertificateStore"/></param>
         public void AddClientCertificateCA(X509Certificate caCertificate, bool addToChain = true)
         {
-            this.SSLWrapper.SSL_CTX_add_client_CA(this.sslContextHandle, caCertificate.X509Wrapper.Handle);
+            this.SSLWrapper.SSL_CTX_add_client_CA(this.SslContextWrapper.SslContextHandle, caCertificate.X509Wrapper.Handle);
             if (addToChain)
-                this.SSLWrapper.SSL_CTX_add_extra_chain_cert(this.sslContextHandle, caCertificate.X509Wrapper.Handle);
+                this.SSLWrapper.SSL_CTX_add_extra_chain_cert(this.SslContextWrapper.SslContextHandle, caCertificate.X509Wrapper.Handle);
         }
 
         private RemoteCertificateValidationHandler remoteCertificateValidationHandler;
@@ -163,8 +183,8 @@ namespace OpenSSL.Core.SSL
 
         public X509Store CertificateStore
         {
-            get => new X509Store(this.SSLWrapper.SSL_CTX_get_cert_store(this.sslContextHandle));
-            set => this.SSLWrapper.SSL_CTX_set_cert_store(this.sslContextHandle, value.StoreWrapper.Handle);
+            get => new X509Store(this.SSLWrapper.SSL_CTX_get_cert_store(this.SslContextWrapper.SslContextHandle));
+            set => this.SSLWrapper.SSL_CTX_set_cert_store(this.SslContextWrapper.SslContextHandle, value.StoreWrapper.Handle);
         }
 
         /// <summary>
@@ -174,8 +194,8 @@ namespace OpenSSL.Core.SSL
         /// </summary>
         public X509Certificate Certificate
         {
-            get => new X509Certificate(this.SSLWrapper.SSL_CTX_get0_certificate(this.sslContextHandle));
-            set => this.SSLWrapper.SSL_CTX_use_certificate(this.sslContextHandle, value.X509Wrapper.Handle);
+            get => new X509Certificate(this.SSLWrapper.SSL_CTX_get0_certificate(this.SslContextWrapper.SslContextHandle));
+            set => this.SSLWrapper.SSL_CTX_use_certificate(this.SslContextWrapper.SslContextHandle, value.X509Wrapper.Handle);
         }
 
         /// <summary>
@@ -183,8 +203,8 @@ namespace OpenSSL.Core.SSL
         /// </summary>
         public PrivateKey PrivateKey
         {
-            get => PrivateKey.GetCorrectKey(this.SSLWrapper.SSL_CTX_get0_privatekey(this.sslContextHandle));
-            set => this.SSLWrapper.SSL_CTX_use_PrivateKey(this.sslContextHandle, value.KeyWrapper.Handle);
+            get => PrivateKey.GetCorrectKey(this.SSLWrapper.SSL_CTX_get0_privatekey(this.SslContextWrapper.SslContextHandle));
+            set => this.SSLWrapper.SSL_CTX_use_PrivateKey(this.SslContextWrapper.SslContextHandle, value.KeyWrapper.Handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -253,10 +273,13 @@ namespace OpenSSL.Core.SSL
         {
             int read = this.SSLWrapper.SSL_read(this.sslHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length);
 
-            //TODO: manage shutdown/renegotiate
+            //TODO: manage renegotiate
 
             if (read > 0)
                 return read;
+
+            if (this.SSLWrapper.SSL_get_shutdown(this.sslHandle) == 2)
+                throw new ShutdownException();
 
             //TODO: error handling incorrect
             int errorCode = this.SSLWrapper.SSL_get_error(this.sslHandle, read);
@@ -374,9 +397,9 @@ namespace OpenSSL.Core.SSL
         public void SetRemoteValidation(VerifyMode verifyMode, RemoteCertificateValidationHandler remoteCertificateValidationHandler)
         {
             if (this.remoteCertificateValidationHandler is null)
-                this.SSLWrapper.SSL_CTX_set_verify(this.sslContextHandle, (int)verifyMode, this.VerifyCertificateCallback);
+                this.SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, (int)verifyMode, this.VerifyCertificateCallback);
             else if (remoteCertificateValidationHandler is null)
-                this.SSLWrapper.SSL_CTX_set_verify(this.sslContextHandle, 0, null);
+                this.SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, 0, null);
 
             this.remoteCertificateValidationHandler = remoteCertificateValidationHandler;
         }
