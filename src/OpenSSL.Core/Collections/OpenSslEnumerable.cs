@@ -10,6 +10,11 @@ namespace OpenSSL.Core.Collections
     {
         internal abstract IOpenSslIEnumerable<T> InternalEnumerable { get; }
 
+        ~OpenSslEnumerable()
+        {
+            this.Dispose();
+        }
+
         protected OpenSslEnumerable() { }
 
         public IEnumerator<T> GetEnumerator()

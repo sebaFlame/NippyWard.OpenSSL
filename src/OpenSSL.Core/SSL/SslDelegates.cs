@@ -12,7 +12,7 @@ namespace OpenSSL.Core.SSL
     );
 
     public delegate bool RemoteCertificateValidationHandler(
-        VerifyResult preVerify,
+        bool preVerifySucceeded,
         X509Certificate remoteCertificate,
         IReadOnlyCollection<X509Certificate> certificates
     );

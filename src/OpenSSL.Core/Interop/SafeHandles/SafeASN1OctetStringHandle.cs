@@ -14,9 +14,13 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(ptr, takeOwnership)
         { }
 
+        public int Length => this.CryptoWrapper.ASN1_STRING_length(this);
+
         public string Value
         {
-            get => Native.PtrToStringAnsi(this.CryptoWrapper.ASN1_STRING_get0_data(this), false);
+            //TODO: needs to print to a BIO using X509V3_EXT_print
+            get => Native.PtrToStringAnsi(this.CryptoWrapper.ASN1_STRING_get0_data(this), this.Length, false);
+            //TODO: is this correct????
             set
             {
                 unsafe

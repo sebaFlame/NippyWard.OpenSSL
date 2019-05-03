@@ -11,6 +11,9 @@ namespace OpenSSL.Core.Keys
 
         public override KeyType KeyType => KeyType.RSA;
 
+        internal RSAKey(KeyInternal handleWrapper)
+            : base(handleWrapper) { }
+
         internal RSAKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {

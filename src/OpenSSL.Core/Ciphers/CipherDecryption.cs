@@ -20,6 +20,9 @@ namespace OpenSSL.Core.Ciphers
         //    : this(cipherType, GetBufferFromKey(key))
         //{ }
 
+        internal CipherDecryption(CipherInternal handleWarpper)
+            : base(handleWarpper) { }
+
         public CipherDecryption(CipherType cipherType, byte[] key, byte[] iv)
             : base(cipherType)
         {

@@ -12,6 +12,9 @@ namespace OpenSSL.Core.Digests
     {
         private bool finalized;
 
+        internal Digest(DigestInternal handleWarpper)
+            : base(handleWarpper) { }
+
         public Digest(DigestType digestType)
             : base(digestType)
         {

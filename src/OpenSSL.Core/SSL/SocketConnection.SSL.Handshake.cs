@@ -12,6 +12,7 @@ using OpenSSL.Core.SSL.Exceptions;
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles.SSL;
 using OpenSSL.Core.Error;
+using OpenSSL.Core.Collections;
 
 namespace OpenSSL.Core.SSL
 {
@@ -48,38 +49,130 @@ namespace OpenSSL.Core.SSL
             return this.DoHandshake(false);
         }
 
+        /// <summary>
+        /// Authenticate as client and validate the remote certificate using <paramref name="remoteValidation"/>
+        /// </summary>
+        /// <param name="remoteValidation">The validation delegate to verify the server certificate</param>
+        public Task AuthenticateAsClientAsync(RemoteCertificateValidationHandler remoteValidation)
+        {
+            this.CreateContexthandle(false, null, null, null);
+            this.SetRemoteValidation(VerifyMode.SSL_VERIFY_PEER, remoteValidation);
+            return this.DoHandshake(false);
+        }
+
+        /// <summary>
+        /// Authenticate as client and validate the remote certificate using the certificates in <paramref name="remoteCA"/>
+        /// </summary>
+        /// <param name="remoteCA">The certificate to verify the remote certificate with</param>
+        /// <returns></returns>
+        public Task AuthenticateAsClientAsync(IEnumerable<X509Certificate> remoteCA)
+        {
+            this.CreateContexthandle(false, null, null, null);
+
+            //add the certificates to the trusted store
+            foreach (X509Certificate cert in remoteCA)
+                this.CertificateStore.AddCertificate(cert);
+
+            //enable internal peer certificate validation
+            this.SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, (int)VerifyMode.SSL_VERIFY_PEER, null);
+
+            return this.DoHandshake(false);
+        }
+
+        /// <summary>
+        /// Authenticate as client and pick a client certificate using <paramref name="clientCertificateCallback"/>
+        /// </summary>
+        /// <param name="clientCertificateCallback">The client certificate callback to use</param>
+        /// <returns></returns>
+        public Task AuthenticateAsClientAsync(ClientCertificateCallbackHandler clientCertificateCallback)
+        {
+            this.CreateContexthandle(false, null, null, null);
+            this.ClientCertificateCallbackHandler = clientCertificateCallback;
+            return this.DoHandshake(false);
+        }
+
+        /// <summary>
+        /// Authenticate as client using a Client Certificate and Key
+        /// </summary>
+        /// <param name="clientCertificate">The client Certificate to use</param>
+        /// <param name="clientKey">The client key to use</param>
+        public Task AuthenticateAsClientAsync(X509Certificate clientCertificate, PrivateKey clientKey)
+        {
+            this.CreateContexthandle(false, null, null, null);
+            this.SetLocalCertificate(clientCertificate, clientKey);
+            return this.DoHandshake(false);
+        }
+
         public Task AuthenticateAsServerAsync(X509Certificate serverCertificate, PrivateKey privateKey)
         {
             if (this.CreateContexthandle(true, null, null, null))
-                this.SetServerCertificate(serverCertificate, privateKey);
+                this.SetLocalCertificate(serverCertificate, privateKey);
+            return this.DoHandshake(true);
+        }
+
+        /// <summary>
+        /// Authenticate as server with Client Certificate Verification
+        /// </summary>
+        /// <param name="serverCertificate">The server certificate to use</param>
+        /// <param name="privateKey">The server key to use</param>
+        /// <param name="clientCA">The Client Certificate CA to use for verification</param>
+        public Task AuthenticateAsServerAsync(X509Certificate serverCertificate, PrivateKey privateKey, IEnumerable<X509Certificate> clientCA)
+        {
+            if (this.CreateContexthandle(true, null, null, null))
+            {
+                this.SetLocalCertificate(serverCertificate, privateKey);
+
+                //add client CA to allowed name list and add to trusted store
+                foreach (X509Certificate cert in clientCA)
+                    this.AddClientCertificateCA(cert);
+                
+                //enable internal client certificate validation
+                this.SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, (int)VerifyMode.SSL_VERIFY_PEER, null);
+            }
+            return this.DoHandshake(true);
+        }
+
+        /// <summary>
+        /// Authenticate as server and verify the remote certificate (client certificate) using <paramref name="remoteValidation"/>
+        /// </summary>
+        /// <param name="serverCertificate">The server certificate to use</param>
+        /// <param name="privateKey">The server key to use</param>
+        /// <param name="remoteValidation">The validation delegate to verify the client certificate</param>
+        public Task AuthenticateAsServerAsync(X509Certificate serverCertificate, PrivateKey privateKey, RemoteCertificateValidationHandler remoteValidation)
+        {
+            if (this.CreateContexthandle(true, null, null, null))
+            {
+                this.SetLocalCertificate(serverCertificate, privateKey);
+                this.SetRemoteValidation(VerifyMode.SSL_VERIFY_PEER, remoteValidation);
+            }
             return this.DoHandshake(true);
         }
 
         public Task AuthenticateAsServerAsync(X509Certificate serverCertificate, PrivateKey privateKey, SslStrength sslStrength)
         {
             if(this.CreateContexthandle(true, sslStrength, null, null))
-                this.SetServerCertificate(serverCertificate, privateKey);
+                this.SetLocalCertificate(serverCertificate, privateKey);
             return this.DoHandshake(true);
         }
 
         public Task AuthenticateAsServerAsync(X509Certificate serverCertificate, PrivateKey privateKey, SslProtocol sslProtocol)
         {
             if(this.CreateContexthandle(true, null, sslProtocol, null))
-                this.SetServerCertificate(serverCertificate, privateKey);
+                this.SetLocalCertificate(serverCertificate, privateKey);
             return this.DoHandshake(true);
         }
 
         public Task AuthenticateAsServerAsync(X509Certificate serverCertificate, PrivateKey privateKey, IEnumerable<string> allowedCiphers)
         {
             if(this.CreateContexthandle(true, null, null, allowedCiphers))
-                this.SetServerCertificate(serverCertificate, privateKey);
+                this.SetLocalCertificate(serverCertificate, privateKey);
             return this.DoHandshake(true);
         }
 
         public Task AuthenticateAsServerAsync(X509Certificate serverCertificate, PrivateKey privateKey, SslProtocol sslProtocol, IEnumerable<string> allowedCiphers)
         {
             if(this.CreateContexthandle(true, null, sslProtocol, allowedCiphers))
-                this.SetServerCertificate(serverCertificate, privateKey);
+                this.SetLocalCertificate(serverCertificate, privateKey);
             return this.DoHandshake(true);
         }
         #endregion
@@ -151,7 +244,7 @@ namespace OpenSSL.Core.SSL
             return true;
         }
 
-        private void SetServerCertificate(X509Certificate serverCertificate, PrivateKey privateKey)
+        private void SetLocalCertificate(X509Certificate serverCertificate, PrivateKey privateKey)
         {
             if (!serverCertificate.VerifyPrivateKey(privateKey))
                 throw new InvalidOperationException("Public and private key do not match");
@@ -220,7 +313,13 @@ namespace OpenSSL.Core.SSL
                 //get next action from OpenSSL wrapper
                 ret_code = this.SSLWrapper.SSL_do_handshake(this.sslHandle);
                 if ((result = this.SSLWrapper.SSL_get_error(this.sslHandle, ret_code)) == (int)SslError.SSL_ERROR_SSL)
+                {
+                    VerifyResult verifyResult;
+                    if ((verifyResult = (VerifyResult)this.SSLWrapper.SSL_get_verify_result(this.sslHandle)) > VerifyResult.X509_V_OK)
+                        throw new OpenSslException(new VerifyError(verifyResult));
+
                     throw new OpenSslException();
+                }
 
                 flushResult = this.WritePending();
                 if (!flushResult.IsCompleted)

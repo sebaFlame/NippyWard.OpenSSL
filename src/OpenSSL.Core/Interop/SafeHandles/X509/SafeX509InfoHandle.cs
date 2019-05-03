@@ -10,31 +10,19 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
         private static Func<IntPtr, bool, SafeX509CertificateHandle> createCertificate;
 
         private SafeX509CertificateHandle x509Certificate;
+        public SafeX509CertificateHandle X509Certificate => this.x509Certificate;
 
-        internal X509_INFO Raw { get; private set; }
-
-        public SafeX509CertificateHandle X509Certificate
+        private static Func<IntPtr, bool, SafeX509CertificateHandle> CreateCertificateCreationDelegate()
         {
-            get
-            {
-                if (!(this.x509Certificate is null))
-                    return this.x509Certificate;
-
-                return (this.x509Certificate = createCertificate(this.Raw.x509, true));
-            }
-        }
-
-        //TODO: can be called before any call to Native
-        static SafeX509InfoHandle()
-        {
-            Type concretetex509CertificateType = DynamicTypeBuilder.GetConcreteNewType<SafeX509CertificateHandle>();
-            ConstructorInfo ctor = concretetex509CertificateType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool) }, null);
+            Type concretetex509CertificateType = DynamicTypeBuilder.GetConcreteOwnType<SafeX509CertificateHandle>();
+            ConstructorInfo ctor = concretetex509CertificateType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) }, null);
 
             ParameterExpression parPtr = Expression.Parameter(typeof(IntPtr));
             ParameterExpression parOwn = Expression.Parameter(typeof(bool));
+            Expression constNew = Expression.Constant(true);
 
-            NewExpression create = Expression.New(ctor, parPtr, parOwn);
-            createCertificate = Expression.Lambda<Func<IntPtr, bool, SafeX509CertificateHandle>>(create, parPtr, parOwn).Compile();
+            NewExpression create = Expression.New(ctor, parPtr, parOwn, constNew);
+            return Expression.Lambda<Func<IntPtr, bool, SafeX509CertificateHandle>>(create, parPtr, parOwn).Compile();
         }
 
         internal SafeX509InfoHandle(bool takeOwnership, bool isNew)
@@ -45,20 +33,30 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
             : base(ptr, takeOwnership)
         { }
 
+        private SafeX509CertificateHandle GetCertificate(IntPtr ptr)
+        {
+            if (createCertificate is null)
+                createCertificate = CreateCertificateCreationDelegate();
+
+            return createCertificate(ptr, false);
+        }
+
         internal override void PostConstruction()
         {
-            this.Raw = Marshal.PtrToStructure<X509_INFO>(this.handle);
+            X509_INFO raw = Marshal.PtrToStructure<X509_INFO>(this.handle);
+            this.x509Certificate = this.GetCertificate(raw.x509);
         }
 
         protected override bool ReleaseHandle()
         {
-            this.CryptoWrapper.X509_INFO_free(this);
+            //frees certificate!
+            this.CryptoWrapper.X509_INFO_free(this.handle);
             return true;
         }
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    internal unsafe struct X509_INFO : IStackable
+    internal unsafe struct X509_INFO
     {
         public IntPtr x509;
         public IntPtr crl;

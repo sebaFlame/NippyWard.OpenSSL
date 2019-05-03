@@ -11,6 +11,7 @@ using OpenSSL.Core.Interop.SafeHandles.Crypto;
 
 namespace OpenSSL.Core
 {
+    [Wrapper(typeof(CipherInternal))]
     public abstract class Cipher : OpenSslWrapperBase
     {
         internal class CipherInternal : SafeHandleWrapper<SafeCipherHandle>
@@ -37,6 +38,12 @@ namespace OpenSSL.Core
                 NameCollector collector = new NameCollector(Native.OBJ_NAME_TYPE_CIPHER_METH, true);
                 return supportedCiphers = collector.Result;
             }
+        }
+
+        internal Cipher(CipherInternal handleWarpper)
+            : base()
+        {
+            this.CipherWrapper = handleWarpper;
         }
 
         protected Cipher(CipherType cipherType)

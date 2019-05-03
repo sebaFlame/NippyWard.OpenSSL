@@ -9,6 +9,7 @@ using OpenSSL.Core.Interop.SafeHandles.X509;
 
 namespace OpenSSL.Core.X509
 {
+    [Wrapper(typeof(X509ExtensionInternal))]
     public class X509Extension : OpenSslWrapperBase
     {
         internal class X509ExtensionInternal : SafeHandleWrapper<SafeX509ExtensionHandle>
@@ -27,6 +28,12 @@ namespace OpenSSL.Core.X509
 
         string data;
         public string Data => data ?? (data = this.CryptoWrapper.X509_EXTENSION_get_data(this.X509ExtensionWrapper.Handle).Value);
+
+        internal X509Extension(X509ExtensionInternal handleWrapper)
+            : base()
+        {
+            this.X509ExtensionWrapper = handleWrapper;
+        }
 
         internal X509Extension(SafeX509ExtensionHandle extensionHandle)
             : base()

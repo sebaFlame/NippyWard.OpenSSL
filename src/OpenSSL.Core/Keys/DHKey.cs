@@ -11,6 +11,9 @@ namespace OpenSSL.Core.Keys
 
         public override KeyType KeyType => KeyType.DH;
 
+        internal DHKey(KeyInternal handleWrapper)
+            : base(handleWrapper) { }
+
         internal DHKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {

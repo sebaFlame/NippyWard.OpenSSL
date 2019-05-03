@@ -9,8 +9,12 @@ using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop.SafeHandles.X509;
 using OpenSSL.Core.Collections;
 
+using OpenSSL.Core.Interop;
+using System.Reflection;
+
 namespace OpenSSL.Core.X509
 {
+    [Wrapper(typeof(X509StoreInternal))]
     public class X509Store : OpenSslWrapperBase
     {
         internal class X509StoreInternal : SafeHandleWrapper<SafeX509StoreHandle>
@@ -45,16 +49,40 @@ namespace OpenSSL.Core.X509
             if(!(certPath is null))
                 certPathSpan = GetCorrectPath(certPath.FullName);
 
-            this.CryptoWrapper.X509_STORE_load_locations(
-                this.StoreWrapper.Handle,
-                caFileSpan.GetPinnableReference(),
-                certPathSpan.GetPinnableReference());
+            if(!(CAFile is null) && !(certPath is null))
+                this.CryptoWrapper.X509_STORE_load_locations(
+                    this.StoreWrapper.Handle,
+                    caFileSpan.GetPinnableReference(),
+                    certPathSpan.GetPinnableReference());
+            else if(!(CAFile is null))
+                this.CryptoWrapper.X509_STORE_load_locations(
+                    this.StoreWrapper.Handle,
+                    caFileSpan.GetPinnableReference(),
+                    IntPtr.Zero);
+            else if(!(certPath is null))
+                this.CryptoWrapper.X509_STORE_load_locations(
+                    this.StoreWrapper.Handle,
+                    IntPtr.Zero,
+                    certPathSpan.GetPinnableReference());
+        }
+
+        internal X509Store(X509StoreInternal handleWrapper)
+            : base()
+        {
+            this.StoreWrapper = handleWrapper;
         }
 
         internal X509Store(SafeX509StoreHandle storeHandle)
             : base()
         {
             this.StoreWrapper = new X509StoreInternal(storeHandle);
+        }
+
+        public X509Store(IEnumerable<X509Certificate> caList)
+            : this()
+        {
+            foreach (X509Certificate cert in caList)
+                this.CryptoWrapper.X509_STORE_add_cert(this.StoreWrapper.Handle, cert.X509Wrapper.Handle);
         }
 
         internal X509Store(SafeStackHandle<SafeX509CertificateHandle> stackHandle)
@@ -66,15 +94,8 @@ namespace OpenSSL.Core.X509
 
         private static ReadOnlySpan<byte> GetCorrectPath(string fullName)
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return MemoryMarshal.AsBytes(fullName.AsSpan());
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                byte[] b = Encoding.UTF8.GetBytes(fullName);
-                return new ReadOnlySpan<byte>(b);
-            }
-
-            throw new NotSupportedException("Unknown OS detected");
+            byte[] b = Encoding.UTF8.GetBytes(fullName);
+            return new ReadOnlySpan<byte>(b);
         }
 
         public void AddCertificate(X509Certificate certificate)

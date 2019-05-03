@@ -24,11 +24,16 @@
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
+using System.Text;
+using System.Runtime.InteropServices;
 
 using OpenSSL.Core.Interop.SafeHandles.Crypto;
 using OpenSSL.Core.Interop.SafeHandles.X509;
+using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Keys;
 using OpenSSL.Core.ASN1;
+using OpenSSL.Core.Interop;
+using OpenSSL.Core.Error;
 
 namespace OpenSSL.Core.X509
 {
@@ -37,7 +42,7 @@ namespace OpenSSL.Core.X509
 	/// Duties include processing incoming X509 requests and responding
 	/// with signed X509 certificates, signed by this CA's private key.
 	/// </summary>
-	public class X509CertificateAuthority : OpenSslBase, IDisposable
+	public class X509CertificateAuthority : OpenSslBase
     {
         private X509Certificate caCert;
         private PrivateKey caKey;
@@ -61,6 +66,31 @@ namespace OpenSSL.Core.X509
 
         #region Initialization
 
+        public static X509CertificateAuthority CreateX509CertificateAuthority(
+            int keyBits, 
+            string OU, 
+            string CN, 
+            DateTime notBefore, 
+            DateTime notAfter,
+            out PrivateKey caKey,
+            out X509Certificate caCert,
+            DigestType signHash = null,
+            ISequenceNumber serialGenerator = null)
+        {
+            caKey = new RSAKey(keyBits);
+            caKey.GenerateKey();
+
+            caCert = new X509Certificate(caKey, OU, CN, notBefore, notAfter);
+
+            caCert.AddExtension(caCert, null, X509ExtensionType.BasicConstraints, "CA:TRUE");
+            caCert.AddExtension(caCert, null, X509ExtensionType.SubjectKeyIdentifier, "hash");
+            caCert.AddExtension(caCert, null, X509ExtensionType.AuthorityKeyIdentifier, "keyid:always");
+
+            caCert.SelfSign(caKey, signHash ?? DigestType.SHA256);
+
+            return new X509CertificateAuthority(caCert, caKey, serialGenerator ?? new SimpleSerialNumber());
+        }
+
         /// <summary>
         /// Constructs a X509CertifcateAuthority with the specified parameters.
         /// </summary>
@@ -73,7 +103,7 @@ namespace OpenSSL.Core.X509
 			if (!caCert.VerifyPrivateKey(caKey))
 				throw new Exception("The specified CA Private Key does match the specified CA Certificate");
 
-			this.caCert = caCert;
+            this.caCert = caCert;
 			this.caKey = caKey;
 			this.serial = serial;
 		}
@@ -114,26 +144,13 @@ namespace OpenSSL.Core.X509
             //assign correct serial number
             cert.SerialNumber = this.serial.Next();
 
+            cert.AddExtension(this.caCert, null, X509ExtensionType.SubjectKeyIdentifier, "hash");
+            cert.AddExtension(this.caCert, null, X509ExtensionType.AuthorityKeyIdentifier, "keyid:always");
+
             //sign the request with the CA key
             cert.Sign(this.caKey, digestType);
 
             return cert;
-		}
-
-		#endregion
-
-		#region IDisposable Members
-
-		/// <summary>
-		/// Dispose the key, certificate, and the configuration
-		/// </summary>
-		public void Dispose()
-		{
-			if (!(this.caKey is null))
-				caKey.Dispose();
-
-			if (!(caCert is null))
-				caCert.Dispose();
 		}
 
 		#endregion

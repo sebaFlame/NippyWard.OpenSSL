@@ -27,6 +27,9 @@ namespace OpenSSL.Core.Keys
             }
         }
 
+        internal ECKey(KeyInternal handleWrapper)
+            : base(handleWrapper) { }
+
         internal ECKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {

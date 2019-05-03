@@ -7,6 +7,7 @@ using OpenSSL.Core.Interop.SafeHandles.Crypto;
 
 namespace OpenSSL.Core.Digests
 {
+    [Wrapper(typeof(DigestInternal))]
     public abstract class DigestBase : OpenSslWrapperBase
     {
         internal class DigestInternal : SafeHandleWrapper<SafeMessageDigestHandle>
@@ -31,6 +32,12 @@ namespace OpenSSL.Core.Digests
                 NameCollector collector = new NameCollector(Native.OBJ_NAME_TYPE_MD_METH, true);
                 return supportedDigests = collector.Result;
             }
+        }
+
+        internal DigestBase(DigestInternal handleWarpper)
+            : base()
+        {
+            this.DigestWrapper = handleWarpper;
         }
 
         protected DigestBase(DigestType digestType)

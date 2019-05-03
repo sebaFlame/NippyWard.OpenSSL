@@ -29,10 +29,15 @@ namespace OpenSSL.Core.Collections
         static OpenSslList()
         {
             Type type = typeof(T);
-            Type wrapperType = type.GetProperty("HandleWrapper").PropertyType;
-            if (!wrapperType.IsGenericType)
+
+            WrapperAttribute attr = type.GetCustomAttribute<WrapperAttribute>();
+            if (attr is null)
+                throw new NullReferenceException("Wrapper type not found");
+
+            Type wrapperType = attr.WrapperType;
+            if (!wrapperType.BaseType.IsGenericType)
                 throw new InvalidOperationException("Invalid base type");
-            Type safeHandleType = wrapperType.GetGenericArguments()[0];
+            Type safeHandleType = wrapperType.BaseType.GetGenericArguments()[0];
 
             //new list
             Type stackType = typeof(OpenSslListWrapper<,,>).GetGenericTypeDefinition();

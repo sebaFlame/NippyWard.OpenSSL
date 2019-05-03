@@ -11,9 +11,11 @@ using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop.SafeHandles.Crypto;
 using OpenSSL.Core.Interop.SafeHandles.X509;
 using OpenSSL.Core.Keys;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.X509
 {
+    [Wrapper(typeof(X509CertificateRequestInternal))]
     public class X509CertificateRequest : X509CertificateBase
     {
         internal class X509CertificateRequestInternal : SafeHandleWrapper<SafeX509RequestHandle>
@@ -24,6 +26,12 @@ namespace OpenSSL.Core.X509
 
         internal X509CertificateRequestInternal X509RequestWrapper { get; private set; }
         internal override ISafeHandleWrapper HandleWrapper => this.X509RequestWrapper;
+
+        internal X509CertificateRequest(X509CertificateRequestInternal handleWrapper)
+            : base()
+        {
+            this.X509RequestWrapper = handleWrapper;
+        }
 
         internal X509CertificateRequest(SafeX509RequestHandle requestHandle)
             : base()

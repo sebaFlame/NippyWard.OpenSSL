@@ -26,6 +26,7 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Linq;
 
 using Xunit;
 using Xunit.Abstractions;
@@ -33,10 +34,7 @@ using Xunit.Abstractions;
 using OpenSSL.Core.ASN1;
 using OpenSSL.Core.Keys;
 using OpenSSL.Core.X509;
-
-using OpenSSL.Core.Interop;
-using OpenSSL.Core.Interop.SafeHandles;
-using OpenSSL.Core.Interop.Wrappers;
+using OpenSSL.Core.Collections;
 
 namespace OpenSSL.Core.Tests
 {
@@ -281,25 +279,30 @@ namespace OpenSSL.Core.Tests
 		{
 			var start = DateTime.Now;
 			var end = start + TimeSpan.FromMinutes(10);
-            using (RSAKey key = new RSAKey(1024))
+
+            X509CertificateAuthority ca = X509CertificateAuthority.CreateX509CertificateAuthority(
+                1024,
+                "root",
+                "root",
+                start,
+                end,
+                out PrivateKey caKey,
+                out X509Certificate caCert);
+
+            using (caKey)
             {
-                key.GenerateKey();
-                using (X509Certificate caCert = new X509Certificate(key, "root", "root", start, end))
+                using (caCert)
                 {
-                    SimpleSerialNumber seq = new SimpleSerialNumber();
-                    using (X509CertificateAuthority ca = new X509CertificateAuthority(caCert, key, seq))
+                    using (X509CertificateRequest req = new X509CertificateRequest(caKey, "localhost", "root"))
                     {
-                        using (X509CertificateRequest req = new X509CertificateRequest(key, "localhost", "root"))
+                        using (X509Certificate cert = ca.ProcessRequest(req, start, end, DigestType.SHA256))
                         {
-                            using (X509Certificate cert = ca.ProcessRequest(req, start, end, DigestType.SHA256))
-                            {
-                                Assert.True(cert.VerifyPrivateKey(key));
-                                Assert.Equal(1, cert.SerialNumber);
-                                Assert.Equal("root", cert.Common);
-                                Assert.Equal("localhost", cert.OrganizationUnit);
-                            }
+                            Assert.True(cert.VerifyPrivateKey(caKey));
+                            Assert.Equal(1, cert.SerialNumber);
+                            Assert.Equal("root", cert.Common);
+                            Assert.Equal("localhost", cert.OrganizationUnit);
                         }
-                    }   
+                    }
                 }
             }
 		}
@@ -324,10 +327,8 @@ namespace OpenSSL.Core.Tests
                     foreach(var tuple in extList)
                         cert.AddX509Extension(tuple.Item1, tuple.Item2, tuple.Item3);
 
-                    Assert.Equal(extList.Count, cert.X509Extensions.Count);
-
                     int index = 0;
-                    foreach(X509Extension ext in cert.X509Extensions)
+                    foreach (X509Extension ext in cert)
                     {
                         Assert.Equal(extList[index].Item3, ext.Data);
                         index++;
@@ -335,5 +336,45 @@ namespace OpenSSL.Core.Tests
                 }
             }
 		}
-	}
+
+        [Fact]
+        public void CanInitializeCAStoreFromFile()
+        {
+            FileInfo caFile = new FileInfo("certs/cacert-20190414.pem");
+            Assert.True(caFile.Exists);
+
+            using (X509Store caStore = new X509Store(caFile))
+            {
+                using (OpenSslReadOnlyCollection<X509Certificate> caCerts = caStore.GetCertificates())
+                {
+                    Assert.NotEmpty(caCerts);
+
+                    X509Certificate cert = caCerts.First();
+                    foreach(X509Extension ext in cert)
+                    {
+                        string data = ext.Data;
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void CanInitializeCAStoreFromList()
+        {
+            FileInfo caFile = new FileInfo("certs/cacert-20190414.pem");
+            Assert.True(caFile.Exists);
+
+            using (X509CertificateReader reader = new X509CertificateReader(caFile))
+            {
+                Assert.NotNull(reader.Certificates);
+                Assert.NotEmpty(reader.Certificates);
+
+                using (X509Store caStore = new X509Store(reader.Certificates))
+                {
+                    using (OpenSslReadOnlyCollection<X509Certificate> caCerts = caStore.GetCertificates())
+                        Assert.NotEmpty(caCerts);
+                }
+            }
+        }
+    }
 }

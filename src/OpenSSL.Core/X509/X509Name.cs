@@ -7,6 +7,7 @@ using OpenSSL.Core.Interop.SafeHandles.X509;
 
 namespace OpenSSL.Core.X509
 {
+    [Wrapper(typeof(X509NameInternal))]
     public class X509Name : OpenSslWrapperBase
     {
         internal class X509NameInternal : SafeHandleWrapper<SafeX509NameHandle>
@@ -124,6 +125,12 @@ namespace OpenSSL.Core.X509
         {
             get => this.GetTextByName("D");
             set => this.AddEntryByName("D", value);
+        }
+
+        internal X509Name(X509NameInternal handleWrapper)
+            : base()
+        {
+            this.X509NameWrapper = handleWrapper;
         }
 
         internal X509Name(SafeX509NameHandle nameHandle)

@@ -5,12 +5,15 @@ using System.Threading.Tasks;
 using System.IO.Pipelines;
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Reflection;
 
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop.SafeHandles.SSL;
 using OpenSSL.Core.Interop.SafeHandles.X509;
 using OpenSSL.Core.Interop.SafeHandles.Crypto;
+using OpenSSL.Core.Interop.Wrappers;
 using OpenSSL.Core.X509;
 using OpenSSL.Core.Keys;
 using OpenSSL.Core.Collections;
@@ -20,7 +23,6 @@ namespace OpenSSL.Core.SSL
 {
     /* TODO
      * check for renegotiation
-     * check for shutdown
     */
     public partial class SocketConnection
     {
@@ -152,10 +154,13 @@ namespace OpenSSL.Core.SSL
             get => this.clientCertificateCallbackHandler;
             set
             {
-                if (this.clientCertificateCallbackHandler is null)
-                    this.SSLWrapper.SSL_CTX_set_client_cert_cb(this.SslContextWrapper.SslContextHandle, this.ClientCertificateCallback);
-                else if (value is null)
+                if (this.s_ClientCertificateCallback is null)
+                    this.s_ClientCertificateCallback = this.ClientCertificateCallback;
+
+                if (value is null)
                     this.SSLWrapper.SSL_CTX_set_client_cert_cb(this.SslContextWrapper.SslContextHandle, null);
+                else
+                    this.SSLWrapper.SSL_CTX_set_client_cert_cb(this.SslContextWrapper.SslContextHandle, this.s_ClientCertificateCallback);
 
                 this.clientCertificateCallbackHandler = value;
             }
@@ -172,7 +177,7 @@ namespace OpenSSL.Core.SSL
         {
             this.SSLWrapper.SSL_CTX_add_client_CA(this.SslContextWrapper.SslContextHandle, caCertificate.X509Wrapper.Handle);
             if (addToChain)
-                this.SSLWrapper.SSL_CTX_add_extra_chain_cert(this.SslContextWrapper.SslContextHandle, caCertificate.X509Wrapper.Handle);
+                this.CertificateStore.AddCertificate(caCertificate);
         }
 
         private RemoteCertificateValidationHandler remoteCertificateValidationHandler;
@@ -240,9 +245,9 @@ namespace OpenSSL.Core.SSL
             {
                 if (position == 0)
                     frameType = (FrameType)sequence.First.Span[0];
-                else if (position >= 3)
+                if (position >= 3 || memory.Length >= 3)
                     lengthStart = memory.Span[3];
-                else if (position >= 4)
+                if (position >= 4 || memory.Length >= 4)
                 {
                     lengthWithHeader = ((lengthStart << 8) | memory.Span[4]) + 5;
 
@@ -396,18 +401,27 @@ namespace OpenSSL.Core.SSL
         /// <param name="remoteCertificateValidationHandler">The verification method to call. Can be null to reset</param>
         public void SetRemoteValidation(VerifyMode verifyMode, RemoteCertificateValidationHandler remoteCertificateValidationHandler)
         {
-            if (this.remoteCertificateValidationHandler is null)
-                this.SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, (int)verifyMode, this.VerifyCertificateCallback);
-            else if (remoteCertificateValidationHandler is null)
+            if (this.s_VerifyCallback is null)
+                this.s_VerifyCallback = this.VerifyCertificateCallback;
+
+            if (remoteCertificateValidationHandler is null)
                 this.SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, 0, null);
+            else
+                this.SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, (int)verifyMode, this.s_VerifyCallback);
 
             this.remoteCertificateValidationHandler = remoteCertificateValidationHandler;
         }
 
-        private int VerifyCertificateCallback(int preVerify, SafeX509StoreContextHandle x509_store_ctx)
+        private VerifyCertificateCallback s_VerifyCallback;
+        private int VerifyCertificateCallback(int preVerify, IntPtr x509_store_ctx_ptr)
         {
             if (this.remoteCertificateValidationHandler is null)
                 throw new InvalidOperationException("No verification callback has been defined");
+
+            Type storeCtxType = DynamicTypeBuilder.GetConcreteOwnType<SafeX509StoreContextHandle>();
+            ConstructorInfo ctor = storeCtxType.GetConstructor(new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) });
+            object newObj = ctor.Invoke(new object[] { x509_store_ctx_ptr, false, false });
+            SafeX509StoreContextHandle x509_store_ctx = newObj as SafeX509StoreContextHandle;
 
             using (X509Certificate remoteCertificate = new X509Certificate(this.CryptoWrapper.X509_STORE_CTX_get_current_cert(x509_store_ctx)))
             {
@@ -415,20 +429,26 @@ namespace OpenSSL.Core.SSL
                 {
                     using (OpenSslReadOnlyCollection<X509Certificate> certList = store.GetCertificates())
                     {
-                        return this.remoteCertificateValidationHandler((VerifyResult)preVerify, remoteCertificate, certList) ? 1 : 0;
+                        return this.remoteCertificateValidationHandler(preVerify == 1, remoteCertificate, certList) ? 1 : 0;
                     }
                 }
             }
         }
 
-        private int ClientCertificateCallback(SafeSslHandle ssl, out SafeX509CertificateHandle x509, out SafeKeyHandle pkey)
+        private ClientCertificateCallback s_ClientCertificateCallback;
+        private int ClientCertificateCallback(IntPtr sslPtr, out IntPtr x509Ptr, out IntPtr pkeyPtr)
         {
             if (this.clientCertificateCallbackHandler is null)
                 throw new InvalidOperationException("No client certificate callback has been defined");
 
+            Type sslType = DynamicTypeBuilder.GetConcreteOwnType<SafeSslHandle>();
+            ConstructorInfo ctor = sslType.GetConstructor(new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) });
+            object newObj = ctor.Invoke(new object[] { sslPtr, false, false });
+            SafeSslHandle ssl = newObj as SafeSslHandle;
+
             bool succes = false;
-            x509 = null;
-            pkey = null;
+            x509Ptr = IntPtr.Zero;
+            pkeyPtr = IntPtr.Zero;
 
             using (SafeStackHandle<SafeX509NameHandle> nameStackHandle = this.SSLWrapper.SSL_get_client_CA_list(ssl))
             {
@@ -437,8 +457,8 @@ namespace OpenSSL.Core.SSL
                     out X509Certificate certificate, 
                     out PrivateKey privateKey))
                 {
-                    x509 = certificate.X509Wrapper.Handle;
-                    pkey = privateKey.KeyWrapper.Handle;
+                    x509Ptr = certificate.X509Wrapper.Handle.DangerousGetHandle();
+                    pkeyPtr = privateKey.KeyWrapper.Handle.DangerousGetHandle();
                 }
             }
 

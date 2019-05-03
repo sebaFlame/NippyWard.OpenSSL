@@ -24,13 +24,13 @@ namespace OpenSSL.Core.Collections
             Type managedType = typeof(TOuter);
             Type handleType = typeof(THandle);
 
-            MethodInfo getHandle = wrapperType.GetProperty("Handle").GetMethod;
-            MethodInfo getWrapper = managedType.GetProperty("HandleWrapper").GetMethod;
+            MethodInfo getHandle = wrapperType.GetProperty("Handle", BindingFlags.Instance | BindingFlags.NonPublic).GetMethod;
+            MethodInfo getWrapper = managedType.GetProperty("HandleWrapper", BindingFlags.Instance | BindingFlags.NonPublic).GetMethod;
 
             ParameterExpression handleParameter = Expression.Parameter(managedType);
-            Expression callWrapper = Expression.Property(handleParameter, getWrapper);
+            Expression callWrapper = Expression.Call(handleParameter, getWrapper);
             Expression castExpression = Expression.TypeAs(callWrapper, wrapperType);
-            Expression callHandle = Expression.Property(castExpression, getHandle);
+            Expression callHandle = Expression.Call(castExpression, getHandle);
 
             GetSafeHandle = Expression.Lambda<Func<TOuter, THandle>>(callHandle, handleParameter).Compile();
 
@@ -38,7 +38,7 @@ namespace OpenSSL.Core.Collections
             ParameterExpression objParameter = Expression.Parameter(handleType);
             Expression newWrapper = Expression.New(wrapperCtor, objParameter);
 
-            ConstructorInfo objectCtor = managedType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(ISafeHandleWrapper) }, null);
+            ConstructorInfo objectCtor = managedType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { wrapperType }, null);
             Expression newObject = Expression.New(objectCtor, newWrapper);
 
             ConstructObject = Expression.Lambda<Func<THandle, TOuter>>(newObject, objParameter).Compile();

@@ -11,6 +11,7 @@ using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop.SafeHandles.Crypto;
 using OpenSSL.Core.Interop.SafeHandles.X509;
 using OpenSSL.Core.Keys;
+using System.Collections;
 
 namespace OpenSSL.Core.X509
 {
@@ -182,9 +183,6 @@ namespace OpenSSL.Core.X509
 
         public void Write(string filePath, string password, CipherType cipherType, FileEncoding fileEncoding = FileEncoding.PEM)
         {
-            if (!File.Exists(filePath))
-                throw new FileNotFoundException($"The file {filePath} has not been found");
-
             using (FileStream stream = new FileStream(filePath, FileMode.CreateNew))
                 this.Write(stream, password, cipherType, fileEncoding);
         }

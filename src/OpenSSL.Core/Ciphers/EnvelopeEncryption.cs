@@ -28,6 +28,9 @@ namespace OpenSSL.Core.Ciphers
 
         private int ivLength;
 
+        internal EnvelopeEncryption(CipherInternal handleWarpper)
+            : base(handleWarpper) { }
+
         public EnvelopeEncryption(CipherType cipherType, params IPublicKey[] publicKeys)
             : base(cipherType)
         {

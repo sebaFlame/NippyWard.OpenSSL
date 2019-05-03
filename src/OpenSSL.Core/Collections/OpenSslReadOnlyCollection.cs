@@ -12,22 +12,27 @@ namespace OpenSSL.Core.Collections
     public class OpenSslReadOnlyCollection<T> : OpenSslEnumerable<T>, IReadOnlyCollection<T>
         where T : OpenSslWrapperBase
     {
-        internal static Func<IOpenSslIList<T>> CreateInternalList;
-        internal static Func<object, IOpenSslIList<T>> CreateSafeStackInternalList;
+        internal static Func<IOpenSslIReadOnlyCollection<T>> CreateInternalList;
+        internal static Func<object, IOpenSslIReadOnlyCollection<T>> CreateSafeStackInternalList;
 
         public int Count => this.InternalList.Count;
 
-        private IOpenSslIList<T> InternalList;
+        private IOpenSslIReadOnlyCollection<T> InternalList;
 
         internal override IOpenSslIEnumerable<T> InternalEnumerable => this.InternalList;
 
         static OpenSslReadOnlyCollection()
         {
             Type type = typeof(T);
-            Type wrapperType = type.GetProperty("HandleWrapper").PropertyType;
-            if (!wrapperType.IsGenericType)
+
+            WrapperAttribute attr = type.GetCustomAttribute<WrapperAttribute>();
+            if (attr is null)
+                throw new NullReferenceException("Wrapper type not found");
+
+            Type wrapperType = attr.WrapperType;
+            if (!wrapperType.BaseType.IsGenericType)
                 throw new InvalidOperationException("Invalid base type");
-            Type safeHandleType = wrapperType.GetGenericArguments()[0];
+            Type safeHandleType = wrapperType.BaseType.GetGenericArguments()[0];
 
             //new list
             Type stackType = typeof(OpenSslReadOnlyWrapper<,,>).GetGenericTypeDefinition();
@@ -35,7 +40,7 @@ namespace OpenSSL.Core.Collections
 
             ConstructorInfo newCtor = constructedWrapperType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
             Expression newConstruction = Expression.New(newCtor);
-            CreateInternalList = Expression.Lambda<Func<IOpenSslIList<T>>>(newConstruction).Compile();
+            CreateInternalList = Expression.Lambda<Func<IOpenSslIReadOnlyCollection<T>>>(newConstruction).Compile();
 
             //from existing list
             Type constructedStackType = typeof(SafeStackHandle<>).MakeGenericType(safeHandleType);
@@ -43,7 +48,7 @@ namespace OpenSSL.Core.Collections
             ParameterExpression parameterExpression = Expression.Parameter(typeof(object));
             Expression castExpression = Expression.TypeAs(parameterExpression, constructedStackType);
             Expression existingConstruction = Expression.New(existingCtor, castExpression);
-            CreateSafeStackInternalList = Expression.Lambda<Func<object, IOpenSslIList<T>>>(existingConstruction, parameterExpression).Compile();
+            CreateSafeStackInternalList = Expression.Lambda<Func<object, IOpenSslIReadOnlyCollection<T>>>(existingConstruction, parameterExpression).Compile();
         }
 
         public OpenSslReadOnlyCollection()

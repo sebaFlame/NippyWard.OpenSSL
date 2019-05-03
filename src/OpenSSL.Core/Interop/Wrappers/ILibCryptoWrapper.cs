@@ -58,6 +58,8 @@ namespace OpenSSL.Core.Interop.Wrappers
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate void EC_KEY_free_func(IntPtr x);
 
+    internal delegate void OPENSSL_sk_freefunc(IntPtr ptr);
+
     internal interface ILibCryptoWrapper
     {
         //const char *SSLeay_version(int type);
@@ -106,6 +108,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         [return: NewSafeHandle]
         SafeStackHandle<TStackable> OPENSSL_sk_new_null<TStackable>()
             where TStackable : SafeBaseHandle, IStackable;
+        [DontCheckReturnType]
         int OPENSSL_sk_num<TStackable>(SafeStackHandle<TStackable> stack)
             where TStackable : SafeBaseHandle, IStackable;
         [DontCheckReturnType]
@@ -138,6 +141,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         void OPENSSL_sk_zero<TStackable>(SafeStackHandle<TStackable> stack)
             where TStackable : SafeBaseHandle, IStackable;
         void OPENSSL_sk_free(IntPtr stack);
+        //void OPENSSL_sk_pop_free(OPENSSL_STACK* st, OPENSSL_sk_freefunc func)
+        void OPENSSL_sk_pop_free<TStackable>(SafeStackHandle<TStackable> st, OPENSSL_sk_freefunc func)
+            where TStackable : SafeBaseHandle, IStackable;
         #endregion
 
         #region ASN1_INTEGER
@@ -174,6 +180,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         int ASN1_STRING_cmp(SafeAsn1StringHandle a, SafeAsn1StringHandle b);
         int ASN1_STRING_set(SafeAsn1StringHandle str, in byte data, int len);
         IntPtr ASN1_STRING_get0_data(SafeAsn1StringHandle x);
+        //int ASN1_STRING_to_UTF8(unsigned char**out, const ASN1_STRING*in)
+        [DontCheckReturnType]
+        int ASN1_STRING_to_UTF8(out IntPtr strPtr, SafeAsn1StringHandle str);
         int ASN1_STRING_length(SafeAsn1StringHandle x);
         #endregion
 
@@ -296,7 +305,8 @@ namespace OpenSSL.Core.Interop.Wrappers
         [DontCheckReturnType]
         int X509_cmp(SafeX509CertificateHandle a, SafeX509CertificateHandle b);
         //STACK_OF(X509) *X509_chain_up_ref(STACK_OF(X509) *x);
-        IntPtr X509_chain_up_ref(SafeStackHandle<SafeX509CertificateHandle> x);
+        [return: NewSafeHandle]
+        SafeStackHandle<SafeX509CertificateHandle> X509_chain_up_ref(SafeStackHandle<SafeX509CertificateHandle> x);
 
         //int X509_sign(X509 *x, EVP_PKEY *pkey, const EVP_MD *md);
         int X509_sign(SafeX509CertificateHandle x, SafeKeyHandle pkey, SafeMessageDigestHandle md);
@@ -421,6 +431,15 @@ namespace OpenSSL.Core.Interop.Wrappers
         SafeASN1OctetStringHandle X509_EXTENSION_get_data(SafeX509ExtensionHandle ne);
         #endregion
 
+        //TODO: X509_CRL
+        #region X509_EXT_CTX
+        //void X509V3_set_ctx(X509V3_CTX *ctx, X509 *issuer, X509 *subj, X509_REQ *req, X509_CRL* crl, int flags)
+        void X509V3_set_ctx(SafeX509ExtensionContextHandle ctx, IntPtr issuer, IntPtr subj, IntPtr req, IntPtr crl, int flags);
+        //X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX* ctx, int ext_nid, const char* value)
+        [return: NewSafeHandle]
+        SafeX509ExtensionHandle X509V3_EXT_conf_nid(IntPtr conf, SafeX509ExtensionContextHandle ctx, int ext_nid, in byte value);
+        #endregion
+
         #region X509_OBJECT
         //X509_OBJECT *X509_OBJECT_new(void);
         [return: NewSafeHandle]
@@ -442,10 +461,10 @@ namespace OpenSSL.Core.Interop.Wrappers
         //X509_INFO *X509_INFO_new(void);
         SafeX509InfoHandle X509_INFO_new();
         //void X509_INFO_free(X509_INFO* a);
-        void X509_INFO_free(SafeX509InfoHandle a);
+        void X509_INFO_free(IntPtr a);
         //STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,  pem_password_cb* cb, void* u)
         [return: NewSafeHandle]
-        SafeStackHandle<SafeX509InfoHandle> PEM_X509_INFO_read_bio(SafeBioHandle bp, SafeStackHandle<SafeX509InfoHandle> sk, pem_password_cb cb, IntPtr u);
+        SafeStackHandle<SafeX509InfoHandle> PEM_X509_INFO_read_bio(SafeBioHandle bp, IntPtr sk, pem_password_cb cb, IntPtr u);
         #endregion
 
         #region X509_STORE
@@ -460,10 +479,13 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int X509_STORE_add_cert(X509_STORE *ctx, X509 *x);
         int X509_STORE_add_cert(SafeX509StoreHandle ctx, SafeX509CertificateHandle x);
         //STACK_OF(X509_OBJECT) *X509_STORE_get0_objects(X509_STORE *ctx);
+        [return: DontTakeOwnership]
         SafeStackHandle<SafeX509ObjectHandle> X509_STORE_get0_objects(SafeX509StoreHandle ctx);
 
         //int X509_STORE_load_locations(X509_STORE *ctx, const char* file, const char* dir);
         int X509_STORE_load_locations(SafeX509StoreHandle ctx, in byte file, in byte dir);
+        int X509_STORE_load_locations(SafeX509StoreHandle ctx, in byte file, IntPtr dir);
+        int X509_STORE_load_locations(SafeX509StoreHandle ctx, IntPtr file, in byte dir);
         #endregion
 
         #region X509_STORE_CTX
@@ -1492,8 +1514,10 @@ namespace OpenSSL.Core.Interop.Wrappers
         void ERR_print_errors_cb(err_cb cb, IntPtr u);
         #endregion
 
-        //void OPENSSL_free(void* addr)
-        void OPENSSL_free(IntPtr addr);
+        //void CRYPTO_free(void *str, const char *file, int line)
+        void CRYPTO_free(IntPtr addr, in byte file, int line);
+        //void *CRYPTO_malloc(size_t num, const char *file, int line)
+        IntPtr CRYPTO_malloc(int size, in byte file, int line);
 
         //int CRYPTO_set_mem_functions(void* (* m) (size_t, const char*, int), void* (* r) (void*, size_t, const char*, int), void (* f) (void*, const char*, int))
         int CRYPTO_set_mem_functions(MallocFunctionPtr m, ReallocFunctionPtr r, FreeFunctionPtr f);

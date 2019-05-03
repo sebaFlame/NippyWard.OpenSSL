@@ -24,6 +24,7 @@
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -242,7 +243,7 @@ namespace OpenSSL.Core.Interop
 
         #region Utilities
 
-        public static string PtrToStringAnsi(IntPtr ptr, bool hasOwnership)
+        internal static string PtrToStringAnsi(IntPtr ptr, bool hasOwnership)
         {
             int length = 0;
             byte b;
@@ -253,6 +254,11 @@ namespace OpenSSL.Core.Interop
             while (b != 0);
             length--;
 
+            return PtrToStringAnsi(ptr, length, hasOwnership);
+        }
+
+        internal static string PtrToStringAnsi(IntPtr ptr, int length, bool hasOwnership)
+        {
             char[] strChars;
             unsafe
             {
@@ -260,16 +266,30 @@ namespace OpenSSL.Core.Interop
                 int charLength = Encoding.ASCII.GetDecoder().GetCharCount(buf, length, false);
 
                 strChars = new char[charLength];
-                fixed(char* c = strChars)
+                fixed (char* c = strChars)
                 {
                     Encoding.ASCII.GetDecoder().GetChars(buf, length, c, charLength, true);
                 }
             }
 
             if (hasOwnership)
-                CryptoWrapper.OPENSSL_free(ptr);
+                Free(ptr);
 
             return new string(strChars);
+        }
+
+        internal unsafe static void Free(IntPtr ptr)
+        {
+            ReadOnlySpan<char> span = Assembly.GetEntryAssembly().FullName.AsSpan();
+
+            fixed (char* c = span)
+            {
+                int bufLength = Encoding.ASCII.GetEncoder().GetByteCount(c, span.Length, false);
+                byte* b = stackalloc byte[bufLength + 1];
+                Encoding.ASCII.GetEncoder().GetBytes(c, span.Length, b, bufLength, true);
+                Span<byte> buf = new Span<byte>(b, bufLength + 1);
+                CryptoWrapper.CRYPTO_free(ptr, buf.GetPinnableReference(), 0);
+            }
         }
 
         //check if the safehandle is invalid and throws an exception if that's the case

@@ -74,13 +74,14 @@ namespace OpenSSL.Core.Interop.SafeHandles
             if (!(createStackable is null))
                 return createStackable(ptr, takeOwnership);
 
-            Type type = typeof(T);
-            ConstructorInfo ctor = type.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool) }, null);
+            Type type = DynamicTypeBuilder.GetConcreteRefType<T>();
+            ConstructorInfo ctor = type.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) }, null);
 
             ParameterExpression parPtr = Expression.Parameter(typeof(IntPtr));
             ParameterExpression parOwn = Expression.Parameter(typeof(bool));
+            ConstantExpression constNew = Expression.Constant(false);
 
-            NewExpression create = Expression.New(ctor, parPtr, parOwn);
+            NewExpression create = Expression.New(ctor, parPtr, parOwn, constNew);
             createStackable = Expression.Lambda<Func<IntPtr, bool, T>>(create, parPtr, parOwn).Compile();
             return createStackable(ptr, takeOwnership);
         }

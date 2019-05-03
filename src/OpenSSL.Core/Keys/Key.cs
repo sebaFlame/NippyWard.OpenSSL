@@ -14,6 +14,7 @@ using OpenSSL.Core.Interop.SafeHandles.X509;
 
 namespace OpenSSL.Core.Keys
 {
+    [Wrapper(typeof(KeyInternal))]
     public abstract class Key : OpenSslWrapperBase, IEquatable<Key>
     {
         internal class KeyInternal : SafeHandleWrapper<SafeKeyHandle>
@@ -35,6 +36,12 @@ namespace OpenSSL.Core.Keys
 
         protected Key()
             : base() { }
+
+        internal Key(KeyInternal handleWarpper)
+            : this()
+        {
+            this.KeyWrapper = handleWarpper;
+        }
 
         internal Key(SafeKeyHandle keyHandle)
             : this()

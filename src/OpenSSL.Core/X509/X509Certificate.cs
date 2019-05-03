@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Buffers;
+using System.Text;
 
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles;
@@ -9,10 +10,13 @@ using OpenSSL.Core.Interop.SafeHandles.Crypto;
 using OpenSSL.Core.Interop.SafeHandles.X509;
 using OpenSSL.Core.Keys;
 using OpenSSL.Core.ASN1;
+using OpenSSL.Core.Interop.Wrappers;
+using System.Collections;
 
 namespace OpenSSL.Core.X509
 {
-    public class X509Certificate : X509CertificateBase, IEquatable<X509Certificate>
+    [Wrapper(typeof(X509CertificateInternal))]
+    public class X509Certificate : X509CertificateBase, IEquatable<X509Certificate>, IEnumerable<X509Extension>
     {
         internal class X509CertificateInternal : SafeHandleWrapper<SafeX509CertificateHandle>
         {
@@ -20,12 +24,8 @@ namespace OpenSSL.Core.X509
                 : base(safeHandle) { }
         }
 
-        private X509ExtensionEnumerator x509ExtensionEnumerator;
-
         internal X509CertificateInternal X509Wrapper { get; private set; }
         internal override ISafeHandleWrapper HandleWrapper => this.X509Wrapper;
-
-        public ICollection<X509Extension> X509Extensions => this.x509ExtensionEnumerator;
 
         #region Properties
 
@@ -86,11 +86,16 @@ namespace OpenSSL.Core.X509
 
         #region Constructors
 
+        internal X509Certificate(X509CertificateInternal handleWrapper)
+            : base()
+        {
+            this.X509Wrapper = handleWrapper;
+        }
+
         internal X509Certificate(SafeX509CertificateHandle x509Handle)
             : base()
         {
             this.X509Wrapper = new X509CertificateInternal(x509Handle);
-            this.GuaranteeEnumerator();
         }
 
         //only use for CA?
@@ -98,13 +103,12 @@ namespace OpenSSL.Core.X509
             : base(keyHandle)
         {
             this.X509Wrapper = new X509CertificateInternal(x509Handle);
-            this.GuaranteeEnumerator();
         }
 
         public X509Certificate(int bits)
             : base(bits)
         {
-            this.GuaranteeEnumerator();
+            this.Version = 2;
         }
 
         public X509Certificate(int bits, string OU, string CN, DateTime notBefore, DateTime notAfter)
@@ -119,7 +123,7 @@ namespace OpenSSL.Core.X509
         public X509Certificate(PrivateKey privateKey)
             : base(privateKey)
         {
-            this.GuaranteeEnumerator();
+            this.Version = 2;
         }
 
         public X509Certificate(PrivateKey privateKey, string OU, string CN, DateTime notBefore, DateTime notAfter)
@@ -248,6 +252,12 @@ namespace OpenSSL.Core.X509
             }
         }
 
+        internal void SetIssuer(X509Name x509Name)
+        {
+            this.CryptoWrapper.X509_set_issuer_name(this.X509Wrapper.Handle, x509Name.X509NameWrapper.Handle);
+        }
+
+        #region X509Extension
         public void AddX509Extension(X509ExtensionType type, bool critical, string value)
         {
             SafeX509ExtensionHandle extensionHandle;
@@ -257,33 +267,52 @@ namespace OpenSSL.Core.X509
             }
         }
 
-        internal void SetIssuer(X509Name x509Name)
-        {
-            this.CryptoWrapper.X509_set_issuer_name(this.X509Wrapper.Handle, x509Name.X509NameWrapper.Handle);
-        }
-
-        internal SafeX509ExtensionHandle GetExtension(int index)
-        {
-            return this.CryptoWrapper.X509_get_ext(this.X509Wrapper.Handle, index);
-        }
-
-        internal int GetMaxExtensionCount()
-        {
-            return this.CryptoWrapper.X509_get_ext_count(this.X509Wrapper.Handle);
-        }
-
         internal void AddExtension(SafeX509ExtensionHandle extensionHandle)
         {
             this.CryptoWrapper.X509_add_ext(this.X509Wrapper.Handle, extensionHandle, -1);
         }
 
-        private void GuaranteeEnumerator()
+        internal void AddExtension(
+            X509Certificate issuer,
+            X509CertificateRequest request,
+            X509ExtensionType type, 
+            string internalValue)
         {
-            if (!(this.x509ExtensionEnumerator is null))
-                return;
+            using (SafeX509ExtensionContextHandle ctx = new SafeX509ExtensionContextHandle())
+            {
+                this.CryptoWrapper.X509V3_set_ctx(
+                    ctx,
+                    issuer is null ? IntPtr.Zero : issuer.X509Wrapper.Handle.DangerousGetHandle(),
+                    this.X509Wrapper.Handle.DangerousGetHandle(),
+                    request is null ? IntPtr.Zero : request.X509RequestWrapper.Handle.DangerousGetHandle(),
+                    IntPtr.Zero,
+                    0);
 
-            this.x509ExtensionEnumerator = new X509ExtensionEnumerator(this.CryptoWrapper, this.GetExtension, this.GetMaxExtensionCount, this.AddExtension);
+                SafeX509ExtensionHandle extension;
+                unsafe
+                {
+                    ReadOnlySpan<char> span = internalValue.AsSpan();
+                    fixed (char* c = span)
+                    {
+                        int length = Encoding.ASCII.GetEncoder().GetByteCount(c, span.Length, false);
+                        byte* b = stackalloc byte[length + 1];
+                        Encoding.ASCII.GetEncoder().GetBytes(c, span.Length, b, length, true);
+                        Span<byte> buf = new Span<byte>(b, length + 1);
+                        extension = this.CryptoWrapper.X509V3_EXT_conf_nid(IntPtr.Zero, ctx, type.NID, buf.GetPinnableReference());
+                    }
+                }
+
+                this.AddExtension(extension);
+            }
         }
+
+        public IEnumerator<X509Extension> GetEnumerator()
+        {
+            return new X509ExtensionEnumerator(this.CryptoWrapper, this.X509Wrapper.Handle);
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+        #endregion
 
         #region abstract overrides
 
@@ -377,10 +406,41 @@ namespace OpenSSL.Core.X509
 
         protected override void Dispose(bool disposing)
         {
-            if (this.x509ExtensionEnumerator != null)
-                this.x509ExtensionEnumerator.Dispose();
-
             base.Dispose(disposing);
+        }
+
+        private struct X509ExtensionEnumerator : IEnumerator<X509Extension>
+        {
+            private ILibCryptoWrapper CryptoWrapper;
+            private SafeX509CertificateHandle CertHandle;
+            private int position;
+
+            public X509Extension Current => new X509Extension(this.CryptoWrapper.X509_get_ext(this.CertHandle, this.position));
+            object IEnumerator.Current => this.Current;
+
+            internal X509ExtensionEnumerator(
+                ILibCryptoWrapper cryptoWrapper,
+                SafeX509CertificateHandle certHandle)
+            {
+                this.CryptoWrapper = cryptoWrapper;
+                this.CertHandle = certHandle;
+                this.position = -1;
+            }
+
+            public bool MoveNext()
+            {
+                return ++position < this.CryptoWrapper.X509_get_ext_count(this.CertHandle);
+            }
+
+            public void Reset()
+            {
+                this.position = -1;
+            }
+
+            public void Dispose()
+            {
+
+            }
         }
     }
 }

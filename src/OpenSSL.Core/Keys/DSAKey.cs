@@ -11,6 +11,9 @@ namespace OpenSSL.Core.Keys
 
         public override KeyType KeyType => KeyType.DSA;
 
+        internal DSAKey(KeyInternal handleWrapper)
+            : base(handleWrapper) { }
+
         internal DSAKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {

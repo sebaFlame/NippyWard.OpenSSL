@@ -18,6 +18,9 @@ namespace OpenSSL.Core.Keys
         protected PrivateKey()
             : base() { }
 
+        internal PrivateKey(KeyInternal handleWrapper)
+            : base(handleWrapper) { }
+
         internal PrivateKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         { }
@@ -121,9 +124,6 @@ namespace OpenSSL.Core.Keys
 
         public void Write(string filePath, string password, CipherType cipherType, FileEncoding fileEncoding = FileEncoding.PEM)
         {
-            if (!File.Exists(filePath))
-                throw new FileNotFoundException($"The file {filePath} has not been found");
-
             using (FileStream stream = new FileStream(filePath, FileMode.CreateNew))
                 this.Write(stream, password, cipherType, fileEncoding);
         }

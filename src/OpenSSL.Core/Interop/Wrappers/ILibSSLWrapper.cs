@@ -12,12 +12,10 @@ using OpenSSL.Core.Interop.SafeHandles.X509;
 namespace OpenSSL.Core.Interop.Wrappers
 {
     //int (*client_cert_cb)(SSL *ssl, X509 **x509, EVP_PKEY **pkey)
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal delegate int ClientCertificateCallback(SafeSslHandle ssl, out SafeX509CertificateHandle x509, out SafeKeyHandle pkey);
+    internal delegate int ClientCertificateCallback(IntPtr ssl, out IntPtr x509, out IntPtr pkey);
 
     //int (*verify_callback)(int, X509_STORE_CTX *)
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal delegate int VerifyCertificateCallback(int preVerify, SafeX509StoreContextHandle x509_store_ctx);
+    internal delegate int VerifyCertificateCallback(int preVerify, IntPtr x509_store_ctx);
 
     internal interface ILibSSLWrapper
     {
@@ -119,8 +117,6 @@ namespace OpenSSL.Core.Interop.Wrappers
         SafeStackHandle<SafeX509NameHandle> SSL_CTX_get_client_CA_list(SafeSslContextHandle ctx);
         //int SSL_CTX_add_client_CA(SSL_CTX *ctx, X509 *cacert);
         int SSL_CTX_add_client_CA(SafeSslContextHandle ctx, SafeX509CertificateHandle cacert);
-        //long SSL_CTX_add_extra_chain_cert(SSL_CTX *ctx, X509 *x509);
-        long SSL_CTX_add_extra_chain_cert(SafeSslContextHandle ctx, SafeX509CertificateHandle x509);
         //void SSL_CTX_set_client_cert_cb(SSL_CTX *ctx, int (*client_cert_cb)(SSL *ssl, X509 **x509, EVP_PKEY **pkey));
         void SSL_CTX_set_client_cert_cb(SafeSslContextHandle ctx, ClientCertificateCallback callback);
 
@@ -160,12 +156,14 @@ namespace OpenSSL.Core.Interop.Wrappers
         //void SSL_set_security_level(SSL *s, int level);
         void SSL_set_security_level(SafeSslHandle s, int level);
 
-        //SSL_CIPHER *SSL_get_current_cipher(const SSL *ssl);
-        SafeSslCipherHandle SSL_get_current_cipher(SafeSslHandle ssl);
         //long SSL_get_verify_result(const SSL *ssl);
         long SSL_get_verify_result(SafeSslHandle ssl);
         //void SSL_set_verify_result(SSL *ssl, long verify_result);
         int SSL_set_verify_result(SafeSslHandle ssl, long v);
+
+        //SSL_CIPHER *SSL_get_current_cipher(const SSL *ssl);
+        SafeSslCipherHandle SSL_get_current_cipher(SafeSslHandle ssl);
+
         //int SSL_get_error(const SSL *ssl, int ret);
         [DontCheckReturnType]
         int SSL_get_error(SafeSslHandle ssl, int ret_code);
@@ -177,12 +175,14 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int SSL_get_shutdown(const SSL* ssl);
         [DontCheckReturnType]
         int SSL_get_shutdown(SafeSslHandle ssl);
+
         //int SSL_write(SSL *ssl, const void *buf, int num);
         [DontCheckReturnType]
         int SSL_write(SafeSslHandle ssl, in byte buf, int len);
         //int SSL_read(SSL *ssl, void *buf, int num);
         [DontCheckReturnType]
         int SSL_read(SafeSslHandle ssl, ref byte buf, int len);
+
         //int SSL_renegotiate(SSL *s);
         int SSL_renegotiate(SafeSslHandle ssl);
         //int SSL_set_session_id_context(SSL *ssl, const unsigned char *sid_ctx, unsigned int sid_ctx_len);

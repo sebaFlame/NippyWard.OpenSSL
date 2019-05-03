@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers;
 using System.IO;
+using System.Collections.Generic;
 
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles;
@@ -12,6 +13,9 @@ namespace OpenSSL.Core.X509
     public class X509CertificateReader : IDisposable
     {
         private SafeBioHandle currentBioHandle;
+        /// <summary>
+        /// All certificates are owned by this handle
+        /// </summary>
         public OpenSslList<X509Certificate> Certificates { get; private set; }
 
         /// <summary>
@@ -31,14 +35,14 @@ namespace OpenSSL.Core.X509
         /// <param name="file">The file to read</param>
         public X509CertificateReader(FileInfo file)
         {
-            this.Initialize(file.OpenRead());
+            this.currentBioHandle = this.Initialize(file.OpenRead());
             this.Certificates = this.ProcessBio(this.currentBioHandle);
         }
 
         internal X509CertificateReader(SafeBioHandle bio)
         {
             Native.CryptoWrapper.BIO_up_ref(bio);
-            this.Certificates = this.ProcessBio(this.currentBioHandle);
+            this.Certificates = this.ProcessBio(bio);
         }
 
         /// <summary>
@@ -61,7 +65,7 @@ namespace OpenSSL.Core.X509
                 Span<byte> bufSpan = new Span<byte>(buf);
                 while ((read = stream.Read(buf, 0, buf.Length)) > 0)
                 {
-                    Native.CryptoWrapper.BIO_write(this.currentBioHandle, bufSpan.GetPinnableReference(), read);
+                    Native.CryptoWrapper.BIO_write(bio, bufSpan.GetPinnableReference(), read);
                     Array.Clear(buf, 0, read);
                 }
 
@@ -75,16 +79,23 @@ namespace OpenSSL.Core.X509
 
         private OpenSslList<X509Certificate> ProcessBio(SafeBioHandle currentBio)
         {
-            SafeStackHandle<SafeX509InfoHandle> currentInfoStack = Native.CryptoWrapper.PEM_X509_INFO_read_bio(currentBio, null, null, IntPtr.Zero);
-            SafeStackHandle<SafeX509CertificateHandle> certificates = Native.CryptoWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
-
-            SafeX509CertificateHandle certificate;
-            foreach(SafeX509InfoHandle info in currentInfoStack)
+            //TODO: try to defer any GC call to SafeX509InfoHandle till after this using
+            //try to dispose all during stack disposal???
+            SafeStackHandle<SafeX509CertificateHandle> certificates;
+            using (SafeStackHandle<SafeX509InfoHandle> currentInfoStack = Native.CryptoWrapper.PEM_X509_INFO_read_bio(currentBio, IntPtr.Zero, null, IntPtr.Zero))
             {
-                certificate = info.X509Certificate;
-                if (certificate is null)
-                    continue;
-                certificates.Add(certificate);
+                certificates = Native.CryptoWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
+                SafeX509CertificateHandle certificate;
+
+                foreach(SafeX509InfoHandle info in currentInfoStack)
+                {
+                    certificate = info.X509Certificate;
+                    if (certificate is null)
+                        continue;
+
+                    certificate.AddRef();
+                    certificates.Add(certificate);
+                }
             }
 
             return OpenSslList<X509Certificate>.CreateFromSafeHandle(certificates);
@@ -138,6 +149,17 @@ namespace OpenSSL.Core.X509
         {
             if (!(this.currentBioHandle is null) && !this.currentBioHandle.IsInvalid)
                 this.currentBioHandle.Dispose();
+
+            if (this.Certificates is null)
+                return;
+
+            if (this.Certificates.InternalEnumerable is SafeHandleWrapper<SafeStackHandle<SafeX509CertificateHandle>> handleWrapper)
+            {
+                SafeStackHandle<SafeX509CertificateHandle> stack = handleWrapper.Handle;
+                Native.CryptoWrapper.OPENSSL_sk_pop_free(stack, Native.CryptoWrapper.X509_free);
+                stack.SetHandleAsInvalid();
+                this.Certificates = null;
+            }
         }
     }
 }

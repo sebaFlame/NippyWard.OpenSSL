@@ -83,6 +83,32 @@ namespace OpenSSL.Core.Interop
             return dictConcreteTypes[abstractType.Name].Item1;
         }
 
+        internal static Type GetConcreteOwnType<T>()
+            where T : SafeBaseHandle
+        {
+            Type abstractType = typeof(T);
+
+            if (!abstractType.IsAbstract)
+                throw new InvalidOperationException("This operation is only supported for abstarct type");
+
+            AddConcreteType(abstractType);
+
+            return dictConcreteTypes[abstractType.Name].Item2;
+        }
+
+        internal static Type GetConcreteRefType<T>()
+            where T : SafeBaseHandle
+        {
+            Type abstractType = typeof(T);
+
+            if (!abstractType.IsAbstract)
+                throw new InvalidOperationException("This operation is only supported for abstarct type");
+
+            AddConcreteType(abstractType);
+
+            return dictConcreteTypes[abstractType.Name].Item3;
+        }
+
         #region Native implementation generator
         private static void CreateInterfaceImplementation(string dllName, TypeBuilder typeBuilder, MethodInfo ifMethod)
         {
@@ -187,7 +213,20 @@ namespace OpenSSL.Core.Interop
                     concreteReturnType.Name.EndsWith("own") ? false : true,
                     concreteReturnType.Name.EndsWith("new") ? true : false);
             }
-            //returns an IStackable (from a SafeStackHandle<>)
+            //returns an SafeStackHandle<> with a concrete generic parameter
+            else if (interfaceReturnType.IsGenericType
+                && CreateConcreteType(ifMethod.ReturnParameter, out concreteReturnType))
+            {
+                CreateConcreteGenericReturnType(
+                    interfaceMethod,
+                    interfaceMethodIL,
+                    returnLocal,
+                    concreteReturnType,
+                    interfaceMethod.ReturnType.GenericTypeArguments[0],
+                    concreteReturnType.Name.EndsWith("own") ? false : true,
+                    concreteReturnType.Name.EndsWith("new") ? true : false);
+            }
+            //returns an IStackable (from a SafeStackHandle<>){
             else if (interfaceReturnType.IsGenericParameter)
             {
                 CreateConcreteStackableReturnType(
@@ -609,6 +648,25 @@ namespace OpenSSL.Core.Interop
             interfaceMethodIL.Emit(OpCodes.Newobj, ctor);
         }
 
+        //create a SafeStackHandle<>, without generic parameter
+        private static void CreateConcreteGenericReturnType(
+            MethodBuilder interfaceMethod,
+            ILGenerator interfaceMethodIL,
+            LocalBuilder returnLocal,
+            Type concreteGenericType,
+            Type concreteGenericArgument,
+            bool takeOwnership,
+            bool isNew)
+        {
+            Type constructedGenericType = concreteGenericType.MakeGenericType(concreteGenericArgument);
+            ConstructorInfo ctor = constructedGenericType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) }, null);
+
+            interfaceMethodIL.Emit(OpCodes.Ldloc_S, returnLocal);
+            interfaceMethodIL.Emit(takeOwnership ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
+            interfaceMethodIL.Emit(isNew ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
+            interfaceMethodIL.Emit(OpCodes.Newobj, ctor);
+        }
+
         //create a TStackable IStackable
         private static void CreateConcreteStackableReturnType(
             MethodInfo interfaceMethod,
@@ -652,440 +710,6 @@ namespace OpenSSL.Core.Interop
             interfaceMethodIL.Emit(OpCodes.Stloc_S, constructedLocals[parameterPosition]);
         }
 
-        #endregion
-
-
-        #region Pre ByRef native implementation generator
-        //private static void CreateInterfaceImplementation(string dllName, TypeBuilder typeBuilder, MethodInfo ifMethod)
-        //{
-        //    CustomAttributeBuilder attrBuilder;
-        //    Type attrType;
-        //    Type[] ctorParams;
-        //    ConstructorInfo ctor;
-        //    MethodBuilder nativeMethod, interfaceMethod;
-        //    ILGenerator interfaceMethodIL;
-        //    Type[][] requiredModifiers;
-        //    Type concreteType;
-        //    MethodInfo postConstruction, checkIntegerReturn, checkSafeHandleReturn;
-
-        //    //get interface method info
-        //    string methodName = ifMethod.Name;
-
-        //    Type interfaceReturnType = ifMethod.ReturnType;
-        //    Type concreteReturnType = CreateConcreteType(ifMethod.ReturnParameter, out concreteType) ? concreteType : interfaceReturnType;
-
-        //    ParameterInfo[] parameterInfo = ifMethod.GetParameters();
-        //    Type[] interfaceParameterTypes = parameterInfo.Select(x => x.ParameterType).ToArray();
-
-        //    postConstruction = typeof(SafeBaseHandle).GetMethod("PostConstruction", BindingFlags.NonPublic | BindingFlags.Instance);
-        //    checkIntegerReturn = typeof(Native).GetMethod("ExpectSuccess", BindingFlags.Public | BindingFlags.Static);
-        //    checkSafeHandleReturn = typeof(Native).GetMethod("ExpectNonNull", BindingFlags.Public | BindingFlags.Static);
-
-        //    //declare native method
-        //    if (!ifMethod.IsGenericMethod)
-        //        nativeMethod = typeBuilder.DefineMethod(string.Format("openssl{0}", methodName),
-        //            MethodAttributes.Private | MethodAttributes.PinvokeImpl | MethodAttributes.Static,
-        //            concreteReturnType, interfaceParameterTypes);
-        //    //should ALWAYS be a SafeStackable<>
-        //    else
-        //        nativeMethod = GenerateGenericNativeMethod(typeBuilder, methodName, concreteReturnType, interfaceParameterTypes);
-
-        //    //declare native method DllImportAttribute
-        //    attrType = typeof(DllImportAttribute);
-        //    ctorParams = new Type[] { typeof(string) };
-        //    ctor = attrType.GetTypeInfo().GetConstructor(ctorParams);
-        //    attrBuilder = new CustomAttributeBuilder(ctor, new object[] { dllName },
-        //        new FieldInfo[] { attrType.GetTypeInfo().GetField("EntryPoint") },
-        //        new object[] { methodName });
-        //    nativeMethod.SetCustomAttribute(attrBuilder);
-
-        //    //from C# 7.2: add required attributes (in IL .param followed by .custom)
-        //    requiredModifiers = parameterInfo.Select(x => x.GetRequiredCustomModifiers()).ToArray();
-
-        //    //declare interface method
-        //    interfaceMethod = typeBuilder.DefineMethod(methodName, MethodAttributes.Public | MethodAttributes.Virtual, CallingConventions.Standard,
-        //        ifMethod.ReturnType, null, null, interfaceParameterTypes, requiredModifiers, null);
-
-        //    if (ifMethod.IsGenericMethod)
-        //    {
-        //        CreateMethodGenericParameter(interfaceMethod, ifMethod, out GenericTypeParameterBuilder[] genericParameters);
-        //        if (ifMethod.ReturnType.IsGenericType)
-        //        {
-        //            //replace return type with correct generic parameterized type
-        //            interfaceMethod.SetReturnType(ifMethod.ReturnType.GetGenericTypeDefinition().MakeGenericType(genericParameters[0]));
-        //        }
-        //    }
-
-        //    interfaceMethodIL = interfaceMethod.GetILGenerator();
-
-        //    //if native method has a return type, define a local and a label
-        //    if (interfaceReturnType != typeof(void))
-        //    {
-        //        if (concreteReturnType.IsGenericType)
-        //            interfaceMethodIL.DeclareLocal(concreteReturnType.MakeGenericType(interfaceMethod.GetGenericArguments()[0])); //this is loc_0
-        //        else
-        //            interfaceMethodIL.DeclareLocal(concreteReturnType); //this is loc_0
-        //    }
-
-        //    if (!ifMethod.IsGenericMethod)
-        //    {
-        //        //load arguments to pass to native method or create a reference
-        //        for (int i = 0; i < interfaceParameterTypes.Length; i++)
-        //            EmitLoadArgument(i, interfaceMethodIL);
-
-        //        //execute native method
-        //        interfaceMethodIL.Emit(OpCodes.Call, nativeMethod);
-
-        //        //store return value
-        //        if (interfaceReturnType != typeof(void))
-        //            interfaceMethodIL.Emit(OpCodes.Stloc_0);
-        //    }
-        //    //returns a SafeStackHandle<>
-        //    else if (interfaceReturnType.IsGenericType)
-        //    {
-        //        CreateConcreteGenericReturnType(
-        //            interfaceMethod,
-        //            interfaceMethodIL,
-        //            nativeMethod,
-        //            concreteReturnType,
-        //            concreteReturnType.Name.EndsWith("own") ? false : true,
-        //            concreteReturnType.Name.EndsWith("new") ? true : false);
-        //    }
-        //    //contains generic parameters (should be SafeStackHandle<>)
-        //    //can return an IStackable
-        //    else
-        //    {
-        //        ParameterInfo genericParameter = parameterInfo.Single(x => x.ParameterType.IsGenericType); //is this always 1, get position
-        //        bool takeOwnership = genericParameter.GetCustomAttribute<DontTakeOwnershipAttribute>() == null;
-
-        //        CreateConcreteStackableType(
-        //            interfaceMethod,
-        //            interfaceMethodIL,
-        //            nativeMethod,
-        //            typeof(SafeStackHandle<>),
-        //            interfaceParameterTypes,
-        //            takeOwnership);
-        //    }
-
-        //    //load return value
-        //    if (interfaceReturnType != typeof(void))
-        //    {
-        //        interfaceMethodIL.Emit(OpCodes.Ldloc_0);
-
-        //        if (ifMethod.GetCustomAttribute<DontCheckReturnTypeAttribute>() is null)
-        //        {
-        //            //check return values and throw exception if necessary
-        //            if (interfaceReturnType == typeof(int)) //TODO: uint/ulong/long
-        //            {
-        //                interfaceMethodIL.Emit(OpCodes.Call, checkIntegerReturn);
-        //                interfaceMethodIL.Emit(OpCodes.Ldloc_0);
-        //            }
-        //            else if (IsSafeHandle(interfaceReturnType))
-        //            {
-        //                interfaceMethodIL.Emit(OpCodes.Call, checkSafeHandleReturn);
-        //                interfaceMethodIL.Emit(OpCodes.Ldloc_0);
-        //            }
-        //        }
-
-        //        //always consider abstracts as the (in)correct implementation
-        //        if (!concreteReturnType.Equals(interfaceReturnType))
-        //        {
-        //            interfaceMethodIL.Emit(OpCodes.Callvirt, postConstruction);
-        //            interfaceMethodIL.Emit(OpCodes.Ldloc_0);
-        //        }
-        //    }
-
-        //    interfaceMethodIL.Emit(OpCodes.Ret);
-
-        //    //define interface implementation as the interface override
-        //    typeBuilder.DefineMethodOverride(interfaceMethod, ifMethod);
-        //}
-
-        //private static MethodBuilder GenerateGenericNativeMethod(
-        //    TypeBuilder typeBuilder,
-        //    string methodName,
-        //    Type concreteReturnType,
-        //    Type[] interfaceParameterTypes)
-        //{
-        //    Type nativeReturnType;
-        //    Type[] nativeParamterTypes = new Type[interfaceParameterTypes.Length];
-
-        //    if (concreteReturnType.IsGenericType || concreteReturnType.IsGenericParameter)
-        //        nativeReturnType = typeof(IntPtr);
-        //    else
-        //        nativeReturnType = concreteReturnType;
-
-        //    for (int i = 0; i < interfaceParameterTypes.Length; i++)
-        //    {
-        //        if (interfaceParameterTypes[i].IsGenericType || interfaceParameterTypes[i].IsGenericParameter)
-        //            nativeParamterTypes[i] = typeof(IntPtr);
-        //        else
-        //            nativeParamterTypes[i] = interfaceParameterTypes[i];
-        //    }
-
-        //    return typeBuilder.DefineMethod(string.Format("openssl{0}", methodName),
-        //        MethodAttributes.Private | MethodAttributes.PinvokeImpl | MethodAttributes.Static,
-        //        nativeReturnType, nativeParamterTypes);
-        //}
-
-        //private static void CreateConcreteGenericReturnType(
-        //    MethodBuilder interfaceMethod,
-        //    ILGenerator interfaceMethodIL,
-        //    MethodInfo nativeMethod,
-        //    Type concreteGenericType,
-        //    bool takeOwnership,
-        //    bool isNew)
-        //{
-        //    LocalBuilder ptr;
-        //    Type constructedGenericType = concreteGenericType.MakeGenericType(interfaceMethod.GetGenericArguments()[0]);
-        //    ConstructorInfo ctor = constructedGenericType.GetGenericTypeDefinition().GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) }, null);
-        //    ctor = TypeBuilder.GetConstructor(constructedGenericType, ctor);
-
-        //    ptr = interfaceMethodIL.DeclareLocal(typeof(IntPtr));
-
-        //    interfaceMethodIL.Emit(OpCodes.Call, nativeMethod);
-        //    interfaceMethodIL.Emit(OpCodes.Stloc_S, ptr);
-        //    interfaceMethodIL.Emit(OpCodes.Ldloc_S, ptr);
-        //    interfaceMethodIL.Emit(takeOwnership ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
-        //    interfaceMethodIL.Emit(isNew ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
-        //    interfaceMethodIL.Emit(OpCodes.Newobj, ctor);
-        //    interfaceMethodIL.Emit(OpCodes.Stloc_0);
-        //}
-
-        //private static void CreateConcreteStackableType(
-        //    MethodInfo interfaceMethod,
-        //    ILGenerator interfaceMethodIL,
-        //    MethodBuilder nativeMethod,
-        //    Type genericType,
-        //    Type[] interfaceParameterTypes,
-        //    bool takeOwnership)
-        //{
-        //    LocalBuilder stackPtr, returnPtr;
-        //    MethodInfo creationMethod = genericType.GetMethod("CreateSafeBaseHandle", BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool) }, null);
-        //    MethodInfo getHandleMethod = typeof(SafeHandle).GetMethod("DangerousGetHandle");
-
-        //    Type constructedGenericType = genericType.MakeGenericType(interfaceMethod.GetGenericArguments()[0]);
-        //    MethodInfo genericCreationMethod = TypeBuilder.GetMethod(constructedGenericType, creationMethod);
-
-        //    stackPtr = interfaceMethodIL.DeclareLocal(typeof(IntPtr));
-        //    returnPtr = interfaceMethodIL.DeclareLocal(typeof(IntPtr));
-
-        //    interfaceMethodIL.Emit(OpCodes.Ldarg_1); //is this always 1? add a verification
-        //    interfaceMethodIL.Emit(OpCodes.Call, getHandleMethod);
-        //    interfaceMethodIL.Emit(OpCodes.Stloc_S, stackPtr);
-        //    //load all parameters to pass to the native method
-        //    interfaceMethodIL.Emit(OpCodes.Ldloc_S, stackPtr); //should always be the first parameter
-        //    for (int i = 1; i < interfaceParameterTypes.Length; i++)
-        //        EmitLoadArgument(i, interfaceMethodIL);
-        //    interfaceMethodIL.Emit(OpCodes.Call, nativeMethod);
-
-        //    //store return value
-        //    if (nativeMethod.ReturnType == typeof(IntPtr))
-        //    {
-        //        interfaceMethodIL.Emit(OpCodes.Stloc_S, returnPtr);
-        //        interfaceMethodIL.Emit(takeOwnership ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
-        //        interfaceMethodIL.Emit(OpCodes.Call, genericCreationMethod);
-        //        interfaceMethodIL.Emit(OpCodes.Stloc_0);
-        //    }
-        //    else if (nativeMethod.ReturnType != typeof(void))
-        //        interfaceMethodIL.Emit(OpCodes.Stloc_0);
-        //}
-
-        //private static bool IsBaseClass(Type type)
-        //{
-        //    if (!type.IsAbstract)
-        //        return false;
-
-        //    Type currentType = type;
-        //    while (currentType.BaseType != null)
-        //    {
-        //        currentType = currentType.BaseType;
-        //        if (currentType.Equals(typeof(SafeBaseHandle)))
-        //            return true;
-        //    }
-
-        //    return false;
-        //}
-
-        //private static bool IsSafeHandle(Type type)
-        //{
-        //    Type currentType = type;
-        //    while (currentType.BaseType != null)
-        //    {
-        //        currentType = currentType.BaseType;
-        //        if (currentType.Equals(typeof(SafeHandle)))
-        //            return true;
-        //    }
-
-        //    return false;
-        //}
-
-        //private static bool CreateConcreteType(ParameterInfo parameter, out Type concreteType)
-        //{
-        //    concreteType = parameter.ParameterType;
-        //    NewSafeHandleAttribute newAttr;
-        //    DontTakeOwnershipAttribute ownAttr;
-        //    TypeBuilder typeBuilderNew, typeBuilderOwn, typeBuilderRef;
-        //    ConstructorInfo baseCtor, ptrCtor = null;
-        //    ConstructorBuilder ctorBuilder;
-        //    ILGenerator ctorIL;
-        //    Type parameterType, genericType = null;
-
-        //    parameterType = parameter.ParameterType;
-        //    if (!IsBaseClass(parameterType))
-        //        return false;
-
-        //    if (!dictConcreteTypes.ContainsKey(parameterType))
-        //    {
-        //        if (parameterType.IsGenericType)
-        //        {
-        //            genericType = parameterType.GetGenericTypeDefinition();
-
-        //            if (genericType != typeof(SafeStackHandle<>))
-        //                throw new InvalidOperationException("Unknown generic type");
-
-        //            baseCtor = genericType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(bool), typeof(bool) }, null);
-        //            ptrCtor = genericType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) }, null);
-        //        }
-        //        else
-        //            baseCtor = parameterType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(bool), typeof(bool) }, null);
-
-        //        typeBuilderNew = moduleBuilder.DefineType($"{parameterType.Name}_new", TypeAttributes.NotPublic, genericType ?? parameterType);
-
-        //        if (!(genericType is null))
-        //            CreateClassGenericParameter(typeBuilderNew, genericType);
-
-        //        //default constructor
-        //        ctorBuilder = typeBuilderNew.DefineConstructor(MethodAttributes.Private, CallingConventions.Standard, null);
-        //        ctorIL = ctorBuilder.GetILGenerator();
-        //        ctorIL.Emit(OpCodes.Ldarg_0);
-        //        ctorIL.Emit(OpCodes.Ldc_I4_1);
-        //        ctorIL.Emit(OpCodes.Ldc_I4_1);
-        //        ctorIL.Emit(OpCodes.Call, baseCtor);
-        //        ctorIL.Emit(OpCodes.Ret);
-
-        //        if (!(ptrCtor is null))
-        //            CreatePtrConstructor(typeBuilderNew, ptrCtor);
-
-        //        typeBuilderOwn = moduleBuilder.DefineType($"{parameterType.Name}_own", TypeAttributes.NotPublic, genericType ?? parameterType);
-
-        //        if (!(genericType is null))
-        //            CreateClassGenericParameter(typeBuilderOwn, genericType);
-
-        //        ctorBuilder = typeBuilderOwn.DefineConstructor(MethodAttributes.Private, CallingConventions.Standard, null);
-        //        ctorIL = ctorBuilder.GetILGenerator();
-        //        ctorIL.Emit(OpCodes.Ldarg_0);
-        //        ctorIL.Emit(OpCodes.Ldc_I4_0);
-        //        ctorIL.Emit(OpCodes.Ldc_I4_0);
-        //        ctorIL.Emit(OpCodes.Call, baseCtor);
-        //        ctorIL.Emit(OpCodes.Ret);
-
-        //        if (!(ptrCtor is null))
-        //            CreatePtrConstructor(typeBuilderOwn, ptrCtor);
-
-        //        typeBuilderRef = moduleBuilder.DefineType($"{parameterType.Name}_ref", TypeAttributes.NotPublic, genericType ?? parameterType);
-
-        //        if (!(genericType is null))
-        //            CreateClassGenericParameter(typeBuilderRef, genericType);
-
-        //        ctorBuilder = typeBuilderRef.DefineConstructor(MethodAttributes.Private, CallingConventions.Standard, null);
-        //        ctorIL = ctorBuilder.GetILGenerator();
-        //        ctorIL.Emit(OpCodes.Ldarg_0);
-        //        ctorIL.Emit(OpCodes.Ldc_I4_1);
-        //        ctorIL.Emit(OpCodes.Ldc_I4_0);
-        //        ctorIL.Emit(OpCodes.Call, baseCtor);
-        //        ctorIL.Emit(OpCodes.Ret);
-
-        //        if (!(ptrCtor is null))
-        //            CreatePtrConstructor(typeBuilderRef, ptrCtor);
-
-        //        dictConcreteTypes.Add(parameterType, Tuple.Create<Type, Type, Type>
-        //            (
-        //                typeBuilderNew.CreateTypeInfo().AsType(),
-        //                typeBuilderOwn.CreateTypeInfo().AsType(),
-        //                typeBuilderRef.CreateTypeInfo().AsType()
-        //            ));
-        //    }
-
-        //    if (!((newAttr = parameter.GetCustomAttribute<NewSafeHandleAttribute>()) is null))
-        //        concreteType = dictConcreteTypes[parameterType].Item1;
-        //    else if (!((ownAttr = parameter.GetCustomAttribute<DontTakeOwnershipAttribute>()) is null))
-        //        concreteType = dictConcreteTypes[parameterType].Item2;
-        //    else
-        //        concreteType = dictConcreteTypes[parameterType].Item3;
-
-        //    return true;
-        //}
-
-        ////load arguments (as instance you need to skip Ldarg_0)
-        //private static void EmitLoadArgument(int argumentPosition, ILGenerator ilGen)
-        //{
-        //    switch (argumentPosition)
-        //    {
-        //        case 0:
-        //            ilGen.Emit(OpCodes.Ldarg_1);
-        //            break;
-        //        case 1:
-        //            ilGen.Emit(OpCodes.Ldarg_2);
-        //            break;
-        //        case 2:
-        //            ilGen.Emit(OpCodes.Ldarg_3);
-        //            break;
-        //        default:
-        //            ilGen.Emit(OpCodes.Ldarg_S, (argumentPosition + 1));
-        //            break;
-        //    }
-        //}
-
-        //private static void CreateClassGenericParameter(TypeBuilder typeBuilder, Type genericTypeDefenition)
-        //{
-        //    Type[] genericArguments = genericTypeDefenition.GetGenericArguments();
-        //    GenericTypeParameterBuilder[] genericParameters = typeBuilder.DefineGenericParameters(genericArguments.Select(x => x.Name).ToArray());
-
-        //    for (int i = 0; i < genericArguments.Length; i++)
-        //    {
-        //        foreach (Type t in genericArguments[i].GetGenericParameterConstraints())
-        //        {
-        //            if (t.IsInterface)
-        //                genericParameters[i].SetInterfaceConstraints(t);
-        //            else if (t.IsAbstract)
-        //                genericParameters[i].SetBaseTypeConstraint(t);
-        //            else
-        //                throw new InvalidOperationException("Invalid generic constraint type");
-        //        }
-        //    }
-        //}
-
-        //private static void CreateMethodGenericParameter(MethodBuilder methodBuilder, MethodInfo method, out GenericTypeParameterBuilder[] genericParameters)
-        //{
-        //    Type[] genericArguments = method.GetGenericArguments();
-        //    genericParameters = methodBuilder.DefineGenericParameters(genericArguments.Select(x => string.Concat(x.Name, "_new")).ToArray());
-
-        //    for (int i = 0; i < genericArguments.Length; i++)
-        //    {
-        //        foreach (Type t in genericArguments[i].GetGenericParameterConstraints())
-        //        {
-        //            if (t.IsInterface)
-        //                genericParameters[i].SetInterfaceConstraints(t);
-        //            else if (t.IsAbstract)
-        //                genericParameters[i].SetBaseTypeConstraint(t);
-        //            else
-        //                throw new InvalidOperationException("Invalid generic constraint type");
-        //        }
-        //    }
-        //}
-
-        //private static void CreatePtrConstructor(TypeBuilder typeBuilder, ConstructorInfo ptrCtor)
-        //{
-        //    ConstructorBuilder ctorBuilder = typeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) });
-        //    ILGenerator ctorIL = ctorBuilder.GetILGenerator();
-        //    ctorIL.Emit(OpCodes.Ldarg_0);
-        //    ctorIL.Emit(OpCodes.Ldarg_1);
-        //    ctorIL.Emit(OpCodes.Ldarg_2);
-        //    ctorIL.Emit(OpCodes.Ldarg_3);
-        //    ctorIL.Emit(OpCodes.Call, ptrCtor);
-        //    ctorIL.Emit(OpCodes.Ret);
-        //}
         #endregion
     }
 }

@@ -15,6 +15,9 @@ namespace OpenSSL.Core.Ciphers
 
         private int ivLength;
 
+        internal CipherEncryption(CipherInternal handleWarpper)
+            : base(handleWarpper) { }
+
         public CipherEncryption(CipherType cipherType)
             : base(cipherType)
         {

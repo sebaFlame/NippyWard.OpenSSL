@@ -7,6 +7,7 @@ using OpenSSL.Core.Interop.SafeHandles;
 
 namespace OpenSSL.Core.ASN1
 {
+    [Wrapper(typeof(ASN1ObjectInternal))]
     public class ASN1Object : OpenSslWrapperBase
     {
         internal class ASN1ObjectInternal : SafeHandleWrapper<SafeAsn1ObjectHandle>
@@ -56,6 +57,12 @@ namespace OpenSSL.Core.ASN1
         private ASN1Object()
             : base()
         { }
+
+        internal ASN1Object(ASN1ObjectInternal handleWarpper)
+            : this()
+        {
+            this.ASN1ObjectWrapper = handleWarpper;
+        }
 
         internal ASN1Object(SafeAsn1ObjectHandle asn1Handle)
             : this()
