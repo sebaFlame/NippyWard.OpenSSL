@@ -17,7 +17,7 @@ namespace OpenSSL.Core.Keys
         internal RSAKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {
-            this.rsaHandle = this.CryptoWrapper.EVP_PKEY_get1_RSA(this.KeyWrapper.Handle);
+            this.rsaHandle = this.CryptoWrapper.EVP_PKEY_get0_RSA(this.KeyWrapper.Handle);
         }
 
         public RSAKey(int bits)
@@ -49,6 +49,8 @@ namespace OpenSSL.Core.Keys
         {
             if (!(this.rsaHandle is null) && !this.rsaHandle.IsInvalid)
                 this.rsaHandle.Dispose();
+
+            base.Dispose(disposing);
         }
     }
 }

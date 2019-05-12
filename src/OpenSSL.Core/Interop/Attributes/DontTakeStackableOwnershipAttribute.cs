@@ -5,9 +5,9 @@ using System.Text;
 namespace OpenSSL.Core.Interop.Attributes
 {
     /// <summary>
-    /// An attribute to signify that you DO NOT own the returned handle
+    /// An attribute to signify that you DO NOT own the returned <see cref="SafeHandles.IStackable"/> handle
     /// </summary>
     [AttributeUsage(AttributeTargets.ReturnValue | AttributeTargets.Parameter, AllowMultiple = false)]
-    internal class DontTakeOwnershipAttribute : Attribute
+    internal class DontTakeStackableOwnershipAttribute : Attribute
     { }
 }

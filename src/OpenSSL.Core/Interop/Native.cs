@@ -128,6 +128,9 @@ namespace OpenSSL.Core.Interop
                     CryptoWrapper.RAND_seed(seedSpan.GetPinnableReference(), seedSpan.Length);
                 } while (CryptoWrapper.RAND_status() != 1) ;
             }
+
+            //initialize SSL_CTX static context
+            SSLWrapper.SSL_get_ex_data_X509_STORE_CTX_idx();
         }
 
         #endregion

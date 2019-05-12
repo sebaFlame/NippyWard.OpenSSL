@@ -38,6 +38,8 @@ namespace OpenSSL.Core.Tests
         public TestAES(ITestOutputHelper outputHelper)
             : base(outputHelper) { }
 
+        protected override void Dispose(bool disposing) { }
+
         [Fact]
 		public void TestCase()
 		{

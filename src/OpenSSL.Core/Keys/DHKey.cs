@@ -17,7 +17,7 @@ namespace OpenSSL.Core.Keys
         internal DHKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {
-            this.dhHandle = this.CryptoWrapper.EVP_PKEY_get1_DH(this.KeyWrapper.Handle);
+            this.dhHandle = this.CryptoWrapper.EVP_PKEY_get0_DH(this.KeyWrapper.Handle);
         }
 
         public DHKey(int primeLength, ushort generator)
@@ -45,6 +45,8 @@ namespace OpenSSL.Core.Keys
         {
             if (!(this.dhHandle is null) && !this.dhHandle.IsInvalid)
                 this.dhHandle.Dispose();
+
+            base.Dispose(disposing);
         }
     }
 }

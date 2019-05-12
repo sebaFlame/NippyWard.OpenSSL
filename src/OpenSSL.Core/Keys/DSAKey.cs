@@ -17,7 +17,7 @@ namespace OpenSSL.Core.Keys
         internal DSAKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {
-            this.dsaHandle = this.CryptoWrapper.EVP_PKEY_get1_DSA(this.KeyWrapper.Handle);
+            this.dsaHandle = this.CryptoWrapper.EVP_PKEY_get0_DSA(this.KeyWrapper.Handle);
         }
 
         public DSAKey(int bits, Span<byte> seed)
@@ -54,6 +54,8 @@ namespace OpenSSL.Core.Keys
         {
             if (!(this.dsaHandle is null) && !this.dsaHandle.IsInvalid)
                 this.dsaHandle.Dispose();
+
+            base.Dispose(disposing);
         }
     }
 }

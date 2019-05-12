@@ -33,7 +33,7 @@ namespace OpenSSL.Core.Keys
         internal ECKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {
-            this.ecHandle = this.CryptoWrapper.EVP_PKEY_get1_EC_KEY(this.KeyWrapper.Handle);
+            this.ecHandle = this.CryptoWrapper.EVP_PKEY_get0_EC_KEY(this.KeyWrapper.Handle);
         }
 
         //TODO: more options?
@@ -72,6 +72,8 @@ namespace OpenSSL.Core.Keys
         {
             if (!(this.ecHandle is null) && !this.ecHandle.IsInvalid)
                 this.ecHandle.Dispose();
+
+            base.Dispose(disposing);
         }
     }
 }

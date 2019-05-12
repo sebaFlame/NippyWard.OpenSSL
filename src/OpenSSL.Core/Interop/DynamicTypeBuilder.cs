@@ -116,7 +116,7 @@ namespace OpenSSL.Core.Interop
             Type attrType;
             Type[] ctorParams;
             ConstructorInfo ctor;
-            MethodBuilder nativeMethod, interfaceMethod;
+            MethodBuilder nativeMethodBuilder, interfaceMethod;
             ILGenerator interfaceMethodIL;
             MethodInfo postConstruction, checkIntegerReturn, checkSafeHandleReturn, getHandleMethod;
             LocalBuilder[] nativeLocals;
@@ -133,8 +133,17 @@ namespace OpenSSL.Core.Interop
             checkSafeHandleReturn = typeof(Native).GetMethod("ExpectNonNull", BindingFlags.Public | BindingFlags.Static);
             getHandleMethod = typeof(SafeHandle).GetMethod("DangerousGetHandle");
 
+            //get existing method name
+            string existingName = null;
+            OpenSslNativeMethodAttribute existingMethod;
+            if (!((existingMethod = ifMethod.GetCustomAttribute<OpenSslNativeMethodAttribute>()) is null))
+                existingName = existingMethod.InterfaceMethodName;
+
             //declare native method
-            nativeMethod = GenerateNativeParameterTypes(typeBuilder, ifMethod, out Type nativeReturnType, out Type[] nativeParameterTypes);
+            nativeMethodBuilder = GenerateNativeParameterTypes(typeBuilder,
+                ifMethod,
+                out Type nativeReturnType,
+                out Type[] nativeParameterTypes);
 
             //declare native method DllImportAttribute
             attrType = typeof(DllImportAttribute);
@@ -142,8 +151,8 @@ namespace OpenSSL.Core.Interop
             ctor = attrType.GetTypeInfo().GetConstructor(ctorParams);
             attrBuilder = new CustomAttributeBuilder(ctor, new object[] { dllName },
                 new FieldInfo[] { attrType.GetTypeInfo().GetField("EntryPoint") },
-                new object[] { methodName });
-            nativeMethod.SetCustomAttribute(attrBuilder);
+                new object[] { existingName ?? methodName });
+            nativeMethodBuilder.SetCustomAttribute(attrBuilder);
 
             interfaceMethod = GenerateInterfaceParameterTypes(typeBuilder, ifMethod, nativeParameterTypes, out Type interfaceReturnType, out Type[] interfaceParameterTypes);
             interfaceMethodIL = interfaceMethod.GetILGenerator();
@@ -191,7 +200,7 @@ namespace OpenSSL.Core.Interop
                     interfaceMethodIL.Emit(OpCodes.Ldloc_S, nativeLocals[i]);
             }
 
-            interfaceMethodIL.Emit(OpCodes.Call, nativeMethod);
+            interfaceMethodIL.Emit(OpCodes.Call, nativeMethodBuilder);
 
             //store return type
             if (returnLocal != null)
@@ -211,7 +220,8 @@ namespace OpenSSL.Core.Interop
                     returnLocal,
                     concreteReturnType,
                     concreteReturnType.Name.EndsWith("own") ? false : true,
-                    concreteReturnType.Name.EndsWith("new") ? true : false);
+                    concreteReturnType.Name.EndsWith("new") ? true : false,
+                    ifMethod.ReturnParameter.GetCustomAttribute<DontTakeStackableOwnershipAttribute>() is null);
             }
             //returns an SafeStackHandle<> with a concrete generic parameter
             else if (interfaceReturnType.IsGenericType
@@ -224,7 +234,8 @@ namespace OpenSSL.Core.Interop
                     concreteReturnType,
                     interfaceMethod.ReturnType.GenericTypeArguments[0],
                     concreteReturnType.Name.EndsWith("own") ? false : true,
-                    concreteReturnType.Name.EndsWith("new") ? true : false);
+                    concreteReturnType.Name.EndsWith("new") ? true : false,
+                    ifMethod.ReturnParameter.GetCustomAttribute<DontTakeStackableOwnershipAttribute>() is null);
             }
             //returns an IStackable (from a SafeStackHandle<>){
             else if (interfaceReturnType.IsGenericParameter)
@@ -234,7 +245,7 @@ namespace OpenSSL.Core.Interop
                     interfaceMethodIL,
                     returnLocal,
                     interfaceParameterTypes[0], //is the SafeStackHandle<>, should always be the first parameter
-                    ifMethod.ReturnType.GetCustomAttribute<DontTakeOwnershipAttribute>() == null);
+                    ifMethod.ReturnParameter.GetCustomAttribute<DontTakeOwnershipAttribute>() is null);
             }
 
             //store concrete return type
@@ -368,7 +379,7 @@ namespace OpenSSL.Core.Interop
                     nativeParameterTypes[i] = parameterType;
             }
 
-            MethodBuilder nativeMethod = typeBuilder.DefineMethod(
+            MethodBuilder nativeMethodBuilder = typeBuilder.DefineMethod(
                 string.Format("openssl_{0}", originalInterfaceMethod.Name),
                 MethodAttributes.Private | MethodAttributes.PinvokeImpl | MethodAttributes.Static,
                 nativeReturnType,
@@ -380,10 +391,10 @@ namespace OpenSSL.Core.Interop
                 if (!nativeParameterTypes[i].IsByRef)
                     continue;
 
-                parBuilder = nativeMethod.DefineParameter(i + 1, ParameterAttributes.Out, originalInterfaceParameters[i].Name);
+                parBuilder = nativeMethodBuilder.DefineParameter(i + 1, ParameterAttributes.Out, originalInterfaceParameters[i].Name);
             }
 
-            return nativeMethod;
+            return nativeMethodBuilder;
         }
 
         private static MethodBuilder GenerateInterfaceParameterTypes(
@@ -636,7 +647,8 @@ namespace OpenSSL.Core.Interop
             LocalBuilder returnLocal,
             Type concreteGenericType,
             bool takeOwnership,
-            bool isNew)
+            bool isNew,
+            bool takeStackableOwnership)
         {
             Type constructedGenericType = concreteGenericType.MakeGenericType(interfaceMethod.GetGenericArguments()[0]);
             ConstructorInfo ctor = constructedGenericType.GetGenericTypeDefinition().GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) }, null);
@@ -646,6 +658,16 @@ namespace OpenSSL.Core.Interop
             interfaceMethodIL.Emit(takeOwnership ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
             interfaceMethodIL.Emit(isNew ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
             interfaceMethodIL.Emit(OpCodes.Newobj, ctor);
+
+            if (takeStackableOwnership)
+                return;
+
+            MethodInfo setter = constructedGenericType.GetProperty("DontTakeStackableOwnership", BindingFlags.Instance | BindingFlags.NonPublic).SetMethod;
+            interfaceMethodIL.Emit(OpCodes.Stloc_0);
+            interfaceMethodIL.Emit(OpCodes.Ldloc_0);
+            interfaceMethodIL.Emit(OpCodes.Ldc_I4_1);
+            interfaceMethodIL.Emit(OpCodes.Call, setter);
+            interfaceMethodIL.Emit(OpCodes.Ldloc_0);
         }
 
         //create a SafeStackHandle<>, without generic parameter
@@ -656,7 +678,8 @@ namespace OpenSSL.Core.Interop
             Type concreteGenericType,
             Type concreteGenericArgument,
             bool takeOwnership,
-            bool isNew)
+            bool isNew,
+            bool takeStackableOwnership)
         {
             Type constructedGenericType = concreteGenericType.MakeGenericType(concreteGenericArgument);
             ConstructorInfo ctor = constructedGenericType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) }, null);
@@ -665,6 +688,16 @@ namespace OpenSSL.Core.Interop
             interfaceMethodIL.Emit(takeOwnership ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
             interfaceMethodIL.Emit(isNew ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
             interfaceMethodIL.Emit(OpCodes.Newobj, ctor);
+
+            if (takeStackableOwnership)
+                return;
+
+            MethodInfo setter = constructedGenericType.GetProperty("DontTakeStackableOwnership", BindingFlags.Instance | BindingFlags.NonPublic).SetMethod;
+            interfaceMethodIL.Emit(OpCodes.Stloc_0);
+            interfaceMethodIL.Emit(OpCodes.Ldloc_0);
+            interfaceMethodIL.Emit(OpCodes.Ldc_I4_1);
+            interfaceMethodIL.Emit(OpCodes.Call, setter);
+            interfaceMethodIL.Emit(OpCodes.Ldloc_0);
         }
 
         //create a TStackable IStackable

@@ -27,6 +27,9 @@ namespace OpenSSL.Core.Keys
 
         internal static PrivateKey GetCorrectKey(SafeKeyHandle keyHandle)
         {
+            if (keyHandle is null)
+                return null;
+
             KeyType keyType = (KeyType)Native.CryptoWrapper.EVP_PKEY_base_id(keyHandle);
 
             switch (keyType)

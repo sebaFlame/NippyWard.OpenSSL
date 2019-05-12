@@ -26,9 +26,24 @@ namespace OpenSSL.Core.SSL
     */
     public partial class SocketConnection
     {
-        internal class SslContextRefWrapper
+        //TODO: add own reference count
+        internal class SslContextRefWrapper : IDisposable
         {
+            private bool IsServerContext;
             internal SafeSslContextHandle SslContextHandle { get; set; }
+
+            internal SslContextRefWrapper(bool isServerContext = false)
+            {
+                this.IsServerContext = isServerContext;
+            }
+
+            public void Dispose()
+            {
+                if (this.IsServerContext)
+                    return;
+
+                this.SslContextHandle?.Dispose();
+            }
         }
 
         #region native handles
@@ -133,17 +148,6 @@ namespace OpenSSL.Core.SSL
         }
 
         public bool SessionReused => !(this.SessionHandle is null) && this.SSLWrapper.SSL_session_reused(this.sslHandle) == 1;
-
-        public SocketConnection ParentSession
-        {
-            set
-            {
-                if (!(value.SessionHandle is null))
-                    this.SessionHandle = value.SessionHandle;
-                else
-                    throw new InvalidOperationException("No session set for parent connection");
-            }
-        }
 
         private ClientCertificateCallbackHandler clientCertificateCallbackHandler;
         /// <summary>
@@ -393,7 +397,7 @@ namespace OpenSSL.Core.SSL
             this._receiveFromSocket.Reader.AdvanceTo(endPosition);
         }
 
-        #region OpenSSL callback options
+        #region OpenSSL native callbacks
         /// <summary>
         /// Set the certificate verification callback
         /// </summary>
@@ -450,14 +454,17 @@ namespace OpenSSL.Core.SSL
             x509Ptr = IntPtr.Zero;
             pkeyPtr = IntPtr.Zero;
 
-            using (SafeStackHandle<SafeX509NameHandle> nameStackHandle = this.SSLWrapper.SSL_get_client_CA_list(ssl))
+            SafeStackHandle<SafeX509NameHandle> nameStackHandle = this.SSLWrapper.SSL_get_client_CA_list(ssl);
+            using(OpenSslReadOnlyCollection<X509Name> nameList = OpenSslReadOnlyCollection<X509Name>.CreateFromSafeHandle(nameStackHandle))
             {
                 if (succes = this.clientCertificateCallbackHandler(
-                    OpenSslReadOnlyCollection<X509Name>.CreateFromSafeHandle(nameStackHandle), 
+                    nameList, 
                     out X509Certificate certificate, 
                     out PrivateKey privateKey))
                 {
+                    certificate.X509Wrapper.Handle.AddRef(); //add reference, so SSL doesn't free our objects
                     x509Ptr = certificate.X509Wrapper.Handle.DangerousGetHandle();
+                    privateKey.KeyWrapper.Handle.AddRef(); //add reference, so SSL doesn't free our objects
                     pkeyPtr = privateKey.KeyWrapper.Handle.DangerousGetHandle();
                 }
             }

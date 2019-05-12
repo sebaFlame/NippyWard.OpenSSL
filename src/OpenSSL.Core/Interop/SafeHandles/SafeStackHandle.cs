@@ -51,11 +51,14 @@ namespace OpenSSL.Core.Interop.SafeHandles
 		where T : SafeBaseHandle, IStackable
 	{
         //should be 1/generic
-        private static Func<IntPtr, bool, T> createStackable;
+        private static Func<IntPtr, T> createStackable;
+        private static Func<IntPtr, T> createStackableOwn;
+
+        internal bool DontTakeStackableOwnership { get; set; }
 
         public T this[int index]
         {
-            get => this.CryptoWrapper.OPENSSL_sk_value(this, index);
+            get => this.DontTakeStackableOwnership ? this.CryptoWrapper.OPENSSL_sk_value_own(this, index) : this.CryptoWrapper.OPENSSL_sk_value(this, index);
             set => this.CryptoWrapper.OPENSSL_sk_insert(this, value, index);
         }
         public int Count => this.CryptoWrapper.OPENSSL_sk_num(this);
@@ -71,19 +74,34 @@ namespace OpenSSL.Core.Interop.SafeHandles
 
         internal static T CreateSafeBaseHandle(IntPtr ptr, bool takeOwnership)
         {
-            if (!(createStackable is null))
-                return createStackable(ptr, takeOwnership);
+            if (takeOwnership && !(createStackable is null))
+                return createStackable(ptr);
+            else if(!takeOwnership && !(createStackableOwn is null))
+                return createStackableOwn(ptr);
 
-            Type type = DynamicTypeBuilder.GetConcreteRefType<T>();
+            Type type;
+            if (takeOwnership)
+                type = DynamicTypeBuilder.GetConcreteRefType<T>();
+            else
+                type = DynamicTypeBuilder.GetConcreteOwnType<T>();
+
             ConstructorInfo ctor = type.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) }, null);
 
             ParameterExpression parPtr = Expression.Parameter(typeof(IntPtr));
-            ParameterExpression parOwn = Expression.Parameter(typeof(bool));
+            ConstantExpression parOwn = Expression.Constant(takeOwnership);
             ConstantExpression constNew = Expression.Constant(false);
-
             NewExpression create = Expression.New(ctor, parPtr, parOwn, constNew);
-            createStackable = Expression.Lambda<Func<IntPtr, bool, T>>(create, parPtr, parOwn).Compile();
-            return createStackable(ptr, takeOwnership);
+
+            if (takeOwnership)
+            {
+                createStackable = Expression.Lambda<Func<IntPtr, T>>(create, parPtr).Compile();
+                return createStackable(ptr);
+            }
+            else
+            {
+                createStackableOwn = Expression.Lambda<Func<IntPtr, T>>(create, parPtr).Compile();
+                return createStackableOwn(ptr);
+            }            
         }
 
         public void Add(T item)
@@ -142,11 +160,15 @@ namespace OpenSSL.Core.Interop.SafeHandles
 
         public IEnumerator<T> GetEnumerator()
         {
+            if (this.DontTakeStackableOwnership)
+                return new OwnEnumerator(this);
             return new Enumerator(this);
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
+            if (this.DontTakeStackableOwnership)
+                return new OwnEnumerator(this);
             return new Enumerator(this);
         }
 
@@ -163,6 +185,36 @@ namespace OpenSSL.Core.Interop.SafeHandles
             }
 
             public T Current => this.stackHandle.CryptoWrapper.OPENSSL_sk_value(this.stackHandle, position);
+            object IEnumerator.Current => this.Current;
+
+            public bool MoveNext()
+            {
+                return ++position < this.stackHandle.Count;
+            }
+
+            public void Reset()
+            {
+                this.position = -1;
+            }
+
+            public void Dispose()
+            {
+
+            }
+        }
+
+        private struct OwnEnumerator : IEnumerator<T>
+        {
+            private SafeStackHandle<T> stackHandle;
+            private int position;
+
+            public OwnEnumerator(SafeStackHandle<T> stackHandle)
+            {
+                this.stackHandle = stackHandle;
+                this.position = -1;
+            }
+
+            public T Current => this.stackHandle.CryptoWrapper.OPENSSL_sk_value_own(this.stackHandle, position);
             object IEnumerator.Current => this.Current;
 
             public bool MoveNext()

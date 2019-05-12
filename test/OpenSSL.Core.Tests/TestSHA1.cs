@@ -52,6 +52,8 @@ namespace OpenSSL.Core.Tests
         public TestSHA1(ITestOutputHelper outputHelper)
             : base(outputHelper) { }
 
+        protected override void Dispose(bool disposing) { }
+
         [Fact]
         public void TestDigestList()
         {

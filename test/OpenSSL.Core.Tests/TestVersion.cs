@@ -11,6 +11,8 @@ namespace OpenSSL.Core.Tests
         public TestVersion(ITestOutputHelper outputHelper)
             : base(outputHelper) { }
 
+        protected override void Dispose(bool disposing) { }
+
         [Fact]
         public void CorrectVersion()
         {

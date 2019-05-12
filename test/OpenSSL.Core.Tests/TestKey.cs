@@ -37,9 +37,8 @@ namespace OpenSSL.Core.Tests
         public TestKey(ITestOutputHelper outputHelper)
             : base(outputHelper) { }
 
-        /* MEMORY
-         * leaks error strings on first RSA key generation
-        */
+        protected override void Dispose(bool disposing) { }
+
         [Fact]
 		public void CanCompareRSA()
 		{

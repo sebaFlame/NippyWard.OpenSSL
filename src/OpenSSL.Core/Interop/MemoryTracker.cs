@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+
 using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop
@@ -60,14 +61,7 @@ namespace OpenSSL.Core.Interop
 		/// <returns></returns>
 		public override string ToString()
 		{
-			return string.Format("{0}: {1} bytes, {2} count, {3}, {4}:{5}",
-				Type,
-				Size,
-				FreeCount,
-                StackTrace.GetFrames()[0].GetMethod().Name,
-				File,
-				Line
-			);
+			return string.Format($"{this.Type}: {this.Size} bytes, {this.FreeCount} count, {this.File}:{this.Line}\n{this.StackTrace.ToString()}");
 		}
 	}
 
@@ -210,7 +204,7 @@ namespace OpenSSL.Core.Interop
 			}
 		}
 
-		static IntPtr free(IntPtr addr, IntPtr file, int line)
+        static IntPtr free(IntPtr addr, IntPtr file, int line)
 		{
 			lock (_memory)
 			{
@@ -218,7 +212,7 @@ namespace OpenSSL.Core.Interop
 				if (!_memory.TryGetValue(addr, out block))
 					return addr;
 
-				if (_tracking)
+                if (_tracking)
 				{
 					block.count++;
 				}

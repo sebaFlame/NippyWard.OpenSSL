@@ -100,9 +100,9 @@ namespace OpenSSL.Core.X509
 
         //only use for CA?
         internal X509Certificate(SafeX509CertificateHandle x509Handle, SafeKeyHandle keyHandle)
-            : base(keyHandle)
+            : this(x509Handle)
         {
-            this.X509Wrapper = new X509CertificateInternal(x509Handle);
+            this.SetPublicKey(PrivateKey.GetCorrectKey(keyHandle));
         }
 
         public X509Certificate(int bits)
@@ -230,7 +230,7 @@ namespace OpenSSL.Core.X509
             else if (fileEncoding == FileEncoding.PKCS12)
             {
                 //TODO: cipherType incorrect? should be a PBE?
-                SafePKCS12Handle pkcs12Handle = this.CryptoWrapper.PKCS12_create(password, "", this.PrivateKey?.KeyWrapper.Handle, this.X509Wrapper.Handle, null, cipherType.NID, 0, 2048, 1, 0);
+                SafePKCS12Handle pkcs12Handle = this.CryptoWrapper.PKCS12_create(password, "", this.PublicKey?.KeyWrapper.Handle, this.X509Wrapper.Handle, null, cipherType.NID, 0, 2048, 1, 0);
                 this.CryptoWrapper.i2d_PKCS12_bio(bioHandle, pkcs12Handle);
             }
             else
@@ -247,7 +247,7 @@ namespace OpenSSL.Core.X509
             SafeMessageDigestHandle md;
             using (md = this.CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr))
             {
-                this.CryptoWrapper.X509_sign(this.X509Wrapper.Handle, this.PrivateKey.KeyWrapper.Handle, md);
+                this.CryptoWrapper.X509_sign(this.X509Wrapper.Handle, this.PublicKey.KeyWrapper.Handle, md);
                 this.CryptoWrapper.X509_set_issuer_name(this.X509Wrapper.Handle, this.X509Name.X509NameWrapper.Handle);
             }
         }
@@ -323,12 +323,13 @@ namespace OpenSSL.Core.X509
 
         internal override void SetPublicKey(PrivateKey privateKey)
         {
+            //adds a reference on the key!!!
             this.CryptoWrapper.X509_set_pubkey(this.X509Wrapper.Handle, privateKey.KeyWrapper.Handle);
         }
 
-        internal override PublicKey GetPublicKey()
+        internal override PrivateKey GetPublicKey()
         {
-            return new PublicKey(this.CryptoWrapper.X509_get_pubkey(this.X509Wrapper.Handle));
+            return PrivateKey.GetCorrectKey(this.CryptoWrapper.X509_get0_pubkey(this.X509Wrapper.Handle));
         }
 
         public override bool VerifyPublicKey(IPublicKey key)
@@ -402,11 +403,6 @@ namespace OpenSSL.Core.X509
             }
 
             return this.hashCode;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            base.Dispose(disposing);
         }
 
         private struct X509ExtensionEnumerator : IEnumerator<X509Extension>

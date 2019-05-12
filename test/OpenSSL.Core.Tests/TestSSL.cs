@@ -44,6 +44,10 @@ using OpenSSL.Core.ASN1;
 using OpenSSL.Core.SSL;
 using OpenSSL.Core.Collections;
 
+using OpenSSL.Core.Interop.SafeHandles.Crypto;
+using OpenSSL.Core.Interop;
+using OpenSSL.Core.Interop.Wrappers;
+
 namespace OpenSSL.Core.Tests
 {
     public class TestSSL : TestBase
@@ -63,12 +67,10 @@ namespace OpenSSL.Core.Tests
             this.serverListener = CreateServer();
         }
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            this.serverListener.Dispose();
-            this.ctx.Dispose();
-
-            base.Dispose();
+            this.serverListener?.Dispose();
+            this.ctx?.Dispose();
         }
 
         private static SocketServerImplementation CreateServer()
@@ -113,7 +115,7 @@ namespace OpenSSL.Core.Tests
         {
             Assert.NotEmpty(client.Cipher);
             Assert.True(client.Protocol >= SslProtocol.Tls12);
-            if(!(remoteCertificate is null))
+            if (!(remoteCertificate is null))
                 Assert.Equal(remoteCertificate, client.RemoteCertificate);
         }
 
@@ -397,6 +399,7 @@ namespace OpenSSL.Core.Tests
 
                     clientCertificate = this.ctx.ClientCertificate;
                     clientPrivateKey = this.ctx.ClientKey;
+
                     return (clientCallbackCalled = true);
                 });
 
@@ -464,17 +467,14 @@ namespace OpenSSL.Core.Tests
     internal class SslTestContext : IDisposable
     {
         private X509Certificate caCertificate;
-        public X509Certificate CACertificate { get => this.caCertificate; private set => this.caCertificate = value; }
-        private PrivateKey caKey;
-        public PrivateKey CAKey { get => this.caKey; private set => this.serverKey = value; }
+        public X509Certificate CACertificate => this.caCertificate;
+        public PrivateKey CAKey => this.caCertificate.PublicKey;
 
         public X509Certificate ServerCertificate { get; private set; }
-        private PrivateKey serverKey;
-        public PrivateKey ServerKey { get => this.serverKey; private set => this.serverKey = value; }
+        public PrivateKey ServerKey => this.ServerCertificate.PublicKey;
 
         public X509Certificate ClientCertificate { get; private set; }
-        private PrivateKey clientKey;
-        public PrivateKey ClientKey { get => this.clientKey; private set => this.clientKey = value; }
+        public PrivateKey ClientKey => this.ClientCertificate.PublicKey;
 
         internal SslTestContext()
         {
@@ -484,23 +484,24 @@ namespace OpenSSL.Core.Tests
                 "Root",
                 DateTime.Now,
                 DateTime.Now + TimeSpan.FromDays(365),
-                out this.caKey,
                 out this.caCertificate);
 
-            this.ServerCertificate = CreateCertificate(ca, "server", out this.serverKey);
-            this.ClientCertificate = CreateCertificate(ca, "client", out this.clientKey);
+            this.ServerCertificate = CreateCertificate(ca, "server");
+            this.ClientCertificate = CreateCertificate(ca, "client");
         }
 
-        private X509Certificate CreateCertificate(X509CertificateAuthority ca, string name, out PrivateKey privateKey)
+        private X509Certificate CreateCertificate(X509CertificateAuthority ca, string name)
         {
             DateTime start = DateTime.Now;
             DateTime end = start + TimeSpan.FromDays(365);
             X509Certificate cert;
 
-            privateKey = new RSAKey(1024);
-            privateKey.GenerateKey();
-            X509CertificateRequest req = new X509CertificateRequest(privateKey, name, name);
-            cert = ca.ProcessRequest(req, start, end, DigestType.SHA256);
+            using (RSAKey rsaKey = new RSAKey(1024))
+            {
+                rsaKey.GenerateKey();
+                using (X509CertificateRequest req = new X509CertificateRequest(rsaKey, name, name))
+                    cert = ca.ProcessRequest(req, start, end, DigestType.SHA256);
+            }
 
             return cert;
         }
@@ -510,11 +511,8 @@ namespace OpenSSL.Core.Tests
         public void Dispose()
         {
             this.ServerCertificate.Dispose();
-            this.ServerKey.Dispose();
             this.ClientCertificate.Dispose();
-            this.ClientKey.Dispose();
             this.CACertificate.Dispose();
-            this.CAKey.Dispose();
         }
 
         #endregion

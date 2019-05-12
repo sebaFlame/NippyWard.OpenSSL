@@ -107,6 +107,8 @@ namespace OpenSSL.Core.Tests
         public TestSHA512(ITestOutputHelper outputHelper)
             : base(outputHelper) { }
 
+        protected override void Dispose(bool disposing) { }
+
         [Theory]
         [MemberData(nameof(GetDigestVerification))]
         public void TestSingleUpdate(DigestType digestType, byte[][] results, int alen)

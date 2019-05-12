@@ -20,10 +20,8 @@ namespace OpenSSL.Core.X509
         private X509Name x509name;
         internal X509Name X509Name => x509name ?? (x509name = new X509Name(this.GetSubject()));
 
-        internal PrivateKey PrivateKey { get; private set; }
-
-        private PublicKey publicKey;
-        private bool ownsPrivateKey;
+        private PrivateKey publicKey;
+        public PrivateKey PublicKey => this.publicKey ?? (this.publicKey = this.GetPublicKey());
 
         #region Properties
 
@@ -100,7 +98,6 @@ namespace OpenSSL.Core.X509
         }
 
         public abstract int Version { get; set; }
-        public PublicKey PublicKey => this.publicKey ?? (this.publicKey = this.GetPublicKey());
 
         #endregion
 
@@ -111,8 +108,7 @@ namespace OpenSSL.Core.X509
         internal X509CertificateBase(SafeKeyHandle keyHandle)
             : this()
         {
-            this.PrivateKey = PrivateKey.GetCorrectKey(keyHandle);
-            this.ownsPrivateKey = true;
+            this.SetPublicKey(PrivateKey.GetCorrectKey(keyHandle));
         }
 
         internal X509CertificateBase()
@@ -122,38 +118,20 @@ namespace OpenSSL.Core.X509
         public X509CertificateBase(int bits)
             : this()
         {
-            //macro functions are version dependant (rsa.h)
-            //set up an EVP_PKEY_CTX for RSA key generation
-            //SafeKeyContextHandle keyContextHandle;
-            //SafeKeyHandle keyHandle = null;
+            using (RSAKey key = new RSAKey(1024))
+            {
+                key.GenerateKey();
 
-            //using (keyContextHandle = this.CryptoWrapper.EVP_PKEY_CTX_new_id((int)KeyType.RSA, IntPtr.Zero))
-            //{
-            //    this.CryptoWrapper.EVP_PKEY_keygen_init(keyContextHandle);
-
-            //    //set the bits
-            //    this.CryptoWrapper.EVP_PKEY_CTX_set_rsa_keygen_bits(keyContextHandle, bits);
-
-            //    //generate the key
-            //    this.CryptoWrapper.EVP_PKEY_keygen(keyContextHandle, out keyHandle);
-            //}
-
-            //this.PrivateKey = PrivateKey.GetCorrectKey(keyHandle);
-
-            this.PrivateKey = new RSAKey(1024);
-            this.PrivateKey.GenerateKey();
-
-            this.CreateSafeHandle();
-            this.SetPublicKey(this.PrivateKey);
-            this.ownsPrivateKey = true;
+                this.CreateSafeHandle();
+                this.SetPublicKey(key);
+            }
         }
 
         public X509CertificateBase(PrivateKey privateKey)
             : this()
         {
             this.CreateSafeHandle();
-            this.PrivateKey = privateKey;
-            this.SetPublicKey(this.PrivateKey);
+            this.SetPublicKey(privateKey);
         }
 
         #region Methods
@@ -219,8 +197,8 @@ namespace OpenSSL.Core.X509
         #region Abstract method overrides
 
         internal abstract void CreateSafeHandle();
+        internal abstract PrivateKey GetPublicKey();
         internal abstract void SetPublicKey(PrivateKey privateKey);
-        internal abstract PublicKey GetPublicKey();
 
         internal abstract SafeX509NameHandle GetSubject();
         internal abstract void Sign(SafeKeyHandle keyHandle, SafeMessageDigestHandle md);
@@ -231,9 +209,6 @@ namespace OpenSSL.Core.X509
         {
             if (!(this.x509name is null))
                 this.x509name.Dispose();
-
-            if (this.ownsPrivateKey && !(this.PrivateKey is null) && !this.PrivateKey.KeyWrapper.Handle.IsInvalid)
-                this.PrivateKey.Dispose();
         }
     }
 }

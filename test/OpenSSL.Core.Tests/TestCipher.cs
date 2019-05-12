@@ -10,24 +10,14 @@ using Xunit.Abstractions;
 using OpenSSL.Core.ASN1;
 using OpenSSL.Core.Keys;
 using OpenSSL.Core.Ciphers;
+using OpenSSL.Core.Interop;
 
 namespace OpenSSL.Core.Tests
 {
 	public class TestCipher : TestBase
 	{
-
-
-        //public static IEnumerable<object[]> GetCiphers =>
-        //typeof(CipherType).GetFields(BindingFlags.Public | BindingFlags.Static)
-        //    .Where(x => x.Name != "NONE")
-        //    .Where(x => x.Name != "DES_EDE3_CFB1")
-        //    .Select(x => new object[] { x.GetValue(null) });
-
         private static List<object[]> lstCiphers;
         public static IEnumerable<object[]> GetCiphers() => lstCiphers;
-
-        const int numKeys = 10;
-        private static RSAKey[] Keys;
 
         static TestCipher()
         {
@@ -36,17 +26,12 @@ namespace OpenSSL.Core.Tests
             FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Static);
             foreach (FieldInfo field in fields.Where(x => x.Name != "NONE").Where(x => x.Name != "DES_EDE3_CFB1"))
                 lstCiphers.Add(new object[] { field.GetValue(null) });
-
-            Keys = new RSAKey[numKeys];
-            for (int i = 0; i < numKeys; i++)
-            {
-                Keys[i] = new RSAKey(1024);
-                Keys[i].GenerateKey();
-            }
         }
 
         public TestCipher(ITestOutputHelper outputHelper)
             : base(outputHelper) { }
+
+        protected override void Dispose(bool disposing) { }
 
         [Fact]
         public void TestCipherList()
@@ -166,15 +151,17 @@ namespace OpenSSL.Core.Tests
             Assert.Equal(inputMsg, outputMsg);
         }
 
-        /* MEMORY
-        * leaks BN on first RSA usage
-        * these get freed on RSA disposal
-        */
-        [Theory]
-        [MemberData(nameof(GetCiphers))]
-        public void TestSealOpen(CipherType cipherType)
+        [Fact]
+        public void TestSealOpen()
 		{
-            this.OutputHelper.WriteLine("Using cipher {0}: ", cipherType.LongName);
+            CipherType cipherType = CipherType.AES_128_CBC;
+
+            RSAKey[] keys = new RSAKey[10];
+            for (int i = 0; i < 10; i++)
+            {
+                keys[i] = new RSAKey(1024);
+                keys[i].GenerateKey();
+            }
 
             string inputMsg = "This is a message";
             byte[] input = Encoding.ASCII.GetBytes(inputMsg);
@@ -183,7 +170,7 @@ namespace OpenSSL.Core.Tests
 
             byte[] encrypted;
             int encryptedLength, finalEncryptedLength;
-            using (EnvelopeEncryption envelopeSeal = new EnvelopeEncryption(cipherType, Keys))
+            using (EnvelopeEncryption envelopeSeal = new EnvelopeEncryption(cipherType, keys))
             {
                 byte[] tempBuf = new byte[envelopeSeal.GetMaximumOutputLength(input.Length)];
                 byte[] finalBuf = new byte[envelopeSeal.GetCipherBlockSize()];
@@ -208,9 +195,9 @@ namespace OpenSSL.Core.Tests
             string outputMsg;
             byte[] decrypted;
             int decryptedLength, finalDecryptedLength;
-            for (int i = 0; i < Keys.Length; i++)
+            for (int i = 0; i < keys.Length; i++)
             {
-                using (envelopeOpen = new EnvelopeDecryption(cipherType, Keys[i], encryptionKeys[i], iv))
+                using (envelopeOpen = new EnvelopeDecryption(cipherType, keys[i], encryptionKeys[i], iv))
                 {
                     byte[] tempBuf = new byte[envelopeOpen.GetMaximumOutputLength(input.Length)];
                     byte[] finalBuf = new byte[envelopeOpen.GetCipherBlockSize()];
@@ -231,8 +218,9 @@ namespace OpenSSL.Core.Tests
                 outputMsg = Encoding.ASCII.GetString(decrypted);
                 Assert.Equal(inputMsg, outputMsg);
             }
+
+            foreach (PrivateKey key in keys)
+                key.Dispose();
         }
 	}
 }
-
-

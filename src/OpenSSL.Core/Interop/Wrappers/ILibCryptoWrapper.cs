@@ -134,6 +134,10 @@ namespace OpenSSL.Core.Interop.Wrappers
             where TStackable : SafeBaseHandle, IStackable;
         TStackable OPENSSL_sk_value<TStackable>(SafeStackHandle<TStackable> stack, int index)
             where TStackable : SafeBaseHandle, IStackable;
+        [return: DontTakeOwnership]
+        [OpenSslNativeMethod("OPENSSL_sk_value")]
+        TStackable OPENSSL_sk_value_own<TStackable>(SafeStackHandle<TStackable> stack, int index)
+            where TStackable : SafeBaseHandle, IStackable;
         TStackable OPENSSL_sk_set<TStackable>(SafeStackHandle<TStackable> stack, int index, TStackable data)
             where TStackable : SafeBaseHandle, IStackable;
         IntPtr OPENSSL_sk_dup<TStackable>(SafeStackHandle<TStackable> stack)
@@ -257,6 +261,10 @@ namespace OpenSSL.Core.Interop.Wrappers
         int X509_REQ_set_pubkey(SafeX509RequestHandle x, SafeKeyHandle pkey);
         //EVP_PKEY *X509_REQ_get_pubkey(X509_REQ *req);
         SafeKeyHandle X509_REQ_get_pubkey(SafeX509RequestHandle req);
+        //EVP_PKEY *X509_REQ_get0_pubkey(X509_REQ *req)
+        [DontCheckReturnType]
+        [return: DontTakeOwnership]
+        SafeKeyHandle X509_REQ_get0_pubkey(SafeX509RequestHandle req);
 
         //int X509_REQ_set_subject_name(X509_REQ *req, X509_NAME *name);
         int X509_REQ_set_subject_name(SafeX509RequestHandle x, SafeX509NameHandle name);
@@ -362,6 +370,10 @@ namespace OpenSSL.Core.Interop.Wrappers
         int X509_set_pubkey(SafeX509CertificateHandle x, SafeKeyHandle pkey);
         //EVP_PKEY *X509_get_pubkey(X509 *x);
         SafeKeyHandle X509_get_pubkey(SafeX509CertificateHandle x);
+        //EVP_PKEY *X509_get0_pubkey(const X509 *x)
+        [DontCheckReturnType]
+        [return: DontTakeOwnership]
+        SafeKeyHandle X509_get0_pubkey(SafeX509CertificateHandle x);
 
         //const char *X509_verify_cert_error_string(long n);
         IntPtr X509_verify_cert_error_string(int n);
@@ -449,6 +461,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         //X509 *X509_OBJECT_get0_X509(const X509_OBJECT *a);
         [DontCheckReturnType]
+        [return: DontTakeOwnership]
         SafeX509CertificateHandle X509_OBJECT_get0_X509(SafeX509ObjectHandle a);
         //X509_LOOKUP_TYPE X509_OBJECT_get_type(const X509_OBJECT *a)
         int X509_OBJECT_get_type(SafeX509ObjectHandle a);
@@ -479,7 +492,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int X509_STORE_add_cert(X509_STORE *ctx, X509 *x);
         int X509_STORE_add_cert(SafeX509StoreHandle ctx, SafeX509CertificateHandle x);
         //STACK_OF(X509_OBJECT) *X509_STORE_get0_objects(X509_STORE *ctx);
-        [return: DontTakeOwnership]
+        [return: DontTakeStackableOwnership, DontTakeOwnership]
         SafeStackHandle<SafeX509ObjectHandle> X509_STORE_get0_objects(SafeX509StoreHandle ctx);
 
         //int X509_STORE_load_locations(X509_STORE *ctx, const char* file, const char* dir);
@@ -1052,21 +1065,33 @@ namespace OpenSSL.Core.Interop.Wrappers
         //RSA *EVP_PKEY_get1_RSA(EVP_PKEY *pkey);
         [return: NewSafeHandle]
         SafeRSAHandle EVP_PKEY_get1_RSA(SafeKeyHandle pkey);
+        //RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
+        [return: DontTakeOwnership]
+        SafeRSAHandle EVP_PKEY_get0_RSA(SafeKeyHandle pkey);
         //int EVP_PKEY_set1_DSA(EVP_PKEY *pkey,DSA *key);
         int EVP_PKEY_set1_DSA(SafeKeyHandle pkey, SafeDSAHandle key);
         //DSA *EVP_PKEY_get1_DSA(EVP_PKEY *pkey);
         [return: NewSafeHandle]
         SafeDSAHandle EVP_PKEY_get1_DSA(SafeKeyHandle pkey);
+        //DSA *EVP_PKEY_get0_DSA(EVP_PKEY *pkey)
+        [return: DontTakeOwnership]
+        SafeDSAHandle EVP_PKEY_get0_DSA(SafeKeyHandle pkey);
         //int EVP_PKEY_set1_DH(EVP_PKEY *pkey,DH *key);
         int EVP_PKEY_set1_DH(SafeKeyHandle pkey, SafeDHHandle key);
         //DH *EVP_PKEY_get1_DH(EVP_PKEY *pkey);
         [return: NewSafeHandle]
         SafeDHHandle EVP_PKEY_get1_DH(SafeKeyHandle pkey);
+        //DH *EVP_PKEY_get0_DH(EVP_PKEY *pkey)
+        [return: DontTakeOwnership]
+        SafeDHHandle EVP_PKEY_get0_DH(SafeKeyHandle pkey);
         //int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey,EC_KEY *key);
         int EVP_PKEY_set1_EC_KEY(SafeKeyHandle pkey, SafeECKeyHandle key);
         //EC_KEY *EVP_PKEY_get1_EC_KEY(EVP_PKEY *pkey);
         [return: NewSafeHandle]
         SafeECKeyHandle EVP_PKEY_get1_EC_KEY(SafeKeyHandle pkey);
+        //EC_KEY *EVP_PKEY_get0_EC_KEY(EVP_PKEY *pkey)
+        [return: DontTakeOwnership]
+        SafeECKeyHandle EVP_PKEY_get0_EC_KEY(SafeKeyHandle pkey);
 
         // int EVP_PKEY_assign_RSA(EVP_PKEY *pkey, RSA *key);
         int EVP_PKEY_assign_RSA(SafeKeyHandle pkey, SafeRSAHandle key);
@@ -1523,5 +1548,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         int CRYPTO_set_mem_functions(MallocFunctionPtr m, ReallocFunctionPtr r, FreeFunctionPtr f);
         //int CRYPTO_mem_leaks(BIO* b);
         int CRYPTO_mem_leaks(SafeBioHandle b);
+        //void OPENSSL_thread_stop(void)
+        void OPENSSL_thread_stop();
     }
 }

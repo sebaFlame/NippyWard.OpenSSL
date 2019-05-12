@@ -34,6 +34,50 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	/// </summary>
 	internal abstract class SafeRSAHandle : BaseReference
 	{
+        #region reference count debug
+#if DEBUG
+        //[StructLayout(LayoutKind.Sequential)]
+        //internal struct rsa_st
+        //{
+        //    public int pad;
+        //    public int version;
+        //    public IntPtr meth;
+
+        //    public IntPtr engine;
+        //    public IntPtr n;
+        //    public IntPtr e;
+        //    public IntPtr d;
+        //    public IntPtr p;
+        //    public IntPtr q;
+        //    public IntPtr dmp1;
+        //    public IntPtr dmq1;
+        //    public IntPtr iqmp;
+
+        //    public IntPtr ex_data_sk;
+        //    public int references;
+        //    public int flags;
+
+        //    public IntPtr _method_mod_n;
+        //    public IntPtr _method_mod_p;
+        //    public IntPtr _method_mod_q;
+
+        //    public IntPtr bignum_data;
+        //    public IntPtr blinding;
+        //    public IntPtr mt_blinding;
+        //    public IntPtr _lock;
+        //}
+
+        //internal int References
+        //{
+        //    get
+        //    {
+        //        rsa_st raw = Marshal.PtrToStructure<rsa_st>(this.handle);
+        //        return raw.references;
+        //    }
+        //}
+#endif
+        #endregion
+
         internal SafeRSAHandle(bool takeOwnership, bool isNew)
             : base(takeOwnership, isNew)
         { }
@@ -42,12 +86,9 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             : base(ptr, takeOwnership)
         { }
 
-		#region IDisposable Members
+        #region IDisposable Members
 
-		/// <summary>
-		/// Calls RSA_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
+        protected override bool ReleaseHandle()
         {
             this.CryptoWrapper.RSA_free(this.handle);
             return true;

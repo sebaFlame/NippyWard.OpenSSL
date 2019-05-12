@@ -144,7 +144,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         [return: NewSafeHandle]
         SafeStackHandle<SafeX509NameHandle> SSL_load_client_CA_file(string file);
         //STACK_OF(X509_NAME) *SSL_get_client_CA_list(const SSL *s);
-        [return: NewSafeHandle]
+        [return: DontTakeOwnership]
         SafeStackHandle<SafeX509NameHandle> SSL_get_client_CA_list(SafeSslHandle ssl);
         //void SSL_set_client_CA_list(SSL *s, STACK_OF(X509_NAME) *list);
         void SSL_set_client_CA_list(SafeSslHandle ssl, SafeStackHandle<SafeX509NameHandle> name_list);
@@ -226,6 +226,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         int SSL_up_ref(SafeSslHandle s);
 
         //X509 *SSL_get_peer_certificate(const SSL *ssl);
+        [return: NewSafeHandle] //not new, already gets an extra reference in the native code
         SafeX509CertificateHandle SSL_get_peer_certificate(SafeSslHandle ssl);
         //X509 *SSL_get_certificate(const SSL *ssl);
         SafeX509CertificateHandle SSL_get_certificate(SafeSslHandle ssl);
@@ -248,6 +249,9 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         //int SSL_use_PrivateKey(SSL *ssl, EVP_PKEY *pkey);
         int SSL_use_PrivateKey(SafeSslHandle ssl, SafeKeyHandle evp_pkey);
+
+        //int SSL_get_ex_data_X509_STORE_CTX_idx(void)
+        int SSL_get_ex_data_X509_STORE_CTX_idx();
         #endregion
     }
 }

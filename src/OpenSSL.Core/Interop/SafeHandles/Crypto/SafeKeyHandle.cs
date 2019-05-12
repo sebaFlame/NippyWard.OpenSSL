@@ -34,6 +34,32 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	/// </summary>
 	internal abstract class SafeKeyHandle : BaseReference, IEquatable<SafeKeyHandle>
 	{
+        #region reference count debug
+#if DEBUG
+        //[StructLayout(LayoutKind.Sequential)]
+        //internal struct EVP_PKEY
+        //{
+        //    public int type;
+        //    public int save_type;
+        //    public int references;
+        //    public IntPtr ameth;
+        //    public IntPtr engine;
+        //    public IntPtr pkey;
+        //    public int save_parameters;
+        //    public IntPtr attributes;
+        //}
+
+        //internal int References
+        //{
+        //    get
+        //    {
+        //        EVP_PKEY raw = Marshal.PtrToStructure<EVP_PKEY>(this.handle);
+        //        return raw.references;
+        //    }
+        //}
+#endif
+        #endregion
+
         internal SafeKeyHandle(bool takeOwnership, bool isNew)
             : base(takeOwnership, isNew)
         { }

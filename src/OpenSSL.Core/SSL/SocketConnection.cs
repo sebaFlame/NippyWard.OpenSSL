@@ -202,6 +202,7 @@ namespace OpenSSL.Core.SSL
 #endif
 
             this.ShutdownSSL().Wait();
+            this.SslContextWrapper?.Dispose();
 
             try { Socket.Shutdown(SocketShutdown.Receive); } catch { }
             try { Socket.Shutdown(SocketShutdown.Send); } catch { }

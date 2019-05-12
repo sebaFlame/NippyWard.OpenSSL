@@ -56,6 +56,9 @@ namespace OpenSSL.Core.SSL
         public void Dispose()
         {
             Stop();
+
+            this.SslContextWrapper.SslContextHandle?.Dispose();
+
             Dispose(true);
         }
 
@@ -81,7 +84,7 @@ namespace OpenSSL.Core.SSL
         /// </summary>
         protected SocketServer()
         {
-            this.SslContextWrapper = new SocketConnection.SslContextRefWrapper();
+            this.SslContextWrapper = new SocketConnection.SslContextRefWrapper(true);
 
             RunClientAsync = async boxed =>
             {

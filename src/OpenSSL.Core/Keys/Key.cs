@@ -49,11 +49,6 @@ namespace OpenSSL.Core.Keys
             this.KeyWrapper = new KeyInternal(keyHandle);
         }
 
-        ~Key()
-        {
-            this.Dispose();
-        }
-
         internal abstract KeyInternal GenerateKeyInternal();
 
         public void GenerateKey()

@@ -25,7 +25,8 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 
         internal override void AddRef()
         {
-            this.CryptoWrapper.X509_OBJECT_up_ref_count(this);
+            //this adds a reference on the internal object!!! (X509 or X509_CRL)
+            //this.CryptoWrapper.X509_OBJECT_up_ref_count(this);
         }
     }
 }

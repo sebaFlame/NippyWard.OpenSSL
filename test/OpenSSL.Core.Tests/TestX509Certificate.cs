@@ -43,6 +43,8 @@ namespace OpenSSL.Core.Tests
         public TestX509Certificate(ITestOutputHelper outputHelper)
             : base(outputHelper) { }
 
+        protected override void Dispose(bool disposing) { }
+
         [Fact]
 		public void CanCreateAndDispose()
 		{
@@ -286,26 +288,22 @@ namespace OpenSSL.Core.Tests
                 "root",
                 start,
                 end,
-                out PrivateKey caKey,
                 out X509Certificate caCert);
 
-            using (caKey)
+            using (caCert)
             {
-                using (caCert)
+                using (X509CertificateRequest req = new X509CertificateRequest(caCert.PublicKey, "localhost", "root"))
                 {
-                    using (X509CertificateRequest req = new X509CertificateRequest(caKey, "localhost", "root"))
+                    using (X509Certificate cert = ca.ProcessRequest(req, start, end, DigestType.SHA256))
                     {
-                        using (X509Certificate cert = ca.ProcessRequest(req, start, end, DigestType.SHA256))
-                        {
-                            Assert.True(cert.VerifyPrivateKey(caKey));
-                            Assert.Equal(1, cert.SerialNumber);
-                            Assert.Equal("root", cert.Common);
-                            Assert.Equal("localhost", cert.OrganizationUnit);
-                        }
+                        Assert.True(cert.VerifyPrivateKey(caCert.PublicKey));
+                        Assert.Equal(1, cert.SerialNumber);
+                        Assert.Equal("root", cert.Common);
+                        Assert.Equal("localhost", cert.OrganizationUnit);
                     }
                 }
             }
-		}
+        }
 
 		[Fact]
 		public void CanAddExtensions()
@@ -346,15 +344,7 @@ namespace OpenSSL.Core.Tests
             using (X509Store caStore = new X509Store(caFile))
             {
                 using (OpenSslReadOnlyCollection<X509Certificate> caCerts = caStore.GetCertificates())
-                {
                     Assert.NotEmpty(caCerts);
-
-                    X509Certificate cert = caCerts.First();
-                    foreach(X509Extension ext in cert)
-                    {
-                        string data = ext.Data;
-                    }
-                }
             }
         }
 

@@ -72,23 +72,24 @@ namespace OpenSSL.Core.X509
             string CN, 
             DateTime notBefore, 
             DateTime notAfter,
-            out PrivateKey caKey,
             out X509Certificate caCert,
             DigestType signHash = null,
             ISequenceNumber serialGenerator = null)
         {
-            caKey = new RSAKey(keyBits);
-            caKey.GenerateKey();
+            using (RSAKey rsaKey = new RSAKey(keyBits))
+            {
+                rsaKey.GenerateKey();
 
-            caCert = new X509Certificate(caKey, OU, CN, notBefore, notAfter);
+                caCert = new X509Certificate(rsaKey, OU, CN, notBefore, notAfter);
 
-            caCert.AddExtension(caCert, null, X509ExtensionType.BasicConstraints, "CA:TRUE");
-            caCert.AddExtension(caCert, null, X509ExtensionType.SubjectKeyIdentifier, "hash");
-            caCert.AddExtension(caCert, null, X509ExtensionType.AuthorityKeyIdentifier, "keyid:always");
+                caCert.AddExtension(caCert, null, X509ExtensionType.BasicConstraints, "CA:TRUE");
+                caCert.AddExtension(caCert, null, X509ExtensionType.SubjectKeyIdentifier, "hash");
+                caCert.AddExtension(caCert, null, X509ExtensionType.AuthorityKeyIdentifier, "keyid:always");
 
-            caCert.SelfSign(caKey, signHash ?? DigestType.SHA256);
+                caCert.SelfSign(rsaKey, signHash ?? DigestType.SHA256);
+            }
 
-            return new X509CertificateAuthority(caCert, caKey, serialGenerator ?? new SimpleSerialNumber());
+            return new X509CertificateAuthority(caCert, caCert.PublicKey, serialGenerator ?? new SimpleSerialNumber());
         }
 
         /// <summary>
@@ -130,8 +131,7 @@ namespace OpenSSL.Core.X509
             this.CryptoWrapper.X509_set_issuer_name(certHandle, this.caCert.X509Name.X509NameWrapper.Handle);
 
             //set the public key
-            SafeKeyHandle pubKey = this.CryptoWrapper.X509_REQ_get_pubkey(request.X509RequestWrapper.Handle);
-            this.CryptoWrapper.X509_set_pubkey(certHandle, pubKey);
+            this.CryptoWrapper.X509_set_pubkey(certHandle, request.PublicKey.KeyWrapper.Handle);
 
             //create managed wrapper
             X509Certificate cert = new X509Certificate(certHandle);
@@ -144,8 +144,8 @@ namespace OpenSSL.Core.X509
             //assign correct serial number
             cert.SerialNumber = this.serial.Next();
 
-            cert.AddExtension(this.caCert, null, X509ExtensionType.SubjectKeyIdentifier, "hash");
-            cert.AddExtension(this.caCert, null, X509ExtensionType.AuthorityKeyIdentifier, "keyid:always");
+            cert.AddExtension(this.caCert, request, X509ExtensionType.SubjectKeyIdentifier, "hash");
+            cert.AddExtension(this.caCert, request, X509ExtensionType.AuthorityKeyIdentifier, "keyid:always");
 
             //sign the request with the CA key
             cert.Sign(this.caKey, digestType);

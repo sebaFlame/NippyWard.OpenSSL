@@ -93,9 +93,9 @@ namespace OpenSSL.Core.X509
             this.X509RequestWrapper = new X509CertificateRequestInternal(this.CryptoWrapper.X509_REQ_new());
         }
 
-        internal override PublicKey GetPublicKey()
+        internal override PrivateKey GetPublicKey()
         {
-            return new PublicKey(this.CryptoWrapper.X509_REQ_get_pubkey(this.X509RequestWrapper.Handle));
+            return PrivateKey.GetCorrectKey(this.CryptoWrapper.X509_REQ_get0_pubkey(this.X509RequestWrapper.Handle));
         }
 
         internal override SafeX509NameHandle GetSubject()

@@ -37,7 +37,7 @@ using OpenSSL.Core.Error;
 
 namespace OpenSSL.Core.Tests
 {
-	public class TestBase : IDisposable
+	public abstract class TestBase : IDisposable
 	{
         protected readonly ITestOutputHelper OutputHelper;
 
@@ -47,14 +47,11 @@ namespace OpenSSL.Core.Tests
             MemoryTracker.Start();
         }
 
-		public virtual void Dispose()
+        protected abstract void Dispose(bool disposing);
+
+		public void Dispose()
 		{
-            List<MemoryProblem> lstMemoryProblem = MemoryTracker.Finish();
-            foreach (var mem in lstMemoryProblem)
-            {
-                Debug.WriteLine("MEMORY: {0}", mem);
-                this.OutputHelper.WriteLine("MEMORY: {0}", mem);
-            }
+            this.Dispose(true);
 
             List<string> errors = OpenSslError.GetErrors();
             foreach (var err in errors)
@@ -62,10 +59,26 @@ namespace OpenSSL.Core.Tests
                 Debug.WriteLine("ERROR: {0}", err);
                 this.OutputHelper.WriteLine("ERROR: {0}", err);
             }
-
             Assert.Empty(errors);
-            //TODO: manually check output
-            //Assert.Empty(lstMemoryProblem);
+
+            //de-allocate per thread allocations for the current thread
+            //Native.CryptoWrapper.OPENSSL_thread_stop();
+
+            List<MemoryProblem> lstMemoryProblem = MemoryTracker.Finish();
+            foreach (var mem in lstMemoryProblem.ToList())
+            {
+                Debug.WriteLine("MEMORY: {0}", mem);
+                this.OutputHelper.WriteLine("MEMORY: {0}", mem);
+
+                #region per thread allocations (these get deallocated when the threads exit on windows)
+                if (mem.File.Equals(@"crypto\err\err.c") && mem.Line == 673)
+                    lstMemoryProblem.Remove(mem);
+
+                if (mem.File.Equals(@"crypto\init.c") && mem.Line == 63)
+                    lstMemoryProblem.Remove(mem);
+                #endregion
+            }
+            Assert.Empty(lstMemoryProblem);
         }
 	}
 }

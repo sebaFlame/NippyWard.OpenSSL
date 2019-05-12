@@ -49,6 +49,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 		/// </summary>
 		protected override bool ReleaseHandle()
 		{
+            //this also frees the private key if it is set
 			this.CryptoWrapper.X509_free(this.handle);
             return true;
 		}
