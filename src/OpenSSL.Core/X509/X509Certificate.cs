@@ -258,18 +258,14 @@ namespace OpenSSL.Core.X509
         }
 
         #region X509Extension
-        public void AddX509Extension(X509ExtensionType type, bool critical, string value)
-        {
-            SafeX509ExtensionHandle extensionHandle;
-            using (extensionHandle = X509Extension.CreateHandle(type, critical, value))
-            {
-                this.AddExtension(extensionHandle);
-            }
-        }
-
         internal void AddExtension(SafeX509ExtensionHandle extensionHandle)
         {
             this.CryptoWrapper.X509_add_ext(this.X509Wrapper.Handle, extensionHandle, -1);
+        }
+
+        public void AddX509Extension(X509ExtensionType type, string value)
+        {
+            this.AddExtension(null, type, value);
         }
 
         internal void AddExtension(
@@ -288,22 +284,33 @@ namespace OpenSSL.Core.X509
                     IntPtr.Zero,
                     0);
 
-                SafeX509ExtensionHandle extension;
-                unsafe
-                {
-                    ReadOnlySpan<char> span = internalValue.AsSpan();
-                    fixed (char* c = span)
-                    {
-                        int length = Encoding.ASCII.GetEncoder().GetByteCount(c, span.Length, false);
-                        byte* b = stackalloc byte[length + 1];
-                        Encoding.ASCII.GetEncoder().GetBytes(c, span.Length, b, length, true);
-                        Span<byte> buf = new Span<byte>(b, length + 1);
-                        extension = this.CryptoWrapper.X509V3_EXT_conf_nid(IntPtr.Zero, ctx, type.NID, buf.GetPinnableReference());
-                    }
-                }
-
-                this.AddExtension(extension);
+                this.AddExtension(ctx, type, internalValue);
             }
+        }
+
+        internal void AddExtension(
+            SafeX509ExtensionContextHandle ctx,
+            X509ExtensionType type,
+            string internalValue)
+        {
+            SafeX509ExtensionHandle extension;
+            unsafe
+            {
+                ReadOnlySpan<char> span = internalValue.AsSpan();
+                fixed (char* c = span)
+                {
+                    int length = Encoding.ASCII.GetEncoder().GetByteCount(c, span.Length, false);
+                    byte* b = stackalloc byte[length + 1];
+                    Encoding.ASCII.GetEncoder().GetBytes(c, span.Length, b, length, true);
+                    Span<byte> buf = new Span<byte>(b, length + 1);
+                    if (ctx is null)
+                        extension = this.CryptoWrapper.X509V3_EXT_conf_nid(IntPtr.Zero, IntPtr.Zero, type.NID, buf.GetPinnableReference());
+                    else
+                        extension = this.CryptoWrapper.X509V3_EXT_conf_nid(IntPtr.Zero, ctx, type.NID, buf.GetPinnableReference());
+                }
+            }
+
+            this.AddExtension(extension);
         }
 
         public IEnumerator<X509Extension> GetEnumerator()

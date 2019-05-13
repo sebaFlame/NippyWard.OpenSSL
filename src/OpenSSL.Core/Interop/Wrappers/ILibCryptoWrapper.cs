@@ -197,10 +197,40 @@ namespace OpenSSL.Core.Interop.Wrappers
         void ASN1_OCTET_STRING_free(IntPtr a);
 
         int ASN1_OCTET_STRING_set(SafeASN1OctetStringHandle str, in byte data, int len);
+        int ASN1_OCTET_STRING_set(SafeASN1OctetStringHandle str, IntPtr ptr, int len);
         int ASN1_OCTET_STRING_cmp(SafeASN1OctetStringHandle a, SafeASN1OctetStringHandle b);
+        int i2d_ASN1_OCTET_STRING(SafeASN1OctetStringHandle a, out IntPtr pp);
+        IntPtr ASN1_OCTET_STRING_it();
+
+        //ASN1_OCTET_STRING *s2i_ASN1_OCTET_STRING(X509V3_EXT_METHOD *method, X509V3_CTX* ctx, const char* str)
+        [return: NewSafeHandle]
+        SafeASN1OctetStringHandle s2i_ASN1_OCTET_STRING(IntPtr method, IntPtr ctx, in byte str);
         #endregion
 
-        #region ASN1_OCTET_STRING
+        #region ASN1_UTF8STRING
+        //void ASN1_UTF8STRING_new()
+        SafeASN1Utf8StringHandle ASN1_UTF8STRING_new();
+        IntPtr ASN1_UTF8STRING_it();
+        void ASN1_UTF8STRING_free(IntPtr a);
+        int i2d_ASN1_UTF8STRING(SafeASN1Utf8StringHandle a, out IntPtr pp);
+        #endregion
+
+        #region string conversion
+        //int ASN1_mbstring_copy(ASN1_STRING **out, const unsigned char *in, int len, int inform, unsigned long mask)
+        int ASN1_mbstring_copy([NewSafeHandle] out SafeAsn1StringHandle outStr, in byte inStr, int len, int inform, ulong mask);
+        int ASN1_mbstring_copy([NewSafeHandle] out SafeAsn1StringHandle outStr, IntPtr inStr, int len, int inform, ulong mask);
+        //unsigned char *OPENSSL_hexstr2buf(const char *str, long *len)
+        IntPtr OPENSSL_hexstr2buf(in byte str, out long len);
+        //char *OPENSSL_buf2hexstr(const unsigned char *buffer, long len)
+        IntPtr OPENSSL_buf2hexstr(in byte buffer, long len);
+
+        //int ASN1_item_i2d(ASN1_VALUE *val, unsigned char **out, const ASN1_ITEM *it)
+        int ASN1_item_i2d(IntPtr val, out IntPtr ptr, IntPtr it);
+        //unsigned long ASN1_tag2bit(int tag)
+        ulong ASN1_tag2bit(int tag);
+        #endregion
+
+        #region ASN1_BIT_STRING_
         [return: NewSafeHandle]
         SafeASN1BitStringHandle ASN1_BIT_STRING_new();
         IntPtr ASN1_BIT_STRING_dup(SafeASN1BitStringHandle a);
@@ -443,6 +473,11 @@ namespace OpenSSL.Core.Interop.Wrappers
         SafeASN1OctetStringHandle X509_EXTENSION_get_data(SafeX509ExtensionHandle ne);
         #endregion
 
+        #region X509V3_EXT
+        //int X509V3_EXT_print(BIO *out, X509_EXTENSION *ext, unsigned long flag, int indent)
+        int X509V3_EXT_print(SafeBioHandle bio, SafeX509ExtensionHandle ext, ulong flag, int indent);
+        #endregion
+
         //TODO: X509_CRL
         #region X509_EXT_CTX
         //void X509V3_set_ctx(X509V3_CTX *ctx, X509 *issuer, X509 *subj, X509_REQ *req, X509_CRL* crl, int flags)
@@ -450,6 +485,8 @@ namespace OpenSSL.Core.Interop.Wrappers
         //X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX* ctx, int ext_nid, const char* value)
         [return: NewSafeHandle]
         SafeX509ExtensionHandle X509V3_EXT_conf_nid(IntPtr conf, SafeX509ExtensionContextHandle ctx, int ext_nid, in byte value);
+        [return: NewSafeHandle]
+        SafeX509ExtensionHandle X509V3_EXT_conf_nid(IntPtr conf, IntPtr ctx, int ext_nid, in byte value);
         #endregion
 
         #region X509_OBJECT
@@ -1471,6 +1508,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         IntPtr BIO_f_md();
         //const BIO_METHOD *BIO_f_null(void);
         IntPtr BIO_f_null();
+        IntPtr BIO_f_base64();
         //BIO *  BIO_new(const BIO_METHOD *type);
         [return: NewSafeHandle]
         SafeBioHandle BIO_new(IntPtr type);
@@ -1512,6 +1550,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int BIO_puts(BIO *b, const char *buf);
         int BIO_puts(SafeBioHandle b, in byte buf);
         //int BIO_gets(BIO *b, char *buf, int size);
+        [DontCheckReturnType]
         int BIO_gets(SafeBioHandle b, ref byte buf, int len);
 
         //int BIO_free(BIO *a);
@@ -1525,6 +1564,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         ulong BIO_number_written(SafeBioHandle bio);
 
         //size_t BIO_ctrl_pending(BIO* b);
+        [DontCheckReturnType]
         uint BIO_ctrl_pending(SafeBioHandle bio);
         #endregion
 

@@ -6,6 +6,7 @@ using OpenSSL.Core.ASN1;
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop.SafeHandles.X509;
+using OpenSSL.Core.Error;
 
 namespace OpenSSL.Core.X509
 {
@@ -26,8 +27,36 @@ namespace OpenSSL.Core.X509
         public string Name => this.extensionType.LongName;
         public bool Critical => this.CryptoWrapper.X509_EXTENSION_get_critical(this.X509ExtensionWrapper.Handle) == 1;
 
-        string data;
-        public string Data => data ?? (data = this.CryptoWrapper.X509_EXTENSION_get_data(this.X509ExtensionWrapper.Handle).Value);
+        private string data;
+        public string Data
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(this.data))
+                    return this.data;
+
+                using (SafeBioHandle bio = this.CryptoWrapper.BIO_new(this.CryptoWrapper.BIO_s_mem()))
+                {
+                    this.CryptoWrapper.X509V3_EXT_print(bio, this.X509ExtensionWrapper.Handle, 0, 0);
+                    int bLength = (int)this.CryptoWrapper.BIO_ctrl_pending(bio);
+                    int ret;
+
+                    unsafe
+                    {
+                        byte* bBuf = stackalloc byte[bLength];
+                        Span<byte> bSpan = new Span<byte>(bBuf, bLength);
+                        if ((ret = this.CryptoWrapper.BIO_read(bio, ref bSpan.GetPinnableReference(), bLength)) != bLength)
+                            throw new OpenSslException();
+
+                        int cLength = Encoding.ASCII.GetDecoder().GetCharCount(bBuf, bSpan.Length, false);
+                        char* cBuf = stackalloc char[cLength];
+                        Encoding.ASCII.GetDecoder().GetChars(bBuf, bSpan.Length, cBuf, cLength, true);
+
+                        return (this.data = new string(cBuf, 0, cLength));
+                    }
+                }
+            }
+        }
 
         internal X509Extension(X509ExtensionInternal handleWrapper)
             : base()
@@ -40,52 +69,6 @@ namespace OpenSSL.Core.X509
         {
             this.X509ExtensionWrapper = new X509ExtensionInternal(extensionHandle);
             this.extensionType = new X509ExtensionType(this.CryptoWrapper.X509_EXTENSION_get_object(this.X509ExtensionWrapper.Handle));
-        }
-
-        public X509Extension(string name, bool critical, string value)
-            : base()
-        {
-            this.extensionType = name;
-            this.X509ExtensionWrapper = new X509ExtensionInternal(CreateHandle(this.extensionType, critical, value));
-        }
-
-        public X509Extension(X509ExtensionType type, bool critical, string value)
-            : base()
-        {
-            this.extensionType = type;
-            this.X509ExtensionWrapper = new X509ExtensionInternal(CreateHandle(type, critical, value));
-        }
-
-        ~X509Extension()
-        {
-            this.Dispose();
-        }
-
-        //internal static SafeX509ExtensionHandle CreateHandle(X509ExtensionType type, bool critical, string value)
-        //{
-        //    SafeASN1OctetStringHandle stringHandle;
-        //    SafeX509ExtensionHandle extensionHandle = Native.CryptoWrapper.X509_EXTENSION_new();
-        //    using (stringHandle = Native.CryptoWrapper.ASN1_OCTET_STRING_new())
-        //    {
-        //        stringHandle.Value = value;
-        //        Native.CryptoWrapper.X509_EXTENSION_create_by_NID(ref extensionHandle, type.NID, critical ? 1 : 0, stringHandle);
-        //    }
-        //    return extensionHandle;
-        //}
-
-        internal static SafeX509ExtensionHandle CreateHandle(X509ExtensionType type, bool critical, string value)
-        {
-            SafeASN1OctetStringHandle stringHandle = null;
-            if (!string.IsNullOrEmpty(value))
-            {
-                stringHandle = Native.CryptoWrapper.ASN1_OCTET_STRING_new();
-                stringHandle.Value = value;
-
-            }
-            if (!(stringHandle is null))
-                return Native.CryptoWrapper.X509_EXTENSION_create_by_NID(IntPtr.Zero, type.NID, critical ? 1 : 0, stringHandle);
-            else
-                return Native.CryptoWrapper.X509_EXTENSION_create_by_NID(IntPtr.Zero, type.NID, critical ? 1 : 0, IntPtr.Zero);
         }
 
         protected override void Dispose(bool disposing)

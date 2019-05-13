@@ -149,11 +149,6 @@ namespace OpenSSL.Core.Interop
         public const int OBJ_NAME_TYPE_COMP_METH = 0x04;
         public const int OBJ_NAME_TYPE_NUM = 0x05;
 
-        public const int MBSTRING_FLAG = 0x1000;
-
-        public const int MBSTRING_UTF8 = MBSTRING_FLAG;
-        public const int MBSTRING_ASC = MBSTRING_FLAG | 1;
-
         public const int ASN1_STRFLGS_RFC2253 =
             ASN1_STRFLGS_ESC_2253 |
             ASN1_STRFLGS_ESC_CTRL |
@@ -242,6 +237,36 @@ namespace OpenSSL.Core.Interop
         public const int SSL_SESS_CACHE_NO_INTERNAL_STORE = 0x0200;
         public const int SSL_SESS_CACHE_NO_INTERNAL = (SSL_SESS_CACHE_NO_INTERNAL_LOOKUP | SSL_SESS_CACHE_NO_INTERNAL_STORE);
 
+        public const int B_ASN1_NUMERICSTRING = 0x0001;
+        public const int B_ASN1_PRINTABLESTRING = 0x0002;
+        public const int B_ASN1_T61STRING = 0x0004;
+        public const int B_ASN1_TELETEXSTRING = 0x0004;
+        public const int B_ASN1_VIDEOTEXSTRING = 0x0008;
+        public const int B_ASN1_IA5STRING = 0x0010;
+        public const int B_ASN1_GRAPHICSTRING = 0x0020;
+        public const int B_ASN1_ISO64STRING = 0x0040;
+        public const int B_ASN1_VISIBLESTRING = 0x0040;
+        public const int B_ASN1_GENERALSTRING = 0x0080;
+        public const int B_ASN1_UNIVERSALSTRING = 0x0100;
+        public const int B_ASN1_OCTET_STRING = 0x0200;
+        public const int B_ASN1_BIT_STRING = 0x0400;
+        public const int B_ASN1_BMPSTRING = 0x0800;
+        public const int B_ASN1_UNKNOWN = 0x1000;
+        public const int B_ASN1_UTF8STRING = 0x2000;
+        public const int B_ASN1_UTCTIME = 0x4000;
+        public const int B_ASN1_GENERALIZEDTIME = 0x8000;
+        public const int B_ASN1_SEQUENCE = 0x10000;
+
+        public const int MBSTRING_FLAG = 0x1000;
+        public const int MBSTRING_UTF8 = (MBSTRING_FLAG);
+        public const int MBSTRING_ASC = (MBSTRING_FLAG | 1);
+        public const int MBSTRING_BMP = (MBSTRING_FLAG | 2);
+        public const int MBSTRING_UNIV = (MBSTRING_FLAG | 4);
+        public const int SMIME_OLDMIME = 0x400;
+        public const int SMIME_CRLFEOL = 0x800;
+        public const int SMIME_STREAM = 0x1000;
+
+        public const int V_ASN1_OCTET_STRING = 4;
         #endregion
 
         #region Utilities

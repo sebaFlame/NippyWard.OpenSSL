@@ -308,11 +308,9 @@ namespace OpenSSL.Core.Tests
 		[Fact]
 		public void CanAddExtensions()
 		{
-			var extList = new List<Tuple<string, bool, string>> {
-				Tuple.Create("subjectKeyIdentifier", false, "hash"),
-                Tuple.Create("authorityKeyIdentifier", false, "keyid:always,issuer:always"),
-                Tuple.Create("X509v3 Basic Constraints", true, "critical,CA:true"),
-                Tuple.Create("keyUsage", false, "cRLSign,keyCertSign"),
+			var extList = new List<Tuple<X509ExtensionType, string>> {
+                Tuple.Create(X509ExtensionType.BasicConstraints,  "CA:true"),
+                Tuple.Create(X509ExtensionType.KeyUsage, "cRLSign,keyCertSign"),
 			};
 
 			var start = DateTime.Now;
@@ -322,15 +320,20 @@ namespace OpenSSL.Core.Tests
                 key.GenerateKey();
                 using (X509Certificate cert = new X509Certificate(key, "root", "root", start, end))
                 {
-                    foreach(var tuple in extList)
-                        cert.AddX509Extension(tuple.Item1, tuple.Item2, tuple.Item3);
+                    foreach (var tuple in extList)
+                        cert.AddX509Extension(tuple.Item1, tuple.Item2);
 
-                    int index = 0;
+                    Assert.NotEmpty(cert);
+
+                    int count = 0;
                     foreach (X509Extension ext in cert)
                     {
-                        Assert.Equal(extList[index].Item3, ext.Data);
-                        index++;
+                        count++;
+                        Assert.NotNull(ext);
+                        Assert.NotEmpty(ext.Data);
                     }
+
+                    Assert.Equal(2, count);
                 }
             }
 		}

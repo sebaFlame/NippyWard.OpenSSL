@@ -33,6 +33,36 @@ namespace OpenSSL.Core.Interop.SafeHandles
 	/// </summary>
 	internal abstract class SafeAsn1StringHandle : BaseValue, IComparable<SafeAsn1StringHandle>
 	{
+        #region debug references
+#if DEBUG
+        //internal struct asn1_string_st
+        //{
+        //    public int length;
+        //    public int type;
+        //    public IntPtr data;
+        //    public long flags;
+        //};
+
+        //internal int Length
+        //{
+        //    get
+        //    {
+        //        asn1_string_st raw = Marshal.PtrToStructure<asn1_string_st>(this.handle);
+        //        return raw.length;
+        //    }
+        //}
+
+        //internal int Type
+        //{
+        //    get
+        //    {
+        //        asn1_string_st raw = Marshal.PtrToStructure<asn1_string_st>(this.handle);
+        //        return raw.type;
+        //    }
+        //}
+#endif
+        #endregion
+
         internal SafeAsn1StringHandle(bool takeOwnership, bool isNew)
             : base(takeOwnership, isNew)
         { }
