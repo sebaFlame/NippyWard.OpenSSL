@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Buffers;
-using System.IO.Pipelines;
+using System.Diagnostics;
 
 using OpenSSL.Core.X509;
 using OpenSSL.Core.Keys;
@@ -13,6 +12,7 @@ using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles.SSL;
 using OpenSSL.Core.Error;
 using OpenSSL.Core.Collections;
+using OpenSSL.Core.SSL.Pipelines;
 
 namespace OpenSSL.Core.SSL
 {
@@ -391,9 +391,8 @@ namespace OpenSSL.Core.SSL
             if (this.encryptionEnabled)
                 return;
 
-            //TODO: throw exception
             if (!this.TrySetSslState(SslState.None, SslState.Handshake))
-                return;
+                throw new InvalidOperationException("Could not set correct connection state");
 
             //clean up any previous ssl remnants
             this.SSLCleanup();
@@ -425,6 +424,7 @@ namespace OpenSSL.Core.SSL
             }
             catch (Exception ex)
             {
+                this.TrySetSslState(SslState.Handshake, SslState.None);
                 throw new SslHandshakeException(ex);
             }
         }
@@ -434,39 +434,48 @@ namespace OpenSSL.Core.SSL
             int ret_code, result;
             ValueTask<FlushResult> flushResult;
 
-            this._receiveFromSocket.Reader.CancelPendingRead();
+            this._sendToSocket.StartInterrupt(true);
+            this._receiveFromSocket.StartInterrupt(true);
 
-            do
+            try
             {
-                //get next action from OpenSSL wrapper
-                ret_code = this.SSLWrapper.SSL_do_handshake(this.sslHandle);
-                if ((result = this.SSLWrapper.SSL_get_error(this.sslHandle, ret_code)) == (int)SslError.SSL_ERROR_SSL)
+                do
                 {
-                    VerifyResult verifyResult;
-                    if ((verifyResult = (VerifyResult)this.SSLWrapper.SSL_get_verify_result(this.sslHandle)) > VerifyResult.X509_V_OK)
-                        throw new OpenSslException(new VerifyError(verifyResult));
+                    //get next action from OpenSSL wrapper
+                    ret_code = this.SSLWrapper.SSL_do_handshake(this.sslHandle);
+                    if ((result = this.SSLWrapper.SSL_get_error(this.sslHandle, ret_code)) == (int)SslError.SSL_ERROR_SSL)
+                    {
+                        VerifyResult verifyResult;
+                        if ((verifyResult = (VerifyResult)this.SSLWrapper.SSL_get_verify_result(this.sslHandle)) > VerifyResult.X509_V_OK)
+                            throw new OpenSslException(new VerifyError(verifyResult));
 
-                    throw new OpenSslException();
-                }
+                        throw new OpenSslException();
+                    }
 
-                flushResult = this.WritePending();
-                if (!flushResult.IsCompleted)
-                    await flushResult.ConfigureAwait(false);
+                    flushResult = this.WritePending();
+                    if (!flushResult.IsCompleted)
+                        await flushResult.ConfigureAwait(false);
 
-                await this.ReadPending((SslError)result).ConfigureAwait(false);
-            } while (this.SSLWrapper.SSL_is_init_finished(this.sslHandle) != 1);
+                    await this.ReadPending((SslError)result).ConfigureAwait(false);
+                } while (this.SSLWrapper.SSL_is_init_finished(this.sslHandle) != 1);
 
-            //save current session if it's a new one
-            //TODO: renegotiation
-            if (this.SessionHandle is null || this.SSLWrapper.SSL_session_reused(this.sslHandle) == 0)
-                this.SessionHandle = this.SSLWrapper.SSL_get_session(this.sslHandle);
+                //save current session if it's a new one
+                //TODO: renegotiation
+                if (this.SessionHandle is null || this.SSLWrapper.SSL_session_reused(this.sslHandle) == 0)
+                    this.SessionHandle = this.SSLWrapper.SSL_get_session(this.sslHandle);
 
-            //set state to established
-            this.TrySetSslState(SslState.Handshake, SslState.Established);
+                //Debug.Assert(this.SslState == SslState.Handshake);
+                //Debug.WriteLine("This will not work without this call to debug...");
 
-            //continue after state interruption
-            this._socketReader.CompleteInterruption();
-            this._socketWriter.CompleteInterruption();
+                //set state to established
+                if (!this.TrySetSslState(SslState.Handshake, SslState.Established))
+                    throw new InvalidOperationException("Could not set correct connection state");
+            }
+            finally
+            {
+                this._sendToSocket.CompleteInterrupt(true);
+                this._receiveFromSocket.CompleteInterrupt(true);
+            }
         }
     }
 }

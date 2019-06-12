@@ -6,7 +6,7 @@ using System.Buffers;
 
 using OpenSSL.Core.Error;
 using OpenSSL.Core.Interop;
-using System.IO.Pipelines;
+using OpenSSL.Core.SSL.Pipelines;
 
 namespace OpenSSL.Core.SSL
 {
@@ -21,41 +21,47 @@ namespace OpenSSL.Core.SSL
             if (!this.TrySetSslState(SslState.Established, SslState.Shutdown))
                 return;
 
-            this._receiveFromSocket.Reader.CancelPendingRead();
-
             int ret_code, result;
             ValueTask<FlushResult> flushResult;
-            //it is not mandatory to wait on confirmation from the other peer
-            do
+
+            this._sendToSocket.StartInterrupt(false);
+            this._receiveFromSocket.StartInterrupt(false);
+
+            try
             {
-                ret_code = this.SSLWrapper.SSL_shutdown(this.sslHandle);
-                if ((result = this.SSLWrapper.SSL_get_error(this.sslHandle, ret_code)) == (int)SslError.SSL_ERROR_SSL)
-                    throw new OpenSslException();
-
-                if (biDerictionalShutdown && this.Socket.Connected)
+                //it is not mandatory to wait on confirmation from the other peer
+                do
                 {
-                    flushResult = this.WritePending();
-                    if (!flushResult.IsCompleted)
-                        await flushResult.ConfigureAwait(false);
+                    ret_code = this.SSLWrapper.SSL_shutdown(this.sslHandle);
+                    if ((result = this.SSLWrapper.SSL_get_error(this.sslHandle, ret_code)) == (int)SslError.SSL_ERROR_SSL)
+                        throw new OpenSslException();
 
-                    await this.ReadPending((SslError)result).ConfigureAwait(false);
-                }
-                else if (ret_code < 0)
-                {
-                    this.CryptoWrapper.ERR_clear_error();
-                    break;
-                }
-            } while (ret_code != 1);
+                    if (biDerictionalShutdown && this.Socket.Connected)
+                    {
+                        flushResult = this.WritePending();
+                        if (!flushResult.IsCompleted)
+                            await flushResult.ConfigureAwait(false);
 
-            //cleanup native memory
-            this.SSLCleanup();
+                        await this.ReadPending((SslError)result).ConfigureAwait(false);
+                    }
+                    else if (ret_code < 0)
+                    {
+                        this.CryptoWrapper.ERR_clear_error();
+                        break;
+                    }
+                } while (ret_code != 1);
 
-            //set state to None
-            this.TrySetSslState(SslState.Shutdown, SslState.None);
+                //cleanup native memory
+                this.SSLCleanup();
+            }
+            finally
+            {
+                //set state to None
+                this.TrySetSslState(SslState.Shutdown, SslState.None);
 
-            //continue after state interruption
-            this._socketReader.CompleteInterruption();
-            this._socketWriter.CompleteInterruption();
+                this._sendToSocket.CompleteInterrupt(false);
+                this._receiveFromSocket.CompleteInterrupt(false);
+            }
         }
 
         private void SSLCleanup()

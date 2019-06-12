@@ -1,4 +1,4 @@
-﻿using System.IO.Pipelines;
+﻿using OpenSSL.Core.SSL.Pipelines;
 
 namespace OpenSSL.Core.SSL
 {

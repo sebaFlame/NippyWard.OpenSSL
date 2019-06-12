@@ -33,7 +33,7 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
-using System.IO.Pipelines;
+using System.Diagnostics;
 
 using Xunit;
 using Xunit.Abstractions;
@@ -43,10 +43,7 @@ using OpenSSL.Core.Keys;
 using OpenSSL.Core.ASN1;
 using OpenSSL.Core.SSL;
 using OpenSSL.Core.Collections;
-
-using OpenSSL.Core.Interop.SafeHandles.Crypto;
-using OpenSSL.Core.Interop;
-using OpenSSL.Core.Interop.Wrappers;
+using OpenSSL.Core.SSL.Pipelines;
 
 namespace OpenSSL.Core.Tests
 {
@@ -85,14 +82,14 @@ namespace OpenSSL.Core.Tests
         private static Task<SocketConnection> CreateClient(SocketServerImplementation serverListener)
         {
             IPEndPoint clientEndPoint = new IPEndPoint(IPAddress.Loopback, ((IPEndPoint)serverListener.Listener.LocalEndPoint).Port);
-            return SocketConnection.ConnectAsync(clientEndPoint);
+            return SocketConnection.ConnectAsync(clientEndPoint, name: "client");
         }
 
-        private static async Task VerifyRead(SocketConnection client, SocketConnection server)
+        private static async Task VerifyRead(SocketConnection client, SocketConnection server, byte[] message)
         {
             ReadResult readResult;
 
-            ValueTask<FlushResult> flushResult = client.Output.WriteAsync(clientMessage);
+            ValueTask<FlushResult> flushResult = client.Output.WriteAsync(message);
             if (!flushResult.IsCompleted)
                 await flushResult.ConfigureAwait(false);
 
@@ -102,8 +99,9 @@ namespace OpenSSL.Core.Tests
             else
                 readResult = clientResult.Result;
 
-            //Assert.True(readResult.Buffer.IsSingleSegment);
-            Assert.True(readResult.Buffer.First.Span.SequenceEqual(clientMessage));
+            Assert.True(readResult.Buffer.IsSingleSegment);
+            Assert.True(readResult.Buffer.First.Span.SequenceEqual(message));
+            server.Input.AdvanceTo(readResult.Buffer.End);
         }
 
         private static Task DisposeConnections(SocketConnection client, ClientWrapper server)
@@ -129,8 +127,8 @@ namespace OpenSSL.Core.Tests
             ClientWrapper server = this.serverListener.GetNextClient();
 
             //verify reads
-            await VerifyRead(client, server.Client);
-            await VerifyRead(server.Client, client);
+            await VerifyRead(client, server.Client, clientMessage);
+            await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
             await DisposeConnections(client, server);
@@ -153,8 +151,8 @@ namespace OpenSSL.Core.Tests
             VerifyEncryptionEnabled(server.Client);
 
             //verify reads
-            await VerifyRead(client, server.Client);
-            await VerifyRead(server.Client, client);
+            await VerifyRead(client, server.Client, clientMessage);
+            await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
             await DisposeConnections(client, server);
@@ -184,7 +182,7 @@ namespace OpenSSL.Core.Tests
                     try
                     {
                         readResultTask = client.Input.ReadAsync(readCancel.Token);
-                        if (!currentReadResult.IsCompleted)
+                        if (!readResultTask.IsCompleted)
                             currentReadResult = await readResultTask.ConfigureAwait(false);
                         else
                             currentReadResult = readResultTask.Result;
@@ -210,7 +208,7 @@ namespace OpenSSL.Core.Tests
                     try
                     {
                         readResultTask = server.Client.Input.ReadAsync(readCancel.Token);
-                        if (!currentReadResult.IsCompleted)
+                        if (!readResultTask.IsCompleted)
                             currentReadResult = await readResultTask.ConfigureAwait(false);
                         else
                             currentReadResult = readResultTask.Result;
@@ -230,6 +228,7 @@ namespace OpenSSL.Core.Tests
             await server.Client.Output.WriteAsync(serverMessage);
             clientResult = await readCorrectServerMessage.Task;
             Assert.True(clientResult.Buffer.First.Span.SequenceEqual(serverMessage));
+            client.Input.AdvanceTo(clientResult.Buffer.End);
 
             //TODO: can not reverse, client path too (?) synchronous
             Task serverAuthenticate = server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey);
@@ -246,6 +245,7 @@ namespace OpenSSL.Core.Tests
             await client.Output.WriteAsync(clientMessage);
             serverResult = await readCorrectClientMessage.Task;
             Assert.True(serverResult.Buffer.First.Span.SequenceEqual(clientMessage));
+            server.Client.Input.AdvanceTo(serverResult.Buffer.End);
 
             readCancel.Cancel();
             await Task.WhenAll(clientReadTask, serverReadTask);
@@ -271,8 +271,8 @@ namespace OpenSSL.Core.Tests
             VerifyEncryptionEnabled(server.Client);
 
             //verify reads
-            await VerifyRead(client, server.Client);
-            await VerifyRead(server.Client, client);
+            await VerifyRead(client, server.Client, clientMessage);
+            await VerifyRead(server.Client, client, serverMessage);
 
             //shutdown client socket
             client.Socket.Shutdown(SocketShutdown.Receive);
@@ -301,8 +301,8 @@ namespace OpenSSL.Core.Tests
             Assert.True(client.SessionReused);
 
             //verify reads
-            await VerifyRead(client, server.Client);
-            await VerifyRead(server.Client, client);
+            await VerifyRead(client, server.Client, clientMessage);
+            await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
             await DisposeConnections(client, server);
@@ -341,8 +341,8 @@ namespace OpenSSL.Core.Tests
             Assert.True(validationCalled);
 
             //verify reads
-            await VerifyRead(client, server.Client);
-            await VerifyRead(server.Client, client);
+            await VerifyRead(client, server.Client, clientMessage);
+            await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
             await DisposeConnections(client, server);
@@ -372,8 +372,8 @@ namespace OpenSSL.Core.Tests
             VerifyEncryptionEnabled(server.Client);
 
             //verify reads
-            await VerifyRead(client, server.Client);
-            await VerifyRead(server.Client, client);
+            await VerifyRead(client, server.Client, clientMessage);
+            await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
             await DisposeConnections(client, server);
@@ -426,8 +426,8 @@ namespace OpenSSL.Core.Tests
             Assert.True(clientCallbackCalled);
 
             //verify reads
-            await VerifyRead(client, server.Client);
-            await VerifyRead(server.Client, client);
+            await VerifyRead(client, server.Client, clientMessage);
+            await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
             await DisposeConnections(client, server);
@@ -456,10 +456,122 @@ namespace OpenSSL.Core.Tests
             VerifyEncryptionEnabled(server.Client, this.ctx.ClientCertificate);
 
             //verify reads
-            await VerifyRead(client, server.Client);
-            await VerifyRead(server.Client, client);
+            await VerifyRead(client, server.Client, clientMessage);
+            await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
+            await DisposeConnections(client, server);
+        }
+
+        [Fact]
+        public async Task TestConnectionBigData()
+        {
+            //connect to server
+            SocketConnection client = await CreateClient(this.serverListener);
+
+            //get client from server
+            ClientWrapper server = this.serverListener.GetNextClient();
+
+            ValueTask<FlushResult> flushResult;
+            ValueTask<ReadResult> clientResult;
+            ReadResult readResult;
+            long read = 0;
+            int position, currentInput = 0;
+            int bufferSize = 1024 * 1024 * 4;
+            Memory<byte> buffer;
+
+            while (read < 1024 * 1024 * 1024)
+            {
+                buffer = server.Client.Output.GetMemory(bufferSize);
+                Interop.Random.PseudoBytes(buffer.Span);
+                server.Client.Output.Advance(buffer.Length);
+
+                flushResult = server.Client.Output.FlushAsync();
+                if (!flushResult.IsCompleted)
+                    await flushResult.ConfigureAwait(false);
+
+                currentInput = 0;
+                while (currentInput < buffer.Length)
+                {
+                    clientResult = client.Input.ReadAsync();
+                    if (!clientResult.IsCompleted)
+                        readResult = await clientResult.ConfigureAwait(false);
+                    else
+                        readResult = clientResult.Result;
+
+                    position = 0;
+                    foreach (ReadOnlyMemory<byte> buf in readResult.Buffer)
+                    {
+                        Assert.True(buf.Span.SequenceEqual(buffer.Span.Slice(currentInput + position, buf.Length)));
+                        position += buf.Length;
+                    }
+
+                    read += readResult.Buffer.Length;
+                    currentInput += (int)readResult.Buffer.Length;
+                    client.Input.AdvanceTo(readResult.Buffer.End);
+                }
+            }
+
+            await DisposeConnections(client, server);
+        }
+
+        [Fact]
+        public async Task TestSSLConnectionBigData()
+        {
+            //connect to server
+            SocketConnection client = await CreateClient(this.serverListener);
+
+            //get client from server
+            ClientWrapper server = this.serverListener.GetNextClient();
+
+            //enable encryption
+            await Task.WhenAll(client.AuthenticateAsClientAsync(), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
+
+            //verify TLS enabled
+            VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);
+            VerifyEncryptionEnabled(server.Client);
+
+            ValueTask<FlushResult> flushResultTask;
+            ValueTask<ReadResult> readResultTask;
+            ReadResult readResult;
+            FlushResult flushResult;
+            long read = 0;
+            int position, currentInput = 0;
+            int bufferSize = 1024 * 1024 * 4;
+            Memory<byte> buffer;
+
+            while (read < 1024 * 1024 * 1024)
+            {
+                buffer = server.Client.Output.GetMemory(bufferSize);
+                Interop.Random.PseudoBytes(buffer.Span);
+                server.Client.Output.Advance(buffer.Length);
+
+                flushResultTask = server.Client.Output.FlushAsync();
+                if (!flushResultTask.IsCompleted)
+                    flushResult = await flushResultTask.ConfigureAwait(false);
+
+                currentInput = 0;
+                while (currentInput < buffer.Length)
+                {
+                    readResultTask = client.Input.ReadAsync();
+                    if (!readResultTask.IsCompleted)
+                        readResult = await readResultTask.ConfigureAwait(false);
+                    else
+                        readResult = readResultTask.Result;
+
+                    position = 0;
+                    foreach (ReadOnlyMemory<byte> buf in readResult.Buffer)
+                    {
+                        Assert.True(buf.Span.SequenceEqual(buffer.Span.Slice(currentInput + position, buf.Length)));
+                        position += buf.Length;
+                    }
+
+                    read += readResult.Buffer.Length;
+                    currentInput += (int)readResult.Buffer.Length;
+                    client.Input.AdvanceTo(readResult.Buffer.End);
+                }
+            }
+
             await DisposeConnections(client, server);
         }
     }

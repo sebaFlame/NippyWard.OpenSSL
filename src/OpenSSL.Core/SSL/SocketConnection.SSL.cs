@@ -2,22 +2,21 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using System.IO.Pipelines;
 using System.Buffers;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Reflection;
+using System.Diagnostics;
 
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop.SafeHandles.SSL;
 using OpenSSL.Core.Interop.SafeHandles.X509;
-using OpenSSL.Core.Interop.SafeHandles.Crypto;
 using OpenSSL.Core.Interop.Wrappers;
 using OpenSSL.Core.X509;
 using OpenSSL.Core.Keys;
 using OpenSSL.Core.Collections;
 using OpenSSL.Core.Error;
+using OpenSSL.Core.SSL.Pipelines;
 
 namespace OpenSSL.Core.SSL
 {
@@ -62,11 +61,9 @@ namespace OpenSSL.Core.SSL
         internal SslState SslState
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return (SslState)Thread.VolatileRead(ref this._sslState);
-            }
+            get => (SslState)Thread.VolatileRead(ref this._sslState);
         }
+
         private bool TrySetSslState(SslState expectedState, SslState newValue) => Interlocked.CompareExchange(ref this._sslState, (int)newValue, (int)expectedState) == (int)expectedState;
         #endregion
 
@@ -278,11 +275,15 @@ namespace OpenSSL.Core.SSL
             return read;
         }
 
-        internal int ReadFromSsl(Memory<byte> writeBuffer)
+        internal int ReadFromSsl(Memory<byte> writeBuffer, out int pending)
         {
             int read = this.SSLWrapper.SSL_read(this.sslHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length);
+            pending = this.SSLWrapper.SSL_pending(this.sslHandle);
 
             //TODO: manage renegotiate
+
+            //check if pending
+            Debug.Assert(pending == 0);
 
             if (read > 0)
                 return read;
@@ -300,13 +301,17 @@ namespace OpenSSL.Core.SSL
             throw new InvalidOperationException($"SSL error: {error.ToString()}");
         }
 
-        internal int WriteToSsl(ReadOnlyMemory<byte> readBuffer)
+        internal int WriteToSsl(ReadOnlyMemory<byte> readBuffer, int startPostion = 0)
         {
-            int written = this.SSLWrapper.SSL_write(this.sslHandle, readBuffer.Span.GetPinnableReference(), readBuffer.Length);
+            ReadOnlySpan<byte> buffer;
+            int written;
 
-            //should not happen with PARTIAL_WRITE enabled
-            if(written < readBuffer.Length)
-                throw new ArgumentOutOfRangeException("Data not correctly written to SSL"); //TODO: undo operation / advance pipe?
+            if (startPostion == 0)
+                buffer = readBuffer.Span;
+            else
+                buffer = readBuffer.Slice(startPostion).Span;
+
+            written = this.SSLWrapper.SSL_write(this.sslHandle, buffer.GetPinnableReference(), buffer.Length);
 
             if (written > 0)
                 return written;
@@ -321,9 +326,20 @@ namespace OpenSSL.Core.SSL
             throw new InvalidOperationException($"SSL error: {error.ToString()}");
         }
 
-        internal int ReadFromSslBio(Memory<byte> writeBuffer)
+        internal int ReadFromSslBio(Memory<byte> writeBuffer, out int pending)
         {
-            return this.CryptoWrapper.BIO_read(this.writeHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length);
+            pending = 0;
+            if (writeBuffer.IsEmpty)
+                return (int)this.CryptoWrapper.BIO_ctrl_pending(this.writeHandle);
+
+            try
+            {
+                return this.CryptoWrapper.BIO_read(this.writeHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length);
+            }
+            finally
+            {
+                pending = (int)this.CryptoWrapper.BIO_ctrl_pending(this.writeHandle);
+            }
         }
 
         private ValueTask<FlushResult> WritePending()
@@ -335,16 +351,16 @@ namespace OpenSSL.Core.SSL
             while ((waiting = this.CryptoWrapper.BIO_ctrl_pending(this.writeHandle)) > 0)
             {
                 //get a buffer from the writer pool
-                writeBuffer = this._sendToSocket.Writer.GetMemory(Native.SSL2_MAX_RECORD_LENGTH_3_BYTE_HEADER);
+                writeBuffer = this._sendToSocket.GetMemoryInternal(Native.SSL2_MAX_RECORD_LENGTH_3_BYTE_HEADER);
 
                 //read what needs to be sent to the other party
                 read = this.CryptoWrapper.BIO_read(this.writeHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length);
 
                 //advance writer
-                this._sendToSocket.Writer.Advance(read);
+                this._sendToSocket.AdvanceInternal(read);
             }
 
-            return this._sendToSocket.Writer.FlushAsync();
+            return this._sendToSocket.FlushAsyncInternal(CancellationToken.None);
         }
 
         private async Task ReadPending(SslError sslError)
@@ -358,7 +374,7 @@ namespace OpenSSL.Core.SSL
             if (sslError != SslError.SSL_ERROR_WANT_READ)
                 return;
 
-            ValueTask<ReadResult> readResultTask = this._receiveFromSocket.Reader.ReadAsync();
+            ValueTask<ReadResult> readResultTask = this._receiveFromSocket.ReadAsyncInternal(CancellationToken.None);
             if (!readResultTask.IsCompleted)
                 readResult = await readResultTask.ConfigureAwait(false);
             else
@@ -369,7 +385,7 @@ namespace OpenSSL.Core.SSL
 
             if (sequence.IsEmpty)
             {
-                this._receiveFromSocket.Reader.AdvanceTo(endPosition);
+                this._receiveFromSocket.AdvanceReaderInternal(endPosition);
                 return;
             }
 
@@ -394,7 +410,7 @@ namespace OpenSSL.Core.SSL
             }
 
             //advance to the end of the last read frame
-            this._receiveFromSocket.Reader.AdvanceTo(endPosition);
+            this._receiveFromSocket.AdvanceReaderInternal(endPosition);
         }
 
         #region OpenSSL native callbacks

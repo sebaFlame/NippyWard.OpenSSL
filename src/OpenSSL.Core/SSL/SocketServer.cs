@@ -1,8 +1,9 @@
 ﻿using System;
-using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+
+using OpenSSL.Core.SSL.Pipelines;
 
 namespace OpenSSL.Core.SSL
 {

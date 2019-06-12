@@ -227,6 +227,7 @@ namespace OpenSSL.Core.Interop
         public const ulong OPENSSL_INIT_LOAD_SSL_STRINGS = 0x00200000L;
 
         public const int SSL_CTRL_MODE = 33;
+        public const int SSL_CTRL_SET_READ_AHEAD = 41;
 
         public const int SSL_SESS_CACHE_OFF = 0x0000;
         public const int SSL_SESS_CACHE_CLIENT = 0x0001;

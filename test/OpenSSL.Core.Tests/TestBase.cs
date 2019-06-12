@@ -34,6 +34,7 @@ using Xunit.Abstractions;
 
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Error;
+using OpenSSL.Core.SSL;
 
 namespace OpenSSL.Core.Tests
 {
@@ -56,7 +57,6 @@ namespace OpenSSL.Core.Tests
             List<string> errors = OpenSslError.GetErrors();
             foreach (var err in errors)
             {
-                Debug.WriteLine("ERROR: {0}", err);
                 this.OutputHelper.WriteLine("ERROR: {0}", err);
             }
             Assert.Empty(errors);
@@ -67,7 +67,6 @@ namespace OpenSSL.Core.Tests
             List<MemoryProblem> lstMemoryProblem = MemoryTracker.Finish();
             foreach (var mem in lstMemoryProblem.ToList())
             {
-                Debug.WriteLine("MEMORY: {0}", mem);
                 this.OutputHelper.WriteLine("MEMORY: {0}", mem);
 
                 #region per thread allocations (these get deallocated when the threads exit on windows)

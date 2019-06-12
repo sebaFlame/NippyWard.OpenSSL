@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO.Pipelines;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-using OpenSSL.Core.SSL.PipeLines;
+using OpenSSL.Core.SSL.Pipelines;
 
 namespace OpenSSL.Core.SSL
 {
@@ -189,7 +188,7 @@ namespace OpenSSL.Core.SSL
 #endif
 
         [Conditional("VERBOSE")]
-        private void DebugLog(string message, [CallerMemberName] string caller = null, [CallerLineNumber] int lineNumber = 0) => Helpers.DebugLog(Name, message, $"{caller}#{lineNumber}");
+        internal void DebugLog(string message, [CallerMemberName] string caller = null, [CallerLineNumber] int lineNumber = 0) => Helpers.DebugLog(Name, message, $"{caller}#{lineNumber}");
 
         /// <summary>
         /// Release any resources held by this instance
@@ -250,11 +249,6 @@ namespace OpenSSL.Core.SSL
             this._sendToSocket.Reset();
             this._receiveFromSocket.Reset();
 
-            //reset intermediate pipe state
-            //should already be completed
-            this._socketReader.OutputPipe.Reset();
-            this._socketWriter.InputPipe.Reset();
-
             //reset connection state
             //all threads should be stopped by now
             Interlocked.Exchange(ref this._sslState, 0);
@@ -263,18 +257,16 @@ namespace OpenSSL.Core.SSL
         /// <summary>
         /// Connection for receiving data
         /// </summary>
-        private SocketPipeReader _socketReader;
         /// <summary>
         /// WARNING
         /// NOT thread safe
         /// </summary>
-        public PipeReader Input => this._socketReader;
+        public PipeReader Input => this._receiveFromSocket.Reader;
 
         /// <summary>
         /// Connection for sending data
         /// </summary>
-        private SocketPipeWriter _socketWriter;
-        public PipeWriter Output => this._socketWriter;
+        public PipeWriter Output => this._sendToSocket.Writer;
         private string Name { get; }
 
         /// <summary>
@@ -287,7 +279,8 @@ namespace OpenSSL.Core.SSL
         /// </summary>
         public Socket Socket { get; private set; }
 
-        private readonly Pipe _sendToSocket, _receiveFromSocket;
+        private readonly SocketPipeWriter _sendToSocket;
+        private readonly SocketPipeReader _receiveFromSocket;
         // TODO: flagify
 #pragma warning disable CS0414, CS0649
         private volatile bool _sendAborted, _receiveAborted;
@@ -323,13 +316,10 @@ namespace OpenSSL.Core.SSL
 
             Socket = socket ?? throw new ArgumentNullException(nameof(socket));
             SocketConnectionOptions = socketConnectionOptions;
-            _sendToSocket = new Pipe(sendPipeOptions);
-            _receiveFromSocket = new Pipe(receivePipeOptions);
+            _sendToSocket = new SocketPipeWriter(sendPipeOptions, this);
+            _receiveFromSocket = new SocketPipeReader(receivePipeOptions, this);
             _receiveOptions = receivePipeOptions;
             _sendOptions = sendPipeOptions;
-
-            this._socketReader = new SocketPipeReader(this._receiveFromSocket, this._receiveOptions, this);
-            this._socketWriter = new SocketPipeWriter(this._sendToSocket, this._sendOptions, this);
 
             this.InitializeDefaultThreads();
         }
@@ -340,25 +330,21 @@ namespace OpenSSL.Core.SSL
             {
                 _sendToSocket.Writer.OnReaderCompleted((ex, state) =>
                 {
-                    this._socketWriter.Complete(ex);
                     TrySetShutdown(ex, state, PipeShutdownKind.OutputReaderCompleted);
                 }, this);
 
                 _sendToSocket.Reader.OnWriterCompleted((ex, state) =>
                 {
-                    this._socketWriter.Complete(ex);
                     TrySetShutdown(ex, state, PipeShutdownKind.OutputWriterCompleted);
                 }, this);
 
                 _receiveFromSocket.Reader.OnWriterCompleted((ex, state) =>
                 {
-                    this._socketReader.Complete(ex);
                     TrySetShutdown(ex, state, PipeShutdownKind.InputWriterCompleted);
                 }, this);
 
                 _receiveFromSocket.Writer.OnReaderCompleted((ex, state) =>
                 {
-                    this._socketReader.Complete(ex);
                     TrySetShutdown(ex, state, PipeShutdownKind.InputReaderCompleted);
                     try { ((SocketConnection)state).Socket.Shutdown(SocketShutdown.Receive); }
                     catch { }

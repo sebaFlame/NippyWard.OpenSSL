@@ -161,7 +161,7 @@ namespace OpenSSL.Core.SSL
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void CheckPipe() => GC.KeepAlive(typeof(System.IO.Pipelines.Pipe));
+        private static void CheckPipe() => GC.KeepAlive(typeof(OpenSSL.Core.SSL.Pipelines.Pipe));
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void CheckBuffers() => GC.KeepAlive(typeof(System.Buffers.ArrayPool<byte>));
@@ -196,7 +196,11 @@ namespace OpenSSL.Core.SSL
                 var s = $"[{threadName}, {name}, {caller}]: {message}";
                 lock (log)
                 {
-                    try { log.WriteLine(s); }
+                    try
+                    {
+                        log.WriteLine(s);
+                        Debug.WriteLine(s);
+                    }
                     catch { }
                 }
             }

@@ -182,6 +182,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int SSL_read(SSL *ssl, void *buf, int num);
         [DontCheckReturnType]
         int SSL_read(SafeSslHandle ssl, ref byte buf, int len);
+        //int SSL_pending(const SSL *ssl);
+        [DontCheckReturnType]
+        int SSL_pending(SafeSslHandle ssl);
 
         //int SSL_renegotiate(SSL *s);
         int SSL_renegotiate(SafeSslHandle ssl);
