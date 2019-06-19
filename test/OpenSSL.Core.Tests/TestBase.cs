@@ -45,7 +45,9 @@ namespace OpenSSL.Core.Tests
         protected TestBase(ITestOutputHelper outputHelper)
         {
             this.OutputHelper = outputHelper;
+#if ENABLE_MEMORYTRACKER
             MemoryTracker.Start();
+#endif
         }
 
         protected abstract void Dispose(bool disposing);
@@ -64,20 +66,21 @@ namespace OpenSSL.Core.Tests
             //de-allocate per thread allocations for the current thread
             //Native.CryptoWrapper.OPENSSL_thread_stop();
 
+#if ENABLE_MEMORYTRACKER
             List<MemoryProblem> lstMemoryProblem = MemoryTracker.Finish();
             foreach (var mem in lstMemoryProblem.ToList())
             {
                 this.OutputHelper.WriteLine("MEMORY: {0}", mem);
 
-                #region per thread allocations (these get deallocated when the threads exit on windows)
+                //per thread allocations (these get deallocated when the threads exit on windows)
                 if (mem.File.Equals(@"crypto\err\err.c") && mem.Line == 673)
                     lstMemoryProblem.Remove(mem);
 
                 if (mem.File.Equals(@"crypto\init.c") && mem.Line == 63)
                     lstMemoryProblem.Remove(mem);
-                #endregion
             }
             Assert.Empty(lstMemoryProblem);
+#endif
         }
 	}
 }

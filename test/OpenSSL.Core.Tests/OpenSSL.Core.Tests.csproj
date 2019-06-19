@@ -16,6 +16,11 @@
     <PackageReference Include="runtime.win.OpenSSL" Version="1.1.0-j" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <EnableMemoryTracker Condition="'$(EnableMemoryTracker)' == '' AND '$(Configuration)' == 'Debug'">false</EnableMemoryTracker>
+    <DefineConstants Condition="'$(EnableMemoryTracker)' == 'true'">$(DefineConstants);ENABLE_MEMORYTRACKER</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1" />

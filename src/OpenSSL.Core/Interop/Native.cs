@@ -29,6 +29,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
+using System.Diagnostics;
 
 using OpenSSL.Core.Error;
 using OpenSSL.Core.Interop.Wrappers;
@@ -63,6 +65,8 @@ namespace OpenSSL.Core.Interop
 
         static Native()
         {
+            //while(!Debugger.IsAttached) Thread.Sleep(500);
+
             switch (Microsoft.DotNet.PlatformAbstractions.RuntimeEnvironment.GetRuntimeIdentifier())
             {
                 case "win7-x64":
@@ -103,15 +107,11 @@ namespace OpenSSL.Core.Interop
             MemoryTracker.Init();
 #endif
 
-            CryptoWrapper.OPENSSL_init_crypto(
+            SSLWrapper.OPENSSL_init_ssl(
+                OPENSSL_INIT_LOAD_SSL_STRINGS | 
                 OPENSSL_INIT_LOAD_CRYPTO_STRINGS |
-                OPENSSL_INIT_ADD_ALL_CIPHERS |
-                OPENSSL_INIT_ADD_ALL_DIGESTS |
                 OPENSSL_INIT_NO_ADD_ALL_MACS |
-                OPENSSL_INIT_NO_LOAD_CONFIG |
                 OPENSSL_INIT_ENGINE_ALL_BUILTIN, IntPtr.Zero);
-
-            SSLWrapper.OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, IntPtr.Zero);
 
             CryptoWrapper.ENGINE_load_builtin_engines();
             CryptoWrapper.ENGINE_register_all_complete();

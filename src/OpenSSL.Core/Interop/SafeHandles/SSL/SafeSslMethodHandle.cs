@@ -45,7 +45,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
         /// <summary>
         /// Default client method
         /// </summary>
-        public static SafeSslMethodHandle DefaultCientMethod => TLS_client_method;
+        public static SafeSslMethodHandle DefaultClientMethod => TLS_client_method;
 
 
         public static SafeSslMethodHandle DefaultServerMethod => TLS_server_method;

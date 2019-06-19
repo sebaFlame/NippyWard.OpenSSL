@@ -319,7 +319,7 @@ namespace OpenSSL.Core.SSL
             if (isServer)
                 this.SslContextWrapper.SslContextHandle = this.SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultServerMethod);
             else
-                this.SslContextWrapper.SslContextHandle = this.SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultCientMethod);
+                this.SslContextWrapper.SslContextHandle = this.SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultClientMethod);
 
             this.SSLWrapper.SSL_CTX_ctrl(this.SslContextWrapper.SslContextHandle, Native.SSL_CTRL_MODE, (int)SslMode.SSL_MODE_ENABLE_PARTIAL_WRITE, IntPtr.Zero);
 
@@ -452,6 +452,7 @@ namespace OpenSSL.Core.SSL
                         throw new OpenSslException();
                     }
 
+                    //TODO: await actual send
                     flushResult = this.WritePending();
                     if (!flushResult.IsCompleted)
                         await flushResult.ConfigureAwait(false);

@@ -67,7 +67,7 @@ namespace OpenSSL.Core.SSL.Pipelines
             do
             {
                 buffer = this.GetMemory(pending, ref defaultSequence);
-                consumed = this.CurrentConnection.ReadFromSslBio(buffer, out pending);
+                read += (consumed = this.CurrentConnection.ReadFromSslBio(buffer, out pending));
                 this.Advance(consumed, ref defaultSequence);
             } while (pending > 0);
 

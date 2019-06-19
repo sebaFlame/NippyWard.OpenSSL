@@ -161,8 +161,6 @@ namespace OpenSSL.Core.SSL
         /// <param name="socket">The socket to set options against</param>
         public static void SetRecommendedClientOptions(Socket socket)
         {
-            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, false);
-
             if (socket.AddressFamily == AddressFamily.Unix) return;
 
             try { socket.NoDelay = true; } catch (Exception ex) { Helpers.DebugLog(nameof(SocketConnection), ex.Message); }

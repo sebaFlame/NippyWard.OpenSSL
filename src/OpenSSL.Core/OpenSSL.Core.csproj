@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <EnableMemoryTracker Condition="'$(EnableMemoryTracker)' == '' AND '$(Configuration)' == 'Debug'">true</EnableMemoryTracker>
+    <EnableMemoryTracker Condition="'$(EnableMemoryTracker)' == '' AND '$(Configuration)' == 'Debug'">false</EnableMemoryTracker>
     <DefineConstants Condition="'$(EnableMemoryTracker)' == 'true'">$(DefineConstants);ENABLE_MEMORYTRACKER</DefineConstants>
   </PropertyGroup>
 

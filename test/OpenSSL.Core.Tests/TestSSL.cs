@@ -53,36 +53,30 @@ namespace OpenSSL.Core.Tests
         static byte[] clientMessage = Encoding.ASCII.GetBytes("This is a message from the client");
         static byte[] serverMessage = Encoding.ASCII.GetBytes("This is a message from the server");
 
-        private SocketServerImplementation serverListener;
-
         public TestSSL(ITestOutputHelper outputHelper)
             : base(outputHelper)
         {
             this.ctx = new SslTestContext();
-
-            //create server
-            this.serverListener = CreateServer();
         }
 
         protected override void Dispose(bool disposing)
         {
-            this.serverListener?.Dispose();
             this.ctx?.Dispose();
         }
 
-        private static SocketServerImplementation CreateServer()
+        private static SocketServerImplementation CreateServer(PipeOptions pipeOptions = null)
         {
             IPEndPoint serverEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
             SocketServerImplementation serverListener = new SocketServerImplementation();
-            serverListener.Listen(serverEndPoint);
+            serverListener.Listen(serverEndPoint, sendOptions: pipeOptions, receiveOptions: pipeOptions);
 
             return serverListener;
         }
 
-        private static Task<SocketConnection> CreateClient(SocketServerImplementation serverListener)
+        private static Task<SocketConnection> CreateClient(SocketServerImplementation serverListener, PipeOptions pipeOptions = null)
         {
             IPEndPoint clientEndPoint = new IPEndPoint(IPAddress.Loopback, ((IPEndPoint)serverListener.Listener.LocalEndPoint).Port);
-            return SocketConnection.ConnectAsync(clientEndPoint, name: "client");
+            return SocketConnection.ConnectAsync(clientEndPoint, name: "client", pipeOptions: pipeOptions);
         }
 
         private static async Task VerifyRead(SocketConnection client, SocketConnection server, byte[] message)
@@ -104,9 +98,10 @@ namespace OpenSSL.Core.Tests
             server.Input.AdvanceTo(readResult.Buffer.End);
         }
 
-        private static Task DisposeConnections(SocketConnection client, ClientWrapper server)
+        private static async Task DisposeConnections(SocketConnection client, ClientWrapper server, SocketServerImplementation serverListener)
         {
-            return Task.WhenAll(Task.Factory.StartNew(client.Dispose), Task.Factory.StartNew(server.Dispose));
+            await Task.WhenAll(Task.Factory.StartNew(client.Dispose), Task.Factory.StartNew(server.Dispose));
+            serverListener.Dispose();
         }
 
         private static void VerifyEncryptionEnabled(SocketConnection client, X509Certificate remoteCertificate = null)
@@ -120,28 +115,34 @@ namespace OpenSSL.Core.Tests
         [Fact]
         public async Task TestConnectionBasic()
         {
+            //create server
+            SocketServerImplementation serverListener = CreateServer();
+
             //connect to server
-            SocketConnection client = await CreateClient(this.serverListener);
+            SocketConnection client = await CreateClient(serverListener);
 
             //get client from server
-            ClientWrapper server = this.serverListener.GetNextClient();
+            ClientWrapper server = serverListener.GetNextClient();
 
             //verify reads
             await VerifyRead(client, server.Client, clientMessage);
             await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
-            await DisposeConnections(client, server);
+            await DisposeConnections(client, server, serverListener);
         }
 
         [Fact]
         public async Task TestSSLConnectionBasic()
         {
+            //create server
+            SocketServerImplementation serverListener = CreateServer();
+
             //connect to server
-            SocketConnection client = await CreateClient(this.serverListener);
+            SocketConnection client = await CreateClient(serverListener);
 
             //get client from server
-            ClientWrapper server = this.serverListener.GetNextClient();
+            ClientWrapper server = serverListener.GetNextClient();
 
             //enable encryption
             await Task.WhenAll(client.AuthenticateAsClientAsync(), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
@@ -155,17 +156,20 @@ namespace OpenSSL.Core.Tests
             await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
-            await DisposeConnections(client, server);
+            await DisposeConnections(client, server, serverListener);
         }
 
         [Fact]
         public async Task TestSSLConnectionThreadedRead()
         {
+            //create server
+            SocketServerImplementation serverListener = CreateServer();
+
             //connect to server
-            SocketConnection client = await CreateClient(this.serverListener);
+            SocketConnection client = await CreateClient(serverListener);
 
             //get client from server
-            ClientWrapper server = this.serverListener.GetNextClient();
+            ClientWrapper server = serverListener.GetNextClient();
 
             CancellationTokenSource readCancel = new CancellationTokenSource();
             TaskCompletionSource<ReadResult> readCorrectServerMessage = new TaskCompletionSource<ReadResult>();
@@ -251,17 +255,20 @@ namespace OpenSSL.Core.Tests
             await Task.WhenAll(clientReadTask, serverReadTask);
 
             //dispose client/server client
-            await DisposeConnections(client, server);
+            await DisposeConnections(client, server, serverListener);
         }
 
         [Fact]
         public async Task TestSSLConnectionSession()
         {
+            //create server
+            SocketServerImplementation serverListener = CreateServer();
+
             //connect to server
-            SocketConnection client = await CreateClient(this.serverListener);
+            SocketConnection client = await CreateClient(serverListener);
 
             //get client from server
-            ClientWrapper server = this.serverListener.GetNextClient();
+            ClientWrapper server = serverListener.GetNextClient();
 
             //enable encryption
             await Task.WhenAll(client.AuthenticateAsClientAsync(), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
@@ -285,7 +292,7 @@ namespace OpenSSL.Core.Tests
             await Task.WhenAll(client.Reset(), Task.Run(server.Dispose));
 
             //reconnect client
-            await client.ConnectAsync(this.serverListener.Listener.LocalEndPoint);
+            await client.ConnectAsync(serverListener.Listener.LocalEndPoint);
 
             //get new server client
             server = serverListener.GetNextClient();
@@ -305,7 +312,7 @@ namespace OpenSSL.Core.Tests
             await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
-            await DisposeConnections(client, server);
+            await DisposeConnections(client, server, serverListener);
         }
 
         [Fact]
@@ -321,11 +328,14 @@ namespace OpenSSL.Core.Tests
                 return true;
             });
 
+            //create server
+            SocketServerImplementation serverListener = CreateServer();
+
             //connect to server
-            SocketConnection client = await CreateClient(this.serverListener);
+            SocketConnection client = await CreateClient(serverListener);
 
             //get client from server
-            ClientWrapper server = this.serverListener.GetNextClient();
+            ClientWrapper server = serverListener.GetNextClient();
 
             //enable encryption
             await Task.WhenAll(
@@ -345,17 +355,20 @@ namespace OpenSSL.Core.Tests
             await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
-            await DisposeConnections(client, server);
+            await DisposeConnections(client, server, serverListener);
         }
 
         [Fact]
         public async Task TestSSLVerification()
         {
+            //create server
+            SocketServerImplementation serverListener = CreateServer();
+
             //connect to server
-            SocketConnection client = await CreateClient(this.serverListener);
+            SocketConnection client = await CreateClient(serverListener);
 
             //get client from server
-            ClientWrapper server = this.serverListener.GetNextClient();
+            ClientWrapper server = serverListener.GetNextClient();
 
             //create CA chain to to verify server certificate
             OpenSslList<X509Certificate> caChain = new OpenSslList<X509Certificate>();
@@ -376,7 +389,7 @@ namespace OpenSSL.Core.Tests
             await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
-            await DisposeConnections(client, server);
+            await DisposeConnections(client, server, serverListener);
         }
 
         [Fact]
@@ -403,11 +416,14 @@ namespace OpenSSL.Core.Tests
                     return (clientCallbackCalled = true);
                 });
 
+            //create server
+            SocketServerImplementation serverListener = CreateServer();
+
             //connect to server
-            SocketConnection client = await CreateClient(this.serverListener);
+            SocketConnection client = await CreateClient(serverListener);
 
             //get client from server
-            ClientWrapper server = this.serverListener.GetNextClient();
+            ClientWrapper server = serverListener.GetNextClient();
 
             //create CA chain to to verify client certificate
             OpenSslList<X509Certificate> caChain = new OpenSslList<X509Certificate>();
@@ -430,17 +446,20 @@ namespace OpenSSL.Core.Tests
             await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
-            await DisposeConnections(client, server);
+            await DisposeConnections(client, server, serverListener);
         }
 
         [Fact]
         public async Task TestSSLClientCertificate()
         {
+            //create server
+            SocketServerImplementation serverListener = CreateServer();
+
             //connect to server
-            SocketConnection client = await CreateClient(this.serverListener);
+            SocketConnection client = await CreateClient(serverListener);
 
             //get client from server
-            ClientWrapper server = this.serverListener.GetNextClient();
+            ClientWrapper server = serverListener.GetNextClient();
 
             //create CA chain to to verify client certificate
             OpenSslList<X509Certificate> caChain = new OpenSslList<X509Certificate>();
@@ -460,24 +479,29 @@ namespace OpenSSL.Core.Tests
             await VerifyRead(server.Client, client, serverMessage);
 
             //dispose client/server client
-            await DisposeConnections(client, server);
+            await DisposeConnections(client, server, serverListener);
         }
 
         [Fact]
         public async Task TestConnectionBigData()
         {
+            int bufferSize = 1024 * 1024 * 4;
+            PipeOptions pipeOptions = new PipeOptions(pauseWriterThreshold: ((bufferSize) + 2048)); // buffersize + 1 mininmal segment
+
+            //create server
+            SocketServerImplementation serverListener = CreateServer(pipeOptions);
+
             //connect to server
-            SocketConnection client = await CreateClient(this.serverListener);
+            SocketConnection client = await CreateClient(serverListener, pipeOptions);
 
             //get client from server
-            ClientWrapper server = this.serverListener.GetNextClient();
+            ClientWrapper server = serverListener.GetNextClient();
 
             ValueTask<FlushResult> flushResult;
             ValueTask<ReadResult> clientResult;
             ReadResult readResult;
             long read = 0;
             int position, currentInput = 0;
-            int bufferSize = 1024 * 1024 * 4;
             Memory<byte> buffer;
 
             while (read < 1024 * 1024 * 1024)
@@ -512,17 +536,23 @@ namespace OpenSSL.Core.Tests
                 }
             }
 
-            await DisposeConnections(client, server);
+            await DisposeConnections(client, server, serverListener);
         }
 
         [Fact]
         public async Task TestSSLConnectionBigData()
         {
+            int bufferSize = 1024 * 1024 * 4;
+            PipeOptions pipeOptions = new PipeOptions(pauseWriterThreshold: ((bufferSize) + 2048)); // buffersize + 1 mininmal segment
+
+            //create server
+            SocketServerImplementation serverListener = CreateServer(pipeOptions);
+
             //connect to server
-            SocketConnection client = await CreateClient(this.serverListener);
+            SocketConnection client = await CreateClient(serverListener, pipeOptions);
 
             //get client from server
-            ClientWrapper server = this.serverListener.GetNextClient();
+            ClientWrapper server = serverListener.GetNextClient();
 
             //enable encryption
             await Task.WhenAll(client.AuthenticateAsClientAsync(), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
@@ -537,7 +567,6 @@ namespace OpenSSL.Core.Tests
             FlushResult flushResult;
             long read = 0;
             int position, currentInput = 0;
-            int bufferSize = 1024 * 1024 * 4;
             Memory<byte> buffer;
 
             while (read < 1024 * 1024 * 1024)
@@ -572,7 +601,7 @@ namespace OpenSSL.Core.Tests
                 }
             }
 
-            await DisposeConnections(client, server);
+            await DisposeConnections(client, server, serverListener);
         }
     }
 
