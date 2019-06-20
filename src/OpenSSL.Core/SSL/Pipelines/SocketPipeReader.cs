@@ -87,7 +87,7 @@ namespace OpenSSL.Core.SSL.Pipelines
             if (!this.CurrentConnection.IsAvailable(out SslState sslState))
                 return this.ReadAsync(cancellationToken, ref readerAwaitable, ref this._readerInterruptAwaitable);
 
-            return this.ReadAsync(cancellationToken, ref readerAwaitable, ref readerAwaitable);                
+            return this.ReadAsync(cancellationToken, ref readerAwaitable, ref readerAwaitable);
         }
 
         internal override ValueTask<ReadResult> GetReadResultAsync(in IValueTaskSource<ReadResult> pipeReader, ref PipeAwaitable pipeAwaitable)

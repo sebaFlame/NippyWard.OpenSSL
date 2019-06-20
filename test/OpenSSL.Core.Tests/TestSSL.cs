@@ -198,6 +198,7 @@ namespace OpenSSL.Core.Tests
                         throw;
                     }
 
+                    client.Input.AdvanceTo(currentReadResult.Buffer.End);
                     readCorrectServerMessage.SetResult(currentReadResult);
                 } while ((!readCancel.IsCancellationRequested));
             });
@@ -224,6 +225,7 @@ namespace OpenSSL.Core.Tests
                         throw;
                     }
 
+                    server.Client.Input.AdvanceTo(currentReadResult.Buffer.End);
                     readCorrectClientMessage.SetResult(currentReadResult);
                 } while ((!readCancel.IsCancellationRequested));
             });
@@ -232,7 +234,6 @@ namespace OpenSSL.Core.Tests
             await server.Client.Output.WriteAsync(serverMessage);
             clientResult = await readCorrectServerMessage.Task;
             Assert.True(clientResult.Buffer.First.Span.SequenceEqual(serverMessage));
-            client.Input.AdvanceTo(clientResult.Buffer.End);
 
             //TODO: can not reverse, client path too (?) synchronous
             Task serverAuthenticate = server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey);
@@ -249,7 +250,6 @@ namespace OpenSSL.Core.Tests
             await client.Output.WriteAsync(clientMessage);
             serverResult = await readCorrectClientMessage.Task;
             Assert.True(serverResult.Buffer.First.Span.SequenceEqual(clientMessage));
-            server.Client.Input.AdvanceTo(serverResult.Buffer.End);
 
             readCancel.Cancel();
             await Task.WhenAll(clientReadTask, serverReadTask);
