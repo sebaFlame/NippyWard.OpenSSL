@@ -145,7 +145,7 @@ namespace OpenSSL.Core.Tests
             ClientWrapper server = serverListener.GetNextClient();
 
             //enable encryption
-            await Task.WhenAll(client.AuthenticateAsClientAsync(), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
+            await Task.WhenAll(client.AuthenticateAsClientAsync(SslProtocol.Tls12), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
 
             //verify TLS enabled
             VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);
@@ -236,7 +236,7 @@ namespace OpenSSL.Core.Tests
 
             //TODO: can not reverse, client path too (?) synchronous
             Task serverAuthenticate = server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey);
-            Task clientAuthenticate = client.AuthenticateAsClientAsync();
+            Task clientAuthenticate = client.AuthenticateAsClientAsync(SslProtocol.Tls12);
 
             //enable encryption
             await Task.WhenAll(clientAuthenticate, serverAuthenticate);
@@ -271,7 +271,7 @@ namespace OpenSSL.Core.Tests
             ClientWrapper server = serverListener.GetNextClient();
 
             //enable encryption
-            await Task.WhenAll(client.AuthenticateAsClientAsync(), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
+            await Task.WhenAll(client.AuthenticateAsClientAsync(SslProtocol.Tls12), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
 
             //verify if encryption is enabled
             VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);
@@ -298,7 +298,7 @@ namespace OpenSSL.Core.Tests
             server = serverListener.GetNextClient();
 
             //re-authenticate client/server with session reuse
-            await Task.WhenAll(client.AuthenticateAsClientAsync(), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
+            await Task.WhenAll(client.AuthenticateAsClientAsync(SslProtocol.Tls12), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
 
             //verify if encryption is enabled
             VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);
@@ -339,7 +339,7 @@ namespace OpenSSL.Core.Tests
 
             //enable encryption
             await Task.WhenAll(
-                client.AuthenticateAsClientAsync(validate), 
+                client.AuthenticateAsClientAsync(validate, SslProtocol.Tls12), 
                 server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey)
             );
 
@@ -376,7 +376,7 @@ namespace OpenSSL.Core.Tests
 
             //enable encryption
             await Task.WhenAll(
-                client.AuthenticateAsClientAsync(caChain),
+                client.AuthenticateAsClientAsync(caChain, SslProtocol.Tls12),
                 server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey)
             );
 
@@ -431,7 +431,7 @@ namespace OpenSSL.Core.Tests
 
             //enable encryption
             await Task.WhenAll(
-                client.AuthenticateAsClientAsync(clientCertCallback), 
+                client.AuthenticateAsClientAsync(clientCertCallback, SslProtocol.Tls12), 
                 server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey, caChain));
 
             //verify if encryption is enabled
@@ -467,7 +467,7 @@ namespace OpenSSL.Core.Tests
 
             //enable encryption
             await Task.WhenAll(
-                client.AuthenticateAsClientAsync(this.ctx.ClientCertificate, this.ctx.ClientKey),
+                client.AuthenticateAsClientAsync(this.ctx.ClientCertificate, this.ctx.ClientKey, SslProtocol.Tls12),
                 server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey, caChain));
 
             //verify if encryption is enabled
@@ -555,7 +555,7 @@ namespace OpenSSL.Core.Tests
             ClientWrapper server = serverListener.GetNextClient();
 
             //enable encryption
-            await Task.WhenAll(client.AuthenticateAsClientAsync(), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
+            await Task.WhenAll(client.AuthenticateAsClientAsync(SslProtocol.Tls12), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
 
             //verify TLS enabled
             VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);

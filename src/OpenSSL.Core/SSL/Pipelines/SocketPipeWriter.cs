@@ -12,9 +12,17 @@ namespace OpenSSL.Core.SSL.Pipelines
 {
     internal sealed class SocketPipeWriter : Pipe
     {
+        private readonly PipeScheduler _readerScheduler;
+        private readonly PipeScheduler _writerScheduler;
+        private SocketPipeWriterAwaitable _socketWriteAwaitable;
+
         public SocketPipeWriter(PipeOptions pipeOptions, SocketConnection socketConnection)
             : base(pipeOptions, socketConnection)
-        {  }
+        {
+            this._readerScheduler = pipeOptions.ReaderScheduler;
+            this._writerScheduler = pipeOptions.WriterScheduler;
+            this._socketWriteAwaitable = new SocketPipeWriterAwaitable(pipeOptions.UseSynchronizationContext);
+        }
 
         internal override void PreProcess(ref BufferSequence writerSequence, ref BufferSequence sslSequence)
         {
@@ -96,6 +104,18 @@ namespace OpenSSL.Core.SSL.Pipelines
                 throw new InvalidOperationException($"Pipe in invalid state {sslState}");
 
             return this.FlushAsync(cancellationToken, ref writerSequence);
+        }
+
+        internal ValueTask<SocketFlushResult> FlushAndAwaitSocketCompletionAsync(CancellationToken cancellationToken)
+        {
+            this._socketWriteAwaitable.Reset(this.FlushAsyncInternal(cancellationToken));
+            return new ValueTask<SocketFlushResult>(this._socketWriteAwaitable, token: 0);
+        }
+
+        internal void CompleteSend(long writtenLength)
+        {
+            this._socketWriteAwaitable.Complete(writtenLength, out CompletionData completionData);
+            TrySchedule(this._writerScheduler, completionData);
         }
 
         internal override ValueTask<ReadResult> ReadAsync(CancellationToken cancellationToken, ref PipeAwaitable readerAwaitable)

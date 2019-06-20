@@ -93,11 +93,11 @@ namespace OpenSSL.Core.SSL
         /// Authenticate as client and validate the remote certificate using <paramref name="remoteValidation"/>
         /// </summary>
         /// <param name="remoteValidation">The validation delegate to verify the server certificate</param>
-        public Task AuthenticateAsClientAsync(RemoteCertificateValidationHandler remoteValidation)
+        public Task AuthenticateAsClientAsync(RemoteCertificateValidationHandler remoteValidation, SslProtocol? sslProtocol = null)
         {
             try
             {
-                this.CreateContexthandle(false, null, null, null);
+                this.CreateContexthandle(false, null, sslProtocol, null);
                 this.SetRemoteValidation(VerifyMode.SSL_VERIFY_PEER, remoteValidation);
                 return this.DoHandshake(false);
             }
@@ -113,11 +113,11 @@ namespace OpenSSL.Core.SSL
         /// </summary>
         /// <param name="remoteCA">The certificate to verify the remote certificate with</param>
         /// <returns></returns>
-        public Task AuthenticateAsClientAsync(IEnumerable<X509Certificate> remoteCA)
+        public Task AuthenticateAsClientAsync(IEnumerable<X509Certificate> remoteCA, SslProtocol? sslProtocol = null)
         {
             try
             {
-                this.CreateContexthandle(false, null, null, null);
+                this.CreateContexthandle(false, null, sslProtocol, null);
 
                 //add the certificates to the trusted store
                 foreach (X509Certificate cert in remoteCA)
@@ -140,11 +140,11 @@ namespace OpenSSL.Core.SSL
         /// </summary>
         /// <param name="clientCertificateCallback">The client certificate callback to use</param>
         /// <returns></returns>
-        public Task AuthenticateAsClientAsync(ClientCertificateCallbackHandler clientCertificateCallback)
+        public Task AuthenticateAsClientAsync(ClientCertificateCallbackHandler clientCertificateCallback, SslProtocol? sslProtocol = null)
         {
             try
             {
-                this.CreateContexthandle(false, null, null, null);
+                this.CreateContexthandle(false, null, sslProtocol, null);
                 this.ClientCertificateCallbackHandler = clientCertificateCallback;
                 return this.DoHandshake(false);
             }
@@ -160,11 +160,11 @@ namespace OpenSSL.Core.SSL
         /// </summary>
         /// <param name="clientCertificate">The client Certificate to use</param>
         /// <param name="clientKey">The client key to use</param>
-        public Task AuthenticateAsClientAsync(X509Certificate clientCertificate, PrivateKey clientKey)
+        public Task AuthenticateAsClientAsync(X509Certificate clientCertificate, PrivateKey clientKey, SslProtocol? sslProtocol = null)
         {
             try
             {
-                this.CreateContexthandle(false, null, null, null);
+                this.CreateContexthandle(false, null, sslProtocol, null);
                 this.SetLocalCertificate(clientCertificate, clientKey);
                 return this.DoHandshake(false);
             }
@@ -338,7 +338,8 @@ namespace OpenSSL.Core.SSL
                 if ((sslProtocol & SslProtocol.Tls12) != SslProtocol.Tls12)
                     protocolOptions |= SslOptions.SSL_OP_NO_TLSv1_2;
 
-                //TODO: TLS1.3
+                if ((sslProtocol & SslProtocol.Tls13) != SslProtocol.Tls13)
+                    protocolOptions |= SslOptions.SSL_OP_NO_TLSv1_3;
             }
 
             this.SSLWrapper.SSL_CTX_set_options(this.SslContextWrapper.SslContextHandle, (long)protocolOptions);
@@ -433,7 +434,8 @@ namespace OpenSSL.Core.SSL
         {
             int ret_code, result;
             ValueTask<FlushResult> flushResult;
-
+            
+            //TODO: wait on all data sent
             this._sendToSocket.StartInterrupt(true);
             this._receiveFromSocket.StartInterrupt(true);
 
@@ -452,7 +454,6 @@ namespace OpenSSL.Core.SSL
                         throw new OpenSslException();
                     }
 
-                    //TODO: await actual send
                     flushResult = this.WritePending();
                     if (!flushResult.IsCompleted)
                         await flushResult.ConfigureAwait(false);
@@ -464,9 +465,6 @@ namespace OpenSSL.Core.SSL
                 //TODO: renegotiation
                 if (this.SessionHandle is null || this.SSLWrapper.SSL_session_reused(this.sslHandle) == 0)
                     this.SessionHandle = this.SSLWrapper.SSL_get_session(this.sslHandle);
-
-                //Debug.Assert(this.SslState == SslState.Handshake);
-                //Debug.WriteLine("This will not work without this call to debug...");
 
                 //set state to established
                 if (!this.TrySetSslState(SslState.Handshake, SslState.Established))

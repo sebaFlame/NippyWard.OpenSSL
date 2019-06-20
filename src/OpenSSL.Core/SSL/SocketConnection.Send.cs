@@ -83,7 +83,8 @@ namespace OpenSSL.Core.SSL
                     finally
                     {
                         DebugLog("advancing");
-                        _sendToSocket.Reader.AdvanceTo(buffer.End);
+                        this._sendToSocket.Reader.AdvanceTo(buffer.End);
+                        this._sendToSocket.CompleteSend(buffer.Length);
                     }
                 }
                 TrySetShutdown(PipeShutdownKind.WriteEndOfStream);

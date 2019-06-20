@@ -345,7 +345,7 @@ namespace OpenSSL.Core.SSL
         private ValueTask<FlushResult> WritePending()
         {
             uint waiting;
-            int read;
+            int read, totalRead = 0;
             Memory<byte> writeBuffer;
 
             while ((waiting = this.CryptoWrapper.BIO_ctrl_pending(this.writeHandle)) > 0)
@@ -354,11 +354,15 @@ namespace OpenSSL.Core.SSL
                 writeBuffer = this._sendToSocket.GetMemoryInternal(Native.SSL2_MAX_RECORD_LENGTH_3_BYTE_HEADER);
 
                 //read what needs to be sent to the other party
-                read = this.CryptoWrapper.BIO_read(this.writeHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length);
+                totalRead += (read = this.CryptoWrapper.BIO_read(this.writeHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length));
 
                 //advance writer
                 this._sendToSocket.AdvanceInternal(read);
             }
+
+            // if (totalRead > 0)
+            //     return this._sendToSocket.FlushAndAwaitSocketCompletionAsync(CancellationToken.None);
+            // return new ValueTask<SocketFlushResult>(new SocketFlushResult(new FlushResult(false, true), 0, false, true));
 
             return this._sendToSocket.FlushAsyncInternal(CancellationToken.None);
         }
