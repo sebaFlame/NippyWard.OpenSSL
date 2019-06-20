@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Description>A toolkit implementing SSL v2/v3 and TLS protocols with full-strength cryptography world-wide.</Description>
-    <VersionPrefix>1.1.0-j</VersionPrefix>
+    <VersionPrefix>1.1.0-k</VersionPrefix>
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageId>runtime.win.OpenSSL</PackageId>
     <PackageTags>openssl;cryptography</PackageTags>
@@ -11,8 +11,8 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <x86FileName>openssl-1.1.0j-win32.zip</x86FileName>
-    <x64FileName>openssl-1.1.0j-win64.zip</x64FileName>
+    <x86FileName>openssl-1.1.0k-win32.zip</x86FileName>
+    <x64FileName>openssl-1.1.0k-win64.zip</x64FileName>
   </PropertyGroup>
   
   <ItemGroup>
