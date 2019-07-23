@@ -73,11 +73,22 @@ namespace OpenSSL.Core.Tests
                 this.OutputHelper.WriteLine("MEMORY: {0}", mem);
 
                 //per thread allocations (these get deallocated when the threads exit on windows)
-                if (mem.File.Equals(@"crypto\err\err.c") && mem.Line == 673)
-                    lstMemoryProblem.Remove(mem);
+                if (Interop.Version.Library < Interop.Version.MinimumOpenSslTLS13Version) // If lower then 1.1.1
+                {
+                    if (mem.File.Equals(@"crypto\err\err.c") && mem.Line == 673)
+                        lstMemoryProblem.Remove(mem);
 
-                if (mem.File.Equals(@"crypto\init.c") && mem.Line == 63)
-                    lstMemoryProblem.Remove(mem);
+                    if (mem.File.Equals(@"crypto\init.c") && mem.Line == 63)
+                        lstMemoryProblem.Remove(mem);
+                }
+                else
+                {
+                    if (mem.File.Equals(@"crypto\err\err.c") && mem.Line == 732)
+                        lstMemoryProblem.Remove(mem);
+
+                    if (mem.File.Equals(@"crypto\init.c") && mem.Line == 66)
+                        lstMemoryProblem.Remove(mem);
+                }
             }
             Assert.Empty(lstMemoryProblem);
 #endif

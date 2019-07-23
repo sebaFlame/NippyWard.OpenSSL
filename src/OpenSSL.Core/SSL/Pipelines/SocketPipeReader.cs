@@ -62,7 +62,7 @@ namespace OpenSSL.Core.SSL.Pipelines
                 buffer = this.GetMemory(Native.SSL2_MAX_RECORD_LENGTH_3_BYTE_HEADER, ref decryptSequence);
                 totalDecrypted += (consumed = this.CurrentConnection.ReadFromSsl(buffer, out pending));
                 this.Advance(consumed, ref decryptSequence);
-            } while (pending > 0);
+            } while (consumed > 0 && pending > 0);
 
             return totalDecrypted;
         }

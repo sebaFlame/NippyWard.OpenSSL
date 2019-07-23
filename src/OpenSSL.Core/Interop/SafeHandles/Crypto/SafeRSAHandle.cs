@@ -36,45 +36,48 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	{
         #region reference count debug
 #if DEBUG
-        //[StructLayout(LayoutKind.Sequential)]
-        //internal struct rsa_st
-        //{
-        //    public int pad;
-        //    public int version;
-        //    public IntPtr meth;
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct rsa_st
+        {
+            public int pad;
+            public int version;
+            public IntPtr meth;
 
-        //    public IntPtr engine;
-        //    public IntPtr n;
-        //    public IntPtr e;
-        //    public IntPtr d;
-        //    public IntPtr p;
-        //    public IntPtr q;
-        //    public IntPtr dmp1;
-        //    public IntPtr dmq1;
-        //    public IntPtr iqmp;
+            public IntPtr engine;
+            public IntPtr n;
+            public IntPtr e;
+            public IntPtr d;
+            public IntPtr p;
+            public IntPtr q;
+            public IntPtr dmp1;
+            public IntPtr dmq1;
+            public IntPtr iqmp;
 
-        //    public IntPtr ex_data_sk;
-        //    public int references;
-        //    public int flags;
+            public IntPtr prime_infos;
+            public IntPtr pss;
 
-        //    public IntPtr _method_mod_n;
-        //    public IntPtr _method_mod_p;
-        //    public IntPtr _method_mod_q;
+            public IntPtr ex_data_sk;
+            public int references;
+            public int flags;
 
-        //    public IntPtr bignum_data;
-        //    public IntPtr blinding;
-        //    public IntPtr mt_blinding;
-        //    public IntPtr _lock;
-        //}
+            public IntPtr _method_mod_n;
+            public IntPtr _method_mod_p;
+            public IntPtr _method_mod_q;
 
-        //internal int References
-        //{
-        //    get
-        //    {
-        //        rsa_st raw = Marshal.PtrToStructure<rsa_st>(this.handle);
-        //        return raw.references;
-        //    }
-        //}
+            public IntPtr bignum_data;
+            public IntPtr blinding;
+            public IntPtr mt_blinding;
+            public IntPtr _lock;
+        }
+
+        internal int References
+        {
+            get
+            {
+                rsa_st raw = Marshal.PtrToStructure<rsa_st>(this.handle);
+                return raw.references;
+            }
+        }
 #endif
         #endregion
 
@@ -90,6 +93,9 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 
         protected override bool ReleaseHandle()
         {
+#if DEBUG
+            int refs = this.References;
+#endif
             this.CryptoWrapper.RSA_free(this.handle);
             return true;
 		}

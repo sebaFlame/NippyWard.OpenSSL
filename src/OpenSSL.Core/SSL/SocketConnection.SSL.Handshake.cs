@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Reflection;
 
 using OpenSSL.Core.X509;
 using OpenSSL.Core.Keys;
@@ -13,11 +14,14 @@ using OpenSSL.Core.Interop.SafeHandles.SSL;
 using OpenSSL.Core.Error;
 using OpenSSL.Core.Collections;
 using OpenSSL.Core.SSL.Pipelines;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.SSL
 {
     public partial class SocketConnection
     {
+        private NewSessionCallback s_NewSessionCallbackCallback;
+
         #region Authentication wrapper methods (should be called only once)
         public Task AuthenticateAsClientAsync()
         {
@@ -316,6 +320,11 @@ namespace OpenSSL.Core.SSL
             if (!(this.SslContextWrapper.SslContextHandle is null))
                 return false;
 
+            if (Interop.Version.Library < Interop.Version.MinimumOpenSslTLS13Version
+                && !(sslProtocol is null)
+                && (sslProtocol & SslProtocol.Tls13) == SslProtocol.Tls13)
+                throw new InvalidOperationException("Currently used OpenSSL library doesn't support TLS 1.3, atleast version 1.1.1 is needed.");
+
             if (isServer)
                 this.SslContextWrapper.SslContextHandle = this.SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultServerMethod);
             else
@@ -338,7 +347,8 @@ namespace OpenSSL.Core.SSL
                 if ((sslProtocol & SslProtocol.Tls12) != SslProtocol.Tls12)
                     protocolOptions |= SslOptions.SSL_OP_NO_TLSv1_2;
 
-                if ((sslProtocol & SslProtocol.Tls13) != SslProtocol.Tls13)
+                if (Interop.Version.Library >= Interop.Version.MinimumOpenSslTLS13Version 
+                    && (sslProtocol & SslProtocol.Tls13) != SslProtocol.Tls13)
                     protocolOptions |= SslOptions.SSL_OP_NO_TLSv1_3;
             }
 
@@ -362,13 +372,28 @@ namespace OpenSSL.Core.SSL
                         byte* b = stackalloc byte[count];
                         Encoding.ASCII.GetEncoder().GetBytes(ch, chSpan.Length, b, count, true);
                         ReadOnlySpan<byte> bSpan = new ReadOnlySpan<byte>(b, count);
-                        this.SSLWrapper.SSL_CTX_set_cipher_list(this.SslContextWrapper.SslContextHandle, bSpan.GetPinnableReference());
+
+                        if(!(sslProtocol is null)
+                            && (sslProtocol & SslProtocol.Tls13) == SslProtocol.Tls13)
+                            this.SSLWrapper.SSL_CTX_set_ciphersuites(this.SslContextWrapper.SslContextHandle, bSpan.GetPinnableReference());
+                        else
+                            this.SSLWrapper.SSL_CTX_set_cipher_list(this.SslContextWrapper.SslContextHandle, bSpan.GetPinnableReference());
                     }
                 }
             }
 
             if(!(sslStrength is null))
                 this.SSLWrapper.SSL_CTX_set_security_level(this.SslContextWrapper.SslContextHandle, (int)sslStrength);
+
+            if(this.s_NewSessionCallbackCallback is null)
+            {
+                this.s_NewSessionCallbackCallback = this.NewSessionCallback;
+                this.SSLWrapper.SSL_CTX_ctrl(this.SslContextWrapper.SslContextHandle,
+                                             Native.SSL_CTRL_SET_SESS_CACHE_MODE,
+                                             (int)Native.SSL_SESS_CACHE_CLIENT | Native.SSL_SESS_CACHE_NO_INTERNAL,
+                                             IntPtr.Zero);
+                this.SSLWrapper.SSL_CTX_sess_set_new_cb(this.SslContextWrapper.SslContextHandle, this.s_NewSessionCallbackCallback);
+            }
 
             return true;
         }
@@ -382,6 +407,26 @@ namespace OpenSSL.Core.SSL
             this.SSLWrapper.SSL_CTX_use_PrivateKey(this.SslContextWrapper.SslContextHandle, privateKey.KeyWrapper.Handle);
         }
         #endregion
+
+        private int NewSessionCallback(IntPtr sslPtr, IntPtr sessPtr)
+        {
+            Type sslType = DynamicTypeBuilder.GetConcreteOwnType<SafeSslHandle>();
+            ConstructorInfo sslCtor = sslType.GetConstructor(new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) });
+            object newSslObj = sslCtor.Invoke(new object[] { sslPtr, false, false });
+            SafeSslHandle ssl = newSslObj as SafeSslHandle;
+
+            if (!(this.SessionHandle is null) || this.SSLWrapper.SSL_session_reused(ssl) == 1)
+                return 0;
+
+            Type sessType = DynamicTypeBuilder.GetConcreteOwnType<SafeSslSessionHandle>();
+            ConstructorInfo sessCtor = sessType.GetConstructor(new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) });
+            object newSessObj = sessCtor.Invoke(new object[] { sessPtr, false, false });
+
+            this.SessionHandle = newSessObj as SafeSslSessionHandle;
+
+            //return 1 so that the session will not get freed again
+            return 1;
+        }
 
         //TOOD: ensure socket pipe is empty
         private async Task DoHandshake(bool isServer)
@@ -430,6 +475,7 @@ namespace OpenSSL.Core.SSL
             }
         }
 
+        //TODO: renegotiation
         private async Task DoHandshake()
         {
             int ret_code, result;
@@ -460,11 +506,6 @@ namespace OpenSSL.Core.SSL
 
                     await this.ReadPending((SslError)result).ConfigureAwait(false);
                 } while (this.SSLWrapper.SSL_is_init_finished(this.sslHandle) != 1);
-
-                //save current session if it's a new one
-                //TODO: renegotiation
-                if (this.SessionHandle is null || this.SSLWrapper.SSL_session_reused(this.sslHandle) == 0)
-                    this.SessionHandle = this.SSLWrapper.SSL_get_session(this.sslHandle);
 
                 //set state to established
                 if (!this.TrySetSslState(SslState.Handshake, SslState.Established))

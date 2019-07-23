@@ -23,6 +23,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+using System;
 using System.Text;
 
 namespace OpenSSL.Core.Interop
@@ -30,9 +31,17 @@ namespace OpenSSL.Core.Interop
 	/// <summary>
 	/// Contains the set of elements that make up a Version.
 	/// </summary>
-	public class Version
+	public struct Version
 	{
-		private ulong raw;
+        // Minimum 1.1 Release
+        public static Version MinimumOpenSslVersion = new Version(0x10100000L);
+
+        //Minimum TLS1.3 version
+        public static Version MinimumOpenSslTLS13Version = new Version(0x10101000L);
+
+        private ulong raw;
+        private static Version currentVersion;
+        private static Version ZERO = new Version(0);
 
 		/// <summary>
 		/// The kinds of status that
@@ -55,13 +64,10 @@ namespace OpenSSL.Core.Interop
 			Release,
 		}
 
-		/// <summary>
-		/// Returns the current version of the native library.
-		/// </summary>
-		public static Version Library
-		{
-			get { return new Version(Native.CryptoWrapper.OpenSSL_version_num()); }
-		}
+        /// <summary>
+        /// Returns the current version of the native library.
+        /// </summary>
+        public static Version Library => currentVersion == Version.ZERO ? (currentVersion = new Version(Native.CryptoWrapper.OpenSSL_version_num())) : currentVersion;
 
 		/// <summary>
 		/// Create a Version from a raw uint value
@@ -164,10 +170,40 @@ namespace OpenSSL.Core.Interop
 				Raw);
 		}
 
-		/// <summary>
-		/// SSLEAY_* constants used for with GetVersion()
-		/// </summary>
-		public enum Format
+        public static bool operator <(Version a, Version b)
+        {
+            return a.Raw < b.Raw;
+        }
+
+        public static bool operator >(Version a, Version b)
+        {
+            return a.Raw > b.Raw;
+        }
+
+        public static bool operator <=(Version a, Version b)
+        {
+            return a.Raw <= b.Raw;
+        }
+
+        public static bool operator >=(Version a, Version b)
+        {
+            return a.Raw >= b.Raw;
+        }
+
+        public static bool operator ==(Version a, Version b)
+        {
+            return a.Raw == b.Raw;
+        }
+
+        public static bool operator !=(Version a, Version b)
+        {
+            return a.Raw != b.Raw;
+        }
+
+        /// <summary>
+        /// SSLEAY_* constants used for with GetVersion()
+        /// </summary>
+        public enum Format
 		{
 			/// <summary>
 			/// SSLEAY_VERSION
@@ -199,5 +235,15 @@ namespace OpenSSL.Core.Interop
 		{
 			return Native.PtrToStringAnsi(Native.CryptoWrapper.OpenSSL_version((int)format), false);
 		}
-	}
+
+        public override bool Equals(object obj)
+        {
+            return base.Equals(obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
+        }
+    }
 }

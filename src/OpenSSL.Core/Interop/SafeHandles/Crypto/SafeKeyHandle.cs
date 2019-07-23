@@ -36,27 +36,27 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	{
         #region reference count debug
 #if DEBUG
-        //[StructLayout(LayoutKind.Sequential)]
-        //internal struct EVP_PKEY
-        //{
-        //    public int type;
-        //    public int save_type;
-        //    public int references;
-        //    public IntPtr ameth;
-        //    public IntPtr engine;
-        //    public IntPtr pkey;
-        //    public int save_parameters;
-        //    public IntPtr attributes;
-        //}
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct EVP_PKEY
+        {
+            public int type;
+            public int save_type;
+            public int references;
+            public IntPtr ameth;
+            public IntPtr engine;
+            public IntPtr pkey;
+            public int save_parameters;
+            public IntPtr attributes;
+        }
 
-        //internal int References
-        //{
-        //    get
-        //    {
-        //        EVP_PKEY raw = Marshal.PtrToStructure<EVP_PKEY>(this.handle);
-        //        return raw.references;
-        //    }
-        //}
+        internal int References
+        {
+            get
+            {
+                EVP_PKEY raw = Marshal.PtrToStructure<EVP_PKEY>(this.handle);
+                return raw.references;
+            }
+        }
 #endif
         #endregion
 
@@ -75,7 +75,10 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 
         protected override bool ReleaseHandle()
 		{
-			this.CryptoWrapper.EVP_PKEY_free(this.handle);
+#if DEBUG
+            int refs = this.References;
+#endif
+            this.CryptoWrapper.EVP_PKEY_free(this.handle);
             return true;
 		}
 

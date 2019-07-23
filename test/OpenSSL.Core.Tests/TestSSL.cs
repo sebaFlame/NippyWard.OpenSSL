@@ -104,10 +104,10 @@ namespace OpenSSL.Core.Tests
             serverListener.Dispose();
         }
 
-        private static void VerifyEncryptionEnabled(SocketConnection client, X509Certificate remoteCertificate = null)
+        private static void VerifyEncryptionEnabled(SocketConnection client, SslProtocol protocol, X509Certificate remoteCertificate = null)
         {
             Assert.NotEmpty(client.Cipher);
-            Assert.True(client.Protocol >= SslProtocol.Tls12);
+            Assert.True(client.Protocol == protocol);
             if (!(remoteCertificate is null))
                 Assert.Equal(remoteCertificate, client.RemoteCertificate);
         }
@@ -132,8 +132,10 @@ namespace OpenSSL.Core.Tests
             await DisposeConnections(client, server, serverListener);
         }
 
-        [Fact]
-        public async Task TestSSLConnectionBasic()
+        [Theory]
+        [SslProtocolData(SslProtocol.Tls12)]
+        [SslProtocolData(SslProtocol.Tls13)]
+        public async Task TestSSLConnectionBasic(SslProtocol protocol)
         {
             //create server
             SocketServerImplementation serverListener = CreateServer();
@@ -145,11 +147,11 @@ namespace OpenSSL.Core.Tests
             ClientWrapper server = serverListener.GetNextClient();
 
             //enable encryption
-            await Task.WhenAll(client.AuthenticateAsClientAsync(SslProtocol.Tls12), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
+            await Task.WhenAll(client.AuthenticateAsClientAsync(protocol), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
 
             //verify TLS enabled
-            VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client);
+            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
+            VerifyEncryptionEnabled(server.Client, protocol);
 
             //verify reads
             await VerifyRead(client, server.Client, clientMessage);
@@ -159,8 +161,10 @@ namespace OpenSSL.Core.Tests
             await DisposeConnections(client, server, serverListener);
         }
 
-        [Fact]
-        public async Task TestSSLConnectionThreadedRead()
+        [Theory]
+        [SslProtocolData(SslProtocol.Tls12)]
+        [SslProtocolData(SslProtocol.Tls13)]
+        public async Task TestSSLConnectionThreadedRead(SslProtocol protocol)
         {
             //create server
             SocketServerImplementation serverListener = CreateServer();
@@ -172,14 +176,15 @@ namespace OpenSSL.Core.Tests
             ClientWrapper server = serverListener.GetNextClient();
 
             CancellationTokenSource readCancel = new CancellationTokenSource();
-            TaskCompletionSource<ReadResult> readCorrectServerMessage = new TaskCompletionSource<ReadResult>();
-            TaskCompletionSource<ReadResult> readCorrectClientMessage = new TaskCompletionSource<ReadResult>();
-            ReadResult clientResult, serverResult;
+            TaskCompletionSource<byte[]> readCorrectServerMessage = new TaskCompletionSource<byte[]>();
+            TaskCompletionSource<byte[]> readCorrectClientMessage = new TaskCompletionSource<byte[]>();
+            byte[] clientResult, serverResult;
 
             Task clientReadTask = Task.Run(async () =>
             {
                 ValueTask<ReadResult> readResultTask;
                 ReadResult currentReadResult;
+                byte[] buf;
                 do
                 {
                     readResultTask = default;
@@ -198,8 +203,9 @@ namespace OpenSSL.Core.Tests
                         throw;
                     }
 
+                    buf = currentReadResult.Buffer.First.ToArray();
                     client.Input.AdvanceTo(currentReadResult.Buffer.End);
-                    readCorrectServerMessage.SetResult(currentReadResult);
+                    readCorrectServerMessage.SetResult(buf);
                 } while ((!readCancel.IsCancellationRequested));
             });
 
@@ -207,6 +213,7 @@ namespace OpenSSL.Core.Tests
             {
                 ValueTask<ReadResult> readResultTask;
                 ReadResult currentReadResult;
+                byte[] buf;
                 do
                 {
                     readResultTask = default;
@@ -225,31 +232,32 @@ namespace OpenSSL.Core.Tests
                         throw;
                     }
 
+                    buf = currentReadResult.Buffer.First.ToArray();
                     server.Client.Input.AdvanceTo(currentReadResult.Buffer.End);
-                    readCorrectClientMessage.SetResult(currentReadResult);
+                    readCorrectClientMessage.SetResult(buf);
                 } while ((!readCancel.IsCancellationRequested));
             });
 
             //unencrypted write from server to client
             await server.Client.Output.WriteAsync(serverMessage);
             clientResult = await readCorrectServerMessage.Task;
-            Assert.True(clientResult.Buffer.First.Span.SequenceEqual(serverMessage));
+            Assert.True(clientResult.SequenceEqual(serverMessage));
 
             //TODO: can not reverse, client path too (?) synchronous
             Task serverAuthenticate = server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey);
-            Task clientAuthenticate = client.AuthenticateAsClientAsync(SslProtocol.Tls12);
+            Task clientAuthenticate = client.AuthenticateAsClientAsync(protocol);
 
             //enable encryption
             await Task.WhenAll(clientAuthenticate, serverAuthenticate);
 
             //check if encryption enabled
-            VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client);
+            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
+            VerifyEncryptionEnabled(server.Client, protocol);
 
             //encrypted write from client to server
             await client.Output.WriteAsync(clientMessage);
             serverResult = await readCorrectClientMessage.Task;
-            Assert.True(serverResult.Buffer.First.Span.SequenceEqual(clientMessage));
+            Assert.True(serverResult.SequenceEqual(clientMessage));
 
             readCancel.Cancel();
             await Task.WhenAll(clientReadTask, serverReadTask);
@@ -258,8 +266,10 @@ namespace OpenSSL.Core.Tests
             await DisposeConnections(client, server, serverListener);
         }
 
-        [Fact]
-        public async Task TestSSLConnectionSession()
+        [Theory]
+        [SslProtocolData(SslProtocol.Tls12)]
+        [SslProtocolData(SslProtocol.Tls13)]
+        public async Task TestSSLConnectionSession(SslProtocol protocol)
         {
             //create server
             SocketServerImplementation serverListener = CreateServer();
@@ -271,11 +281,11 @@ namespace OpenSSL.Core.Tests
             ClientWrapper server = serverListener.GetNextClient();
 
             //enable encryption
-            await Task.WhenAll(client.AuthenticateAsClientAsync(SslProtocol.Tls12), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
+            await Task.WhenAll(client.AuthenticateAsClientAsync(protocol), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
 
             //verify if encryption is enabled
-            VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client);
+            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
+            VerifyEncryptionEnabled(server.Client, protocol);
 
             //verify reads
             await VerifyRead(client, server.Client, clientMessage);
@@ -298,11 +308,11 @@ namespace OpenSSL.Core.Tests
             server = serverListener.GetNextClient();
 
             //re-authenticate client/server with session reuse
-            await Task.WhenAll(client.AuthenticateAsClientAsync(SslProtocol.Tls12), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
+            await Task.WhenAll(client.AuthenticateAsClientAsync(protocol), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
 
             //verify if encryption is enabled
-            VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client);
+            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
+            VerifyEncryptionEnabled(server.Client, protocol);
 
             //check for session reuse
             Assert.True(client.SessionReused);
@@ -315,8 +325,10 @@ namespace OpenSSL.Core.Tests
             await DisposeConnections(client, server, serverListener);
         }
 
-        [Fact]
-        public async Task TestSSLVerificationCallback()
+        [Theory]
+        [SslProtocolData(SslProtocol.Tls12)]
+        [SslProtocolData(SslProtocol.Tls13)]
+        public async Task TestSSLVerificationCallback(SslProtocol protocol)
         {
             bool validationCalled = false;
 
@@ -339,13 +351,13 @@ namespace OpenSSL.Core.Tests
 
             //enable encryption
             await Task.WhenAll(
-                client.AuthenticateAsClientAsync(validate, SslProtocol.Tls12), 
+                client.AuthenticateAsClientAsync(validate, protocol), 
                 server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey)
             );
 
             //verify if encryption is enabled
-            VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client);
+            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
+            VerifyEncryptionEnabled(server.Client, protocol);
 
             //verify if validation callback was called
             Assert.True(validationCalled);
@@ -358,8 +370,10 @@ namespace OpenSSL.Core.Tests
             await DisposeConnections(client, server, serverListener);
         }
 
-        [Fact]
-        public async Task TestSSLVerification()
+        [Theory]
+        [SslProtocolData(SslProtocol.Tls12)]
+        [SslProtocolData(SslProtocol.Tls13)]
+        public async Task TestSSLVerification(SslProtocol protocol)
         {
             //create server
             SocketServerImplementation serverListener = CreateServer();
@@ -376,13 +390,13 @@ namespace OpenSSL.Core.Tests
 
             //enable encryption
             await Task.WhenAll(
-                client.AuthenticateAsClientAsync(caChain, SslProtocol.Tls12),
+                client.AuthenticateAsClientAsync(caChain, protocol),
                 server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey)
             );
 
             //verify if encryption is enabled
-            VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client);
+            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
+            VerifyEncryptionEnabled(server.Client, protocol);
 
             //verify reads
             await VerifyRead(client, server.Client, clientMessage);
@@ -392,8 +406,10 @@ namespace OpenSSL.Core.Tests
             await DisposeConnections(client, server, serverListener);
         }
 
-        [Fact]
-        public async Task TestSSLClientCertificateCallback()
+        [Theory]
+        [SslProtocolData(SslProtocol.Tls12)]
+        [SslProtocolData(SslProtocol.Tls13)]
+        public async Task TestSSLClientCertificateCallback(SslProtocol protocol)
         {
             bool clientCallbackCalled = false;
 
@@ -431,12 +447,12 @@ namespace OpenSSL.Core.Tests
 
             //enable encryption
             await Task.WhenAll(
-                client.AuthenticateAsClientAsync(clientCertCallback, SslProtocol.Tls12), 
+                client.AuthenticateAsClientAsync(clientCertCallback, protocol), 
                 server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey, caChain));
 
             //verify if encryption is enabled
-            VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client, this.ctx.ClientCertificate);
+            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
+            VerifyEncryptionEnabled(server.Client, protocol, this.ctx.ClientCertificate);
 
             //verify if client certificate callback was called
             Assert.True(clientCallbackCalled);
@@ -449,8 +465,10 @@ namespace OpenSSL.Core.Tests
             await DisposeConnections(client, server, serverListener);
         }
 
-        [Fact]
-        public async Task TestSSLClientCertificate()
+        [Theory]
+        [SslProtocolData(SslProtocol.Tls12)]
+        [SslProtocolData(SslProtocol.Tls13)]
+        public async Task TestSSLClientCertificate(SslProtocol protocol)
         {
             //create server
             SocketServerImplementation serverListener = CreateServer();
@@ -467,12 +485,12 @@ namespace OpenSSL.Core.Tests
 
             //enable encryption
             await Task.WhenAll(
-                client.AuthenticateAsClientAsync(this.ctx.ClientCertificate, this.ctx.ClientKey, SslProtocol.Tls12),
+                client.AuthenticateAsClientAsync(this.ctx.ClientCertificate, this.ctx.ClientKey, protocol),
                 server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey, caChain));
 
             //verify if encryption is enabled
-            VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client, this.ctx.ClientCertificate);
+            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
+            VerifyEncryptionEnabled(server.Client, protocol, this.ctx.ClientCertificate);
 
             //verify reads
             await VerifyRead(client, server.Client, clientMessage);
@@ -539,8 +557,10 @@ namespace OpenSSL.Core.Tests
             await DisposeConnections(client, server, serverListener);
         }
 
-        [Fact]
-        public async Task TestSSLConnectionBigData()
+        [Theory]
+        [SslProtocolData(SslProtocol.Tls12)]
+        [SslProtocolData(SslProtocol.Tls13)]
+        public async Task TestSSLConnectionBigData(SslProtocol protocol)
         {
             int bufferSize = 1024 * 1024 * 4;
             PipeOptions pipeOptions = new PipeOptions(pauseWriterThreshold: ((bufferSize) + 2048)); // buffersize + 1 mininmal segment
@@ -555,11 +575,11 @@ namespace OpenSSL.Core.Tests
             ClientWrapper server = serverListener.GetNextClient();
 
             //enable encryption
-            await Task.WhenAll(client.AuthenticateAsClientAsync(SslProtocol.Tls12), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
+            await Task.WhenAll(client.AuthenticateAsClientAsync(protocol), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
 
             //verify TLS enabled
-            VerifyEncryptionEnabled(client, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client);
+            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
+            VerifyEncryptionEnabled(server.Client, protocol);
 
             ValueTask<FlushResult> flushResultTask;
             ValueTask<ReadResult> readResultTask;

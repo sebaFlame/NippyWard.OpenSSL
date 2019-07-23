@@ -16,9 +16,7 @@ namespace OpenSSL.Core.Tests
         [Fact]
         public void CorrectVersion()
         {
-            Version nativeVersion = Native.Version;
-            Version wrapperVersion = new Version(Native.WrapperVersion);
-            Assert.True(nativeVersion.Raw >= wrapperVersion.Raw);
+            Assert.True(Version.Library >= Version.MinimumOpenSslVersion);
         }
 
 		[Fact]

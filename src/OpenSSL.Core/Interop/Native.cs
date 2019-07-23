@@ -59,8 +59,6 @@ namespace OpenSSL.Core.Interop
         private static ILibSSLWrapper sslWrapper;
         internal static ILibSSLWrapper SSLWrapper => sslWrapper;
 
-        internal static Version Version { get; private set; }
-
         #region Initialization
 
         static Native()
@@ -95,13 +93,9 @@ namespace OpenSSL.Core.Interop
             cryptoWrapper = (ILibCryptoWrapper)Activator.CreateInstance(DynamicTypeBuilder.CreateOpenSSLWrapper<ILibCryptoWrapper>(DLLNAME));
             sslWrapper = (ILibSSLWrapper)Activator.CreateInstance(DynamicTypeBuilder.CreateOpenSSLWrapper<ILibSSLWrapper>(SSLDLLNAME));
 
-            //already uses native library
-            Version = Version.Library;
-            Version wrapper = new Version(WrapperVersion);
-
             //TODO: check for >= 1.1 or change config (SSLEnum, deprecated functions and whatnot)
-            if (Version.Raw < WrapperVersion)
-                throw new Exception(string.Format("Invalid version of {0}, expecting {1}, got: {2}", DLLNAME, wrapper, Version));
+            if (Version.Library < Version.MinimumOpenSslVersion)
+                throw new Exception(string.Format("Invalid version of {0}, expecting {1}, got: {2}", DLLNAME, Version.MinimumOpenSslVersion, Version.Library));
 
 #if ENABLE_MEMORYTRACKER
             MemoryTracker.Init();
@@ -135,10 +129,7 @@ namespace OpenSSL.Core.Interop
 
         #endregion
 
-        // 1.1 Release
-        public const ulong WrapperVersion = 0x10100000L;
-
-#region Constants
+        #region Constants
 
         public const int SSL2_MAX_RECORD_LENGTH_3_BYTE_HEADER = 16383;
 
@@ -228,6 +219,7 @@ namespace OpenSSL.Core.Interop
 
         public const int SSL_CTRL_MODE = 33;
         public const int SSL_CTRL_SET_READ_AHEAD = 41;
+        public const int SSL_CTRL_SET_SESS_CACHE_MODE = 44;
 
         public const int SSL_SESS_CACHE_OFF = 0x0000;
         public const int SSL_SESS_CACHE_CLIENT = 0x0001;

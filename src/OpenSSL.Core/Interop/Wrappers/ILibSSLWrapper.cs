@@ -17,6 +17,9 @@ namespace OpenSSL.Core.Interop.Wrappers
     //int (*verify_callback)(int, X509_STORE_CTX *)
     internal delegate int VerifyCertificateCallback(int preVerify, IntPtr x509_store_ctx);
 
+    //int (*cb) (struct ssl_st *ssl, SSL_SESSION *sess)
+    internal delegate int NewSessionCallback(IntPtr ssl, IntPtr sess);
+
     internal interface ILibSSLWrapper
     {
         void SSL_load_error_strings();
@@ -78,6 +81,8 @@ namespace OpenSSL.Core.Interop.Wrappers
         int SSL_CTX_set_default_verify_paths(SafeSslContextHandle ctx);
         //int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str);
         int SSL_CTX_set_cipher_list(SafeSslContextHandle ctx, in byte str);
+        //int SSL_CTX_set_ciphersuites(SSL_CTX *ctx, const char *str);
+        int SSL_CTX_set_ciphersuites(SafeSslContextHandle ctx, in byte str);
         //int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file);
         int SSL_CTX_use_certificate_chain_file(SafeSslContextHandle ctx, string file);
         //int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type);
@@ -96,6 +101,8 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int SSL_CTX_add_session(SSL_CTX *ctx, SSL_SESSION *c)
         [DontCheckReturnType]
         int SSL_CTX_add_session(SafeSslContextHandle ctx, SafeSslSessionHandle c);
+        //void SSL_CTX_sess_set_new_cb(SSL_CTX *ctx, int (*cb) (struct ssl_st *ssl, SSL_SESSION *sess))
+        void SSL_CTX_sess_set_new_cb(SafeSslContextHandle ctx, NewSessionCallback new_session_cb);
 
         //int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x);
         int SSL_CTX_use_certificate(SafeSslContextHandle ctx, SafeX509CertificateHandle cert);
