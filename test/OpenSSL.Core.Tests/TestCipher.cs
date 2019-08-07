@@ -24,7 +24,16 @@ namespace OpenSSL.Core.Tests
             lstCiphers = new List<object[]>();
             Type type = typeof(CipherType);
             FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Static);
-            foreach (FieldInfo field in fields.Where(x => x.Name != "NONE").Where(x => x.Name != "DES_EDE3_CFB1"))
+            IEnumerable<FieldInfo> currentFields = fields.Where(x => x.Name != "NONE").Where(x => x.Name != "DES_EDE3_CFB1");
+
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+                currentFields = currentFields
+                    .Where(x => x.Name != "Idea_CFB")
+                    .Where(x => x.Name != "Idea_ECB")
+                    .Where(x => x.Name != "Idea_OFB")
+                    .Where(x => x.Name != "Idea_CBC");
+
+            foreach (FieldInfo field in currentFields)
                 lstCiphers.Add(new object[] { field.GetValue(null) });
         }
 
