@@ -42,12 +42,12 @@ namespace OpenSSL.Core.Interop.SafeHandles
         #endregion
 
         #region Initialization
-        internal SafeBigNumberHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeBigNumberHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeBigNumberHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeBigNumberHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
         #endregion
 
@@ -61,11 +61,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
 			CryptoWrapper.BN_free(this.handle);
             return true;
 		}
-
-        internal override IntPtr Duplicate()
-        {
-            return CryptoWrapper.BN_dup(this);
-        }
         #endregion
 
         #region IComparable<BigNumber> Members

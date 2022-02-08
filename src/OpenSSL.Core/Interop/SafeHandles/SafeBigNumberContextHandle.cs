@@ -9,12 +9,12 @@ namespace OpenSSL.Core.Interop.SafeHandles
         /// <summary>
         /// Calls BN_CTX_new()
         /// </summary>
-        internal SafeBigNumberContextHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeBigNumberContextHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeBigNumberContextHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeBigNumberContextHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         /// <summary>
@@ -48,11 +48,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
         {
             CryptoWrapper.BN_CTX_free(this.handle);
             return true;
-        }
-
-        internal override IntPtr Duplicate()
-        {
-            throw new NotImplementedException();
         }
     }
 }

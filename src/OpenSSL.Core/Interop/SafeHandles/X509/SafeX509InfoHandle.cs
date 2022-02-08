@@ -7,36 +7,28 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 {
     internal abstract class SafeX509InfoHandle : BaseValue, IStackable
     {
-        public SafeX509CertificateHandle X509Certificate { get; private set; }
-
-        internal SafeX509InfoHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
-        { }
-
-        internal SafeX509InfoHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
-        { }
-
-        private SafeX509CertificateHandle GetCertificate(IntPtr ptr)
-            => SafeHandleFactory.CreateReferenceSafeHandle<SafeX509CertificateHandle>(ptr);
-
-        internal override void PostConstruction()
+        public SafeX509CertificateHandle X509Certificate
         {
-            X509_INFO raw = Marshal.PtrToStructure<X509_INFO>(this.handle);
-            this.X509Certificate = this.GetCertificate(raw.x509);
+            get
+            {
+                X509_INFO raw = Marshal.PtrToStructure<X509_INFO>(this.handle);
+                return SafeHandleFactory.CreateWrapperSafeHandle<SafeX509CertificateHandle>(raw.x509);
+            }
         }
+
+        internal SafeX509InfoHandle(bool takeOwnership)
+            : base(takeOwnership)
+        { }
+
+        internal SafeX509InfoHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
+        { }
 
         protected override bool ReleaseHandle()
         {
             //frees certificate!
             CryptoWrapper.X509_INFO_free(this.handle);
             return true;
-        }
-
-        //does not get called
-        internal override IntPtr Duplicate()
-        {
-            throw new NotImplementedException();
         }
     }
 

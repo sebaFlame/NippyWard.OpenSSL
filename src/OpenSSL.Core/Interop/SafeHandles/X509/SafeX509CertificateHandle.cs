@@ -34,12 +34,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// </summary>
 	internal abstract class SafeX509CertificateHandle : BaseReference, IComparable<SafeX509CertificateHandle>, IStackable, IEquatable<SafeX509CertificateHandle>
 	{
-        internal SafeX509CertificateHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeX509CertificateHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeX509CertificateHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeX509CertificateHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region Overrides
@@ -54,7 +54,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
             return true;
 		}
 
-        internal override void AddRef()
+        internal override void AddReference()
         {
             CryptoWrapper.X509_up_ref(this);
         }

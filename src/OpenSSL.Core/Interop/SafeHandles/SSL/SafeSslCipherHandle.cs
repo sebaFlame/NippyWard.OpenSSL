@@ -37,7 +37,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
 	internal class SafeSslCipherHandle : BaseValue, IStackable
 	{
         private SafeSslCipherHandle()
-            : base(false, false) { }
+            : base(false) { }
 
 		/// <summary>
 		/// This method must be implemented in derived classes.
@@ -46,10 +46,5 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
 		{
             return true;
 		}
-
-        internal override IntPtr Duplicate()
-        {
-            throw new NotSupportedException();
-        }
     }
 }

@@ -79,8 +79,6 @@ namespace OpenSSL.Core.X509
 
         private OpenSslList<X509Certificate> ProcessBio(SafeBioHandle currentBio)
         {
-            //TODO: try to defer any GC call to SafeX509InfoHandle till after this using
-            //try to dispose all during stack disposal???
             SafeStackHandle<SafeX509CertificateHandle> certificates;
             using (SafeStackHandle<SafeX509InfoHandle> currentInfoStack = Native.CryptoWrapper.PEM_X509_INFO_read_bio(currentBio, IntPtr.Zero, null, IntPtr.Zero))
             {
@@ -90,12 +88,23 @@ namespace OpenSSL.Core.X509
                 //SafeX509InfoHandle gets disposed immediately after enumeration / and the certificate with it!
                 foreach (SafeX509InfoHandle info in currentInfoStack)
                 {
-                    certificate = info.X509Certificate;
-                    if (certificate is null)
-                        continue;
+                    //frees the (owned) SafeX509InfoHandle and (!) the certificate
+                    //prevents finalizer from being (randomly) called
+                    using (info)
+                    {
+                        certificate = info.X509Certificate;
 
-                    certificate.AddRef();
-                    certificates.Add(certificate);
+                        if (certificate is null
+                            || certificate.IsInvalid)
+                        {
+                            continue;
+                        }
+
+                        //add a reference for the target list
+                        certificate.AddReference();
+
+                        certificates.Add(certificate);
+                    }
                 }
             }
 
@@ -154,6 +163,7 @@ namespace OpenSSL.Core.X509
             if (this.Certificates is null)
                 return;
 
+            //TODO: move this to the list instance
             if (this.Certificates.InternalEnumerable is SafeHandleWrapper<SafeStackHandle<SafeX509CertificateHandle>> handleWrapper)
             {
                 SafeStackHandle<SafeX509CertificateHandle> stack = handleWrapper.Handle;

@@ -20,7 +20,6 @@ namespace OpenSSL.Core.Generator
         private static SourceText GenerateSafeHandleInstances
         (
             ICollection<ClassDeclarationSyntax> abstractSafeBaseHandles,
-            ParseOptions parseOptions,
             params string[] usings
         )
         {
@@ -57,7 +56,7 @@ namespace OpenSSL.Core.Generator
                             )
                     )
                     .NormalizeWhitespace(),
-                    parseOptions as CSharpParseOptions,
+                    CSharpParseOptions.Default,
                     "",
                     Encoding.Unicode
             );
@@ -72,26 +71,17 @@ namespace OpenSSL.Core.Generator
         {
             foreach(ClassDeclarationSyntax originalSafeHandle in originalSafeHandles)
             {
-                yield return GenerateNewSafeHandleType(originalSafeHandle);
-                yield return GenerateReferenceHandleType(originalSafeHandle);
+                yield return GenerateTakeOwnershipSafeHandleType(originalSafeHandle);
                 yield return GenerateWrapperHandleType(originalSafeHandle);
             }
         }
 
-        private static ClassDeclarationSyntax GenerateNewSafeHandleType
+        private static ClassDeclarationSyntax GenerateTakeOwnershipSafeHandleType
         ( 
             ClassDeclarationSyntax originalSafeHandle
         )
         {
-            return GenerateConcreteSafeHandleType(originalSafeHandle, _NewHandleSuffix, true, true);
-        }
-
-        private static ClassDeclarationSyntax GenerateReferenceHandleType
-        (
-            ClassDeclarationSyntax originalSafeHandle
-        )
-        {
-            return GenerateConcreteSafeHandleType(originalSafeHandle, _ReferenceHandleSuffix, true, false);
+            return GenerateConcreteSafeHandleType(originalSafeHandle, _TakeOwnershipHandleSuffix, true);
         }
 
         private static ClassDeclarationSyntax GenerateWrapperHandleType
@@ -99,15 +89,14 @@ namespace OpenSSL.Core.Generator
             ClassDeclarationSyntax originalSafeHandle
         )
         {
-            return GenerateConcreteSafeHandleType(originalSafeHandle, _WrapperHandleSuffix, false, false);
+            return GenerateConcreteSafeHandleType(originalSafeHandle, _WrapperHandleSuffix, false);
         }
 
         private static ClassDeclarationSyntax GenerateConcreteSafeHandleType
         (
             ClassDeclarationSyntax originalSafeHandle,
             string suffix,
-            bool takeOwnership,
-            bool isNew
+            bool takeOwnership
         )
         {
             string className = string.Concat(originalSafeHandle.Identifier.WithoutTrivia().ToString(), suffix);
@@ -174,9 +163,9 @@ namespace OpenSSL.Core.Generator
             classDeclarationSyntax = classDeclarationSyntax
             .AddMembers
             (
-                GenerateDefaultConstructor(className, takeOwnership, isNew)
+                GenerateDefaultConstructor(className, takeOwnership)
                     .NormalizeWhitespace(),
-                GeneratePointerConstructor(className, takeOwnership, isNew)
+                GeneratePointerConstructor(className, takeOwnership)
                     .NormalizeWhitespace()
             )
             .NormalizeWhitespace();
@@ -187,8 +176,7 @@ namespace OpenSSL.Core.Generator
         private static ConstructorDeclarationSyntax GenerateDefaultConstructor
         (
             string className,
-            bool takeOwnership,
-            bool isNew
+            bool takeOwnership
         )
         {
             return SyntaxFactory.ConstructorDeclaration(className)
@@ -212,12 +200,6 @@ namespace OpenSSL.Core.Generator
                                         takeOwnership
                                             ? SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)
                                             : SyntaxFactory.LiteralExpression(SyntaxKind.FalseLiteralExpression)
-                                    ),
-                                    SyntaxFactory.Argument
-                                    (
-                                        isNew
-                                            ? SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)
-                                            : SyntaxFactory.LiteralExpression(SyntaxKind.FalseLiteralExpression)
                                     )
                                 }
                             )
@@ -230,8 +212,7 @@ namespace OpenSSL.Core.Generator
         private static ConstructorDeclarationSyntax GeneratePointerConstructor
         (
             string className,
-            bool takeOwnership,
-            bool isNew
+            bool takeOwnership
         )
         {
             return SyntaxFactory.ConstructorDeclaration(className)
@@ -274,12 +255,6 @@ namespace OpenSSL.Core.Generator
                                     SyntaxFactory.Argument
                                     (
                                         takeOwnership
-                                            ? SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)
-                                            : SyntaxFactory.LiteralExpression(SyntaxKind.FalseLiteralExpression)
-                                    ),
-                                    SyntaxFactory.Argument
-                                    (
-                                        isNew
                                             ? SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)
                                             : SyntaxFactory.LiteralExpression(SyntaxKind.FalseLiteralExpression)
                                     )

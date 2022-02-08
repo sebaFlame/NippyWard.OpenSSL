@@ -5,9 +5,9 @@ using System.Text;
 namespace OpenSSL.Core.Interop.Attributes
 {
     /// <summary>
-    /// An attribute to pick a correct (generated) SafeHandle type
+    /// An attribute to signify you don't want to check the return type
     /// </summary>
     [AttributeUsage(AttributeTargets.ReturnValue | AttributeTargets.Parameter, AllowMultiple = false)]
-    internal class NewSafeHandleAttribute : GeneratorDecaratorAttribute
+    internal class DontVerifyTypeAttribute : GeneratorDecaratorAttribute
     { }
 }

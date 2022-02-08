@@ -8,7 +8,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
     internal class SafeX509ExtensionContextHandle : SafeBaseHandle
     {
         internal SafeX509ExtensionContextHandle()
-            : base(true, true)
+            : base(true)
         {
             unsafe
             {
@@ -29,11 +29,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
         {
             Native.Free(this.handle);
             return true;
-        }
-
-        internal override void PostConstruction()
-        {
-            //do nothing
         }
 
         #region X509V3_CTX

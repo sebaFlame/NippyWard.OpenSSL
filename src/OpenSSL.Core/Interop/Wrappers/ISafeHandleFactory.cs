@@ -16,17 +16,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         /// <typeparam name="TSafeHandle">The abstract type of the safehandle</typeparam>
         /// <param name="ptr">The native handle to wrap</param>
         /// <returns>An instance of the <typeparamref name="TSafeHandle"/></returns>
-        TSafeHandle CreateNewSafeHandle<TSafeHandle>(IntPtr ptr)
-            where TSafeHandle : SafeBaseHandle;
-
-        /// <summary>
-        /// Creates a new safe handle containing an extra reference on the <paramref name="ptr"/>.
-        /// The extra reference can also be a duplicate (if the contained handle is not a reference type).
-        /// </summary>
-        /// <typeparam name="TSafeHandle">The abstract type of the safehandle</typeparam>
-        /// <param name="ptr">The native handle to wrap</param>
-        /// <returns>An instance of the <typeparamref name="TSafeHandle"/></returns>
-        TSafeHandle CreateReferenceSafeHandle<TSafeHandle>(IntPtr ptr)
+        TSafeHandle CreateTakeOwnershipSafeHandle<TSafeHandle>(IntPtr ptr)
             where TSafeHandle : SafeBaseHandle;
 
         /// <summary>

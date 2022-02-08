@@ -34,12 +34,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// </summary>
 	internal abstract class SafeX509StoreHandle : BaseReference
 	{
-        internal SafeX509StoreHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeX509StoreHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeX509StoreHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeX509StoreHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region Overrides
@@ -53,7 +53,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
             return true;
 		}
 
-        internal override void AddRef()
+        internal override void AddReference()
         {
             CryptoWrapper.X509_STORE_up_ref(this);
         }

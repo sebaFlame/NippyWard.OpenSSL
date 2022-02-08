@@ -34,12 +34,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
 	/// </summary>
 	internal abstract class SafeECKeyHandle : BaseReference
 	{
-        internal SafeECKeyHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeECKeyHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeECKeyHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeECKeyHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region Overrides
@@ -53,7 +53,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
             return true;
 		}
 
-		internal override void AddRef()
+		internal override void AddReference()
 		{
 			CryptoWrapper.EC_KEY_up_ref(this);
 		}

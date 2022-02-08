@@ -63,21 +63,15 @@ namespace OpenSSL.Core.Interop.SafeHandles
 #endif
         #endregion
 
-        internal SafeAsn1StringHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeAsn1StringHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeAsn1StringHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeAsn1StringHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region Overrides
-
-        internal override IntPtr Duplicate()
-		{
-			return CryptoWrapper.ASN1_STRING_dup(this);
-		}
-
 		/// <summary>
 		/// Calls ASN1_STRING_free()
 		/// </summary>

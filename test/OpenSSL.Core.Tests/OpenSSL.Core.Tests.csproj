@@ -6,6 +6,7 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>OpenSSL.Core.Tests</AssemblyName>
     <LangVersion>7.3</LangVersion>
+	<!--<EnableMemoryTracker>true</EnableMemoryTracker>-->
   </PropertyGroup>
   
   <ItemGroup>
@@ -37,11 +38,11 @@
     </None>
   </ItemGroup>
 
-  <!--<ItemGroup>
+  <ItemGroup>
     <Compile Remove="TestSSL.cs" />
-    <Compile Remove="TestCipher.cs" />
+    <!--<Compile Remove="TestCipher.cs" />
     <Compile Remove="TestKey.cs" />
-    <Compile Remove="TestX509Certificate.cs" />
-  </ItemGroup>-->
+    <Compile Remove="TestX509Certificate.cs" />-->
+  </ItemGroup>
 
 </Project>

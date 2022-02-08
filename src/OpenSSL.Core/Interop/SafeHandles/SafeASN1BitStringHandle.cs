@@ -6,12 +6,12 @@ namespace OpenSSL.Core.Interop.SafeHandles
 {
     internal abstract class SafeASN1BitStringHandle : SafeAsn1StringHandle
     {
-        internal SafeASN1BitStringHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeASN1BitStringHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeASN1BitStringHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeASN1BitStringHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         public Span<byte> Value
@@ -29,11 +29,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
             {
                 CryptoWrapper.ASN1_BIT_STRING_set(this, value.GetPinnableReference(), value.Length);
             }
-        }
-
-        internal override IntPtr Duplicate()
-        {
-            return CryptoWrapper.ASN1_BIT_STRING_dup(this);
         }
 
         /// <summary>

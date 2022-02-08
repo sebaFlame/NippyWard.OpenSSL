@@ -370,11 +370,11 @@ namespace OpenSSL.Core.Interop
             //if the stack is owned, all items should also be owned!
             if (stack.TakeOwnership)
             {
-                return SafeHandleFactory.CreateNewSafeHandle<TStackable>(ptr);
+                return SafeHandleFactory.CreateTakeOwnershipSafeHandle<TStackable>(ptr);
             }
             else
             {
-                return SafeHandleFactory.CreateReferenceSafeHandle<TStackable>(ptr);
+                return SafeHandleFactory.CreateWrapperSafeHandle<TStackable>(ptr);
             }
         }
         #endregion

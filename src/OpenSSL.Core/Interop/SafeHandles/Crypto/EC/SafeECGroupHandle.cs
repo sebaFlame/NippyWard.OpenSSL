@@ -33,12 +33,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
 	/// </summary>
 	internal abstract class SafeECGroupHandle : BaseValue
 	{
-        internal SafeECGroupHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeECGroupHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeECGroupHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeECGroupHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
 		#region Overrides
@@ -50,11 +50,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
 			CryptoWrapper.EC_GROUP_free(this.handle);
             return true;
 		}
-
-        internal override IntPtr Duplicate()
-        {
-            return CryptoWrapper.EC_GROUP_dup(this);
-        }
         #endregion
     }
 }

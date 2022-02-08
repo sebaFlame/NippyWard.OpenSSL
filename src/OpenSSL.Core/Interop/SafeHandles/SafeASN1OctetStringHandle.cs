@@ -6,12 +6,12 @@ namespace OpenSSL.Core.Interop.SafeHandles
 {
     internal abstract class SafeASN1OctetStringHandle : SafeAsn1StringHandle, IComparable<SafeASN1OctetStringHandle>
     {
-        internal SafeASN1OctetStringHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeASN1OctetStringHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeASN1OctetStringHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeASN1OctetStringHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         public int Length => CryptoWrapper.ASN1_STRING_length(this);
@@ -36,11 +36,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
                     }
                 }
             }
-        }
-
-        internal override IntPtr Duplicate()
-        {
-            return CryptoWrapper.ASN1_OCTET_STRING_dup(this);
         }
 
         public int CompareTo(SafeASN1OctetStringHandle other)

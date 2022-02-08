@@ -32,12 +32,12 @@ namespace OpenSSL.Core.Interop.SafeHandles
 {
 	internal abstract class SafeAsn1DateTimeHandle : SafeAsn1StringHandle
     {
-        internal SafeAsn1DateTimeHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeAsn1DateTimeHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeAsn1DateTimeHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeAsn1DateTimeHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         public DateTime DateTime => ToDateTime();

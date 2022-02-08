@@ -38,12 +38,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
 	/// </summary>
 	internal abstract class SafeSslHandle : BaseReference
 	{
-        internal SafeSslHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeSslHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeSslHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeSslHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region Overrides
@@ -58,7 +58,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
             return true;
 		}
 
-        internal override void AddRef()
+        internal override void AddReference()
         {
             SSLWrapper.SSL_up_ref(this);
         }

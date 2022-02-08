@@ -30,12 +30,12 @@ namespace OpenSSL.Core.Interop.SafeHandles
 {
 	internal abstract class SafeAsn1IntegerHandle : SafeAsn1StringHandle
     {
-        internal SafeAsn1IntegerHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeAsn1IntegerHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeAsn1IntegerHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeAsn1IntegerHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         protected override bool ReleaseHandle()
@@ -49,10 +49,5 @@ namespace OpenSSL.Core.Interop.SafeHandles
 			get { return CryptoWrapper.ASN1_INTEGER_get(this); }
 			set { CryptoWrapper.ASN1_INTEGER_set(this, value); }
 		}
-
-        internal override IntPtr Duplicate()
-        {
-            return CryptoWrapper.ASN1_INTEGER_dup(this);
-        }
     }
 }

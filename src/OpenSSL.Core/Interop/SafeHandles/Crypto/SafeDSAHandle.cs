@@ -34,12 +34,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	/// </summary>
 	internal abstract class SafeDSAHandle : BaseReference
     { 
-        internal SafeDSAHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeDSAHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeDSAHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeDSAHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         /// <summary>
@@ -51,7 +51,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             return true;
 		}
 
-        internal override void AddRef()
+        internal override void AddReference()
         {
             CryptoWrapper.DSA_up_ref(this.handle);
         }

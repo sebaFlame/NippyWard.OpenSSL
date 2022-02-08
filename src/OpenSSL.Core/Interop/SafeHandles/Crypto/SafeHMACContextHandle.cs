@@ -34,12 +34,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	/// </summary>
 	internal abstract class SafeHMACContextHandle : BaseValue
 	{
-        internal SafeHMACContextHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeHMACContextHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeHMACContextHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeHMACContextHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region Overrides
@@ -51,11 +51,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 			CryptoWrapper.HMAC_CTX_free(this.handle);
             return true;
 		}
-
-        internal override IntPtr Duplicate()
-        {
-            throw new NotSupportedException();
-        }
         #endregion
 	}
 }

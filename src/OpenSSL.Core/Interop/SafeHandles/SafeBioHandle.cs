@@ -32,12 +32,12 @@ namespace OpenSSL.Core.Interop.SafeHandles
 	/// </summary>
 	internal abstract class SafeBioHandle : BaseReference
 	{
-        internal SafeBioHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeBioHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeBioHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeBioHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region Overrides
@@ -48,7 +48,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
             return true;
         }
 
-        internal override void AddRef()
+        internal override void AddReference()
         {
             CryptoWrapper.BIO_up_ref(this);
         }

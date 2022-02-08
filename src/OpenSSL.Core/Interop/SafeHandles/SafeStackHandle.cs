@@ -45,7 +45,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
 	/// Encapsulates the sk_* functions
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
-	internal abstract class SafeStackHandle<T> : BaseValue, IStack, IList<T>, IReadOnlyList<T>
+	internal abstract class SafeStackHandle<T> : BaseValue, IStack, IList<T>
 		where T : SafeBaseHandle, IStackable
 	{
         public T this[int index]
@@ -56,12 +56,12 @@ namespace OpenSSL.Core.Interop.SafeHandles
         public int Count => StackWrapper.OPENSSL_sk_num(this);
         public virtual bool IsReadOnly => false; //TODO: there are read-only collections
 
-        internal SafeStackHandle(bool takeOwnership, bool isNew)
-            :base(takeOwnership, isNew)
+        internal SafeStackHandle(bool takeOwnership)
+            :base(takeOwnership)
         { }
 
-        internal SafeStackHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeStackHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         public void Add(T item)
@@ -111,11 +111,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
         {
             StackWrapper.OPENSSL_sk_free(this.handle);
             return true;
-        }
-
-        internal override IntPtr Duplicate()
-        {
-            return StackWrapper.OPENSSL_sk_dup(this);
         }
 
         public IEnumerator<T> GetEnumerator()

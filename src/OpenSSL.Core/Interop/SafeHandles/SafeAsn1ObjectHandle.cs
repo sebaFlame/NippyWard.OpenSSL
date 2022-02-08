@@ -46,12 +46,12 @@ namespace OpenSSL.Core.Interop.SafeHandles
 
         internal IntPtr ShortName => Marshal.PtrToStructure<asn1_object_st>(this.handle).sn;
 
-        internal SafeAsn1ObjectHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeAsn1ObjectHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeAsn1ObjectHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeAsn1ObjectHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         public bool Equals(SafeAsn1ObjectHandle other)
@@ -63,11 +63,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
         {
             CryptoWrapper.ASN1_OBJECT_free(this.handle);
             return true;
-        }
-
-        internal override IntPtr Duplicate()
-        {
-            return CryptoWrapper.OBJ_dup(this);
         }
     }
 }

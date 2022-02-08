@@ -57,7 +57,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region SSL_CTX 
         //SSL_CTX *SSL_CTX_new(const SSL_METHOD *method);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeSslContextHandle SSL_CTX_new(SafeSslMethodHandle sslMethod);
         //void SSL_CTX_free(SSL_CTX *ctx);
         void SSL_CTX_free(IntPtr ctx);
@@ -99,7 +99,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int SSL_CTX_set_session_id_context(SSL_CTX *ctx, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
         int SSL_CTX_set_session_id_context(SafeSslContextHandle ctx, in byte sid_ctx, uint sid_ctx_len);
         //int SSL_CTX_add_session(SSL_CTX *ctx, SSL_SESSION *c)
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int SSL_CTX_add_session(SafeSslContextHandle ctx, SafeSslSessionHandle c);
         //void SSL_CTX_sess_set_new_cb(SSL_CTX *ctx, int (*cb) (struct ssl_st *ssl, SSL_SESSION *sess))
         void SSL_CTX_sess_set_new_cb(SafeSslContextHandle ctx, NewSessionCallback new_session_cb);
@@ -133,7 +133,6 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region STACK_OF(SSL_CIPHER)
         //STACK_OF(SSL_CIPHER) *SSL_get_ciphers(const SSL *s);
-        [return: DontTakeOwnership]
         SafeStackHandle<SafeSslCipherHandle> SSL_get_ciphers(SafeSslHandle s);
 
         //char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf, int size);
@@ -148,10 +147,9 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region STACK_OF(X509_NAME)
         //STACK_OF(X509_NAME) *SSL_load_client_CA_file(const char* file);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeStackHandle<SafeX509NameHandle> SSL_load_client_CA_file(string file);
         //STACK_OF(X509_NAME) *SSL_get_client_CA_list(const SSL *s);
-        [return: DontTakeOwnership]
         SafeStackHandle<SafeX509NameHandle> SSL_get_client_CA_list(SafeSslHandle ssl);
         //void SSL_set_client_CA_list(SSL *s, STACK_OF(X509_NAME) *list);
         void SSL_set_client_CA_list(SafeSslHandle ssl, SafeStackHandle<SafeX509NameHandle> name_list);
@@ -172,25 +170,25 @@ namespace OpenSSL.Core.Interop.Wrappers
         SafeSslCipherHandle SSL_get_current_cipher(SafeSslHandle ssl);
 
         //int SSL_get_error(const SSL *ssl, int ret);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int SSL_get_error(SafeSslHandle ssl, int ret_code);
         //int SSL_accept(SSL *ssl);
         int SSL_accept(SafeSslHandle ssl);
         //int SSL_shutdown(SSL *ssl);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int SSL_shutdown(SafeSslHandle ssl);
         //int SSL_get_shutdown(const SSL* ssl);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int SSL_get_shutdown(SafeSslHandle ssl);
 
         //int SSL_write(SSL *ssl, const void *buf, int num);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int SSL_write(SafeSslHandle ssl, in byte buf, int len);
         //int SSL_read(SSL *ssl, void *buf, int num);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int SSL_read(SafeSslHandle ssl, ref byte buf, int len);
         //int SSL_pending(const SSL *ssl);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int SSL_pending(SafeSslHandle ssl);
 
         //int SSL_renegotiate(SSL *s);
@@ -198,7 +196,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int SSL_set_session_id_context(SSL *ssl, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
         int SSL_set_session_id_context(SafeSslHandle ssl, byte[] sid_ctx, uint sid_ctx_len);
         //int SSL_do_handshake(SSL *ssl);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int SSL_do_handshake(SafeSslHandle ssl);
         //void SSL_set_connect_state(SSL *ssl);
         void SSL_set_connect_state(SafeSslHandle ssl);
@@ -207,7 +205,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int SSL_connect(SSL *ssl);
         int SSL_connect(SafeSslHandle ssl);
         //SSL *SSL_new(SSL_CTX *ctx);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeSslHandle SSL_new(SafeSslContextHandle ctx);
         //void SSL_free(SSL *ssl);
         void SSL_free(IntPtr ssl);
@@ -230,13 +228,13 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int SSL_get_servername_type(const SSL *s);
         int SSL_get_servername_type(SafeSslHandle s);
         //int SSL_is_init_finished(const SSL *s);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int SSL_is_init_finished(SafeSslHandle s);
         //int SSL_up_ref(SSL *s);
         int SSL_up_ref(SafeSslHandle s);
 
         //X509 *SSL_get_peer_certificate(const SSL *ssl);
-        [return: NewSafeHandle] //not new, already gets an extra reference in the native code
+        [return: TakeOwnership] //not new, already gets an extra reference in the native code
         SafeX509CertificateHandle SSL_get_peer_certificate(SafeSslHandle ssl);
         //X509 *SSL_get_certificate(const SSL *ssl);
         SafeX509CertificateHandle SSL_get_certificate(SafeSslHandle ssl);
@@ -250,7 +248,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int SSL_set_session(SSL *ssl, SSL_SESSION *session);
         int SSL_set_session(SafeSslHandle ssl, SafeSslSessionHandle session);
         //int SSL_session_reused(SSL *ssl);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int SSL_session_reused(SafeSslHandle ssl);
         //int SSL_SESSION_up_ref(SSL_SESSION *ses);
         int SSL_SESSION_up_ref(SafeSslSessionHandle ses);

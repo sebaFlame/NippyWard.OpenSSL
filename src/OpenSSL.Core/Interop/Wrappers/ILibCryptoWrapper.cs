@@ -78,7 +78,6 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int OBJ_txt2nid(const char *s);
         int OBJ_txt2nid(string s);
         //ASN1_OBJECT * OBJ_nid2obj(int n);
-        [return: DontTakeOwnership]
         SafeAsn1ObjectHandle OBJ_nid2obj(int n);
         //const char *  OBJ_nid2ln(int n);
         IntPtr OBJ_nid2ln(int n);
@@ -87,7 +86,6 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int OBJ_obj2nid(const ASN1_OBJECT *o);
         int OBJ_obj2nid(SafeAsn1ObjectHandle o);
         //ASN1_OBJECT * OBJ_txt2obj(const char *s, int no_name);
-        [return: DontTakeOwnership]
         SafeAsn1ObjectHandle OBJ_txt2obj(in byte s, int no_name);
         //int OBJ_ln2nid(const char *ln);
         int OBJ_ln2nid(string s);
@@ -96,13 +94,13 @@ namespace OpenSSL.Core.Interop.Wrappers
         //ASN1_OBJECT *OBJ_dup(ASN1_OBJECT *o);
         IntPtr OBJ_dup(SafeAsn1ObjectHandle o);
         //int OBJ_cmp(const ASN1_OBJECT *a,const ASN1_OBJECT *b);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int OBJ_cmp(SafeAsn1ObjectHandle a, SafeAsn1ObjectHandle b);
         //void ASN1_OBJECT_free(ASN1_OBJECT *o);
         void ASN1_OBJECT_free(IntPtr o);
 
         #region ASN1_INTEGER
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeAsn1IntegerHandle ASN1_INTEGER_new();
         void ASN1_INTEGER_free(IntPtr x);
         IntPtr ASN1_INTEGER_dup(SafeAsn1IntegerHandle x);
@@ -112,7 +110,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         #endregion
 
         #region ASN1_TIME
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeAsn1DateTimeHandle ASN1_TIME_new();
         void ASN1_TIME_free(IntPtr x);
 
@@ -127,7 +125,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         #endregion
 
         #region ASN1_STRING
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeAsn1StringHandle ASN1_STRING_type_new(int type);
         void ASN1_STRING_free(IntPtr a);
         IntPtr ASN1_STRING_dup(SafeAsn1StringHandle a);
@@ -136,13 +134,13 @@ namespace OpenSSL.Core.Interop.Wrappers
         int ASN1_STRING_set(SafeAsn1StringHandle str, in byte data, int len);
         IntPtr ASN1_STRING_get0_data(SafeAsn1StringHandle x);
         //int ASN1_STRING_to_UTF8(unsigned char**out, const ASN1_STRING*in)
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int ASN1_STRING_to_UTF8(out IntPtr strPtr, SafeAsn1StringHandle str);
         int ASN1_STRING_length(SafeAsn1StringHandle x);
         #endregion
 
         #region ASN1_OCTET_STRING
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeASN1OctetStringHandle ASN1_OCTET_STRING_new();
         IntPtr ASN1_OCTET_STRING_dup(SafeASN1OctetStringHandle a);
         void ASN1_OCTET_STRING_free(IntPtr a);
@@ -154,7 +152,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         IntPtr ASN1_OCTET_STRING_it();
 
         //ASN1_OCTET_STRING *s2i_ASN1_OCTET_STRING(X509V3_EXT_METHOD *method, X509V3_CTX* ctx, const char* str)
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeASN1OctetStringHandle s2i_ASN1_OCTET_STRING(IntPtr method, IntPtr ctx, in byte str);
         #endregion
 
@@ -168,8 +166,8 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region string conversion
         //int ASN1_mbstring_copy(ASN1_STRING **out, const unsigned char *in, int len, int inform, unsigned long mask)
-        int ASN1_mbstring_copy([NewSafeHandle] out SafeAsn1StringHandle outStr, in byte inStr, int len, int inform, ulong mask);
-        int ASN1_mbstring_copy([NewSafeHandle] out SafeAsn1StringHandle outStr, IntPtr inStr, int len, int inform, ulong mask);
+        int ASN1_mbstring_copy([TakeOwnership] out SafeAsn1StringHandle outStr, in byte inStr, int len, int inform, ulong mask);
+        int ASN1_mbstring_copy([TakeOwnership] out SafeAsn1StringHandle outStr, IntPtr inStr, int len, int inform, ulong mask);
         //unsigned char *OPENSSL_hexstr2buf(const char *str, long *len)
         IntPtr OPENSSL_hexstr2buf(in byte str, out long len);
         //char *OPENSSL_buf2hexstr(const unsigned char *buffer, long len)
@@ -182,7 +180,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         #endregion
 
         #region ASN1_BIT_STRING_
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeASN1BitStringHandle ASN1_BIT_STRING_new();
         IntPtr ASN1_BIT_STRING_dup(SafeASN1BitStringHandle a);
         void ASN1_BIT_STRING_free(IntPtr a);
@@ -191,11 +189,11 @@ namespace OpenSSL.Core.Interop.Wrappers
         #endregion
 
         #region X509_NAME
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509NameHandle X509_NAME_new();
         void X509_NAME_free(IntPtr a);
         IntPtr X509_NAME_dup(SafeX509NameHandle xn);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int X509_NAME_cmp(SafeX509NameHandle a, SafeX509NameHandle b);
 
         //int X509_NAME_entry_count(const X509_NAME *name);
@@ -227,7 +225,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         #endregion
 
         #region X509_REQ
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509RequestHandle X509_REQ_new();
         void X509_REQ_free(IntPtr a);
         //X509_REQ *X509_REQ_dup(X509_REQ *req);
@@ -243,13 +241,11 @@ namespace OpenSSL.Core.Interop.Wrappers
         //EVP_PKEY *X509_REQ_get_pubkey(X509_REQ *req);
         SafeKeyHandle X509_REQ_get_pubkey(SafeX509RequestHandle req);
         //EVP_PKEY *X509_REQ_get0_pubkey(X509_REQ *req)
-        [return: DontCheckReturnType]
-        [return: DontTakeOwnership]
+        [return: DontVerifyType]
         SafeKeyHandle X509_REQ_get0_pubkey(SafeX509RequestHandle req);
 
         //int X509_REQ_set_subject_name(X509_REQ *req, X509_NAME *name);
         int X509_REQ_set_subject_name(SafeX509RequestHandle x, SafeX509NameHandle name);
-        [return: DontTakeOwnership]
         SafeX509NameHandle X509_REQ_get_subject_name(SafeX509RequestHandle a);
 
         //int X509_REQ_sign(X509_REQ *x, EVP_PKEY *pkey, const EVP_MD *md);
@@ -269,11 +265,11 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int PEM_write_bio_X509_REQ(BIO *bp, X509_REQ *x);
         int PEM_write_bio_X509_REQ(SafeBioHandle bp, SafeX509RequestHandle x);
         //X509_REQ *PEM_read_X509_REQ(FILE *fp, X509_REQ **x, pem_password_cb* cb, void* u);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509RequestHandle PEM_read_bio_X509_REQ(SafeBioHandle bp, IntPtr x, pem_password_cb cb, IntPtr u);
 
         //X509 *d2i_X509_REQ_bio(BIO *bp, X509_REQ **x);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509RequestHandle d2i_X509_REQ_bio(SafeBioHandle bp, IntPtr x); //an IntPtr to pass IntPtr.Zero
         //int i2d_X509_bio(BIO *bp, X509 *x);
         int i2d_X509_REQ_bio(SafeBioHandle bp, SafeX509RequestHandle x509);
@@ -284,27 +280,27 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region X509
         //X509 *X509_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509CertificateHandle X509_new();
         //void X509_free(X509 *a);
         void X509_free(IntPtr x);
         //int X509_up_ref(X509 *a);
         int X509_up_ref(SafeX509CertificateHandle a);
         IntPtr X509_dup(SafeX509CertificateHandle x509);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int X509_cmp(SafeX509CertificateHandle a, SafeX509CertificateHandle b);
         //STACK_OF(X509) *X509_chain_up_ref(STACK_OF(X509) *x);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeStackHandle<SafeX509CertificateHandle> X509_chain_up_ref(SafeStackHandle<SafeX509CertificateHandle> x);
 
         //int X509_sign(X509 *x, EVP_PKEY *pkey, const EVP_MD *md);
         int X509_sign(SafeX509CertificateHandle x, SafeKeyHandle pkey, SafeMessageDigestHandle md);
 
         //int X509_verify(X509 *a, EVP_PKEY *r);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int X509_verify(SafeX509CertificateHandle x, SafeKeyHandle pkey);
         //int X509_check_private_key(X509 *x, EVP_PKEY *k);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int X509_check_private_key(SafeX509CertificateHandle x509, SafeKeyHandle pkey);
 
         //int X509_pubkey_digest(const X509 *data, const EVP_MD *type, unsigned char* md, unsigned int* len);
@@ -320,26 +316,21 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int X509_set_serialNumber(X509 *x, ASN1_INTEGER *serial);
         int X509_set_serialNumber(SafeX509CertificateHandle x, SafeAsn1IntegerHandle serial);
         //ASN1_INTEGER *X509_get_serialNumber(X509 *x);
-        [return: DontTakeOwnership]
         SafeAsn1IntegerHandle X509_get_serialNumber(SafeX509CertificateHandle x);
 
         //int X509_set_issuer_name(X509 *x, X509_NAME *name);
         int X509_set_issuer_name(SafeX509CertificateHandle x, SafeX509NameHandle name);
         //X509_NAME *X509_get_issuer_name(const X509 *x);
-        [return: DontTakeOwnership]
         SafeX509NameHandle X509_get_issuer_name(SafeX509CertificateHandle a);
 
         //int X509_set_subject_name(X509 *x, X509_NAME *name);
         int X509_set_subject_name(SafeX509CertificateHandle x, SafeX509NameHandle name);
         //X509_NAME *X509_get_subject_name(const X509 *x);
-        [return: DontTakeOwnership]
         SafeX509NameHandle X509_get_subject_name(SafeX509CertificateHandle a);
 
         //const ASN1_TIME *X509_get0_notBefore(const X509 *x);
-        [return: DontTakeOwnership]
         SafeAsn1DateTimeHandle X509_get0_notBefore(SafeX509CertificateHandle x);
         //const ASN1_TIME* X509_get0_notAfter(const X509* x);
-        [return: DontTakeOwnership]
         SafeAsn1DateTimeHandle X509_get0_notAfter(SafeX509CertificateHandle x);
 
         //int X509_set1_notBefore(X509 *x, const ASN1_TIME *tm);
@@ -352,8 +343,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //EVP_PKEY *X509_get_pubkey(X509 *x);
         SafeKeyHandle X509_get_pubkey(SafeX509CertificateHandle x);
         //EVP_PKEY *X509_get0_pubkey(const X509 *x)
-        [return: DontCheckReturnType]
-        [return: DontTakeOwnership]
+        [return: DontVerifyType]
         SafeKeyHandle X509_get0_pubkey(SafeX509CertificateHandle x);
 
         //const char *X509_verify_cert_error_string(long n);
@@ -368,7 +358,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         SafeX509CertificateHandle X509_find_by_subject(SafeStackHandle<SafeX509CertificateHandle> sk, SafeX509NameHandle name);
 
         //X509 *d2i_X509_bio(BIO *bp, X509 **x);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509CertificateHandle d2i_X509_bio(SafeBioHandle bp, IntPtr x); //an IntPtr to pass IntPtr.Zero
         //int i2d_X509_bio(BIO *bp, X509 *x);
         int i2d_X509_bio(SafeBioHandle bp, SafeX509CertificateHandle x509);
@@ -376,24 +366,23 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int PEM_write_bio_X509(BIO *bp, X509 *x);
         int PEM_write_bio_X509(SafeBioHandle bp, SafeX509CertificateHandle x);
         //X509 *PEM_read_bio_X509(BIO *bp, X509 **x, pem_password_cb *cb, void *u);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509CertificateHandle PEM_read_bio_X509(SafeBioHandle bp, IntPtr x, pem_password_cb cb, IntPtr u); //an IntPtr to pass IntPtr.Zero
 
         //int X509_get_ext_count(const X509 *x);
         int X509_get_ext_count(SafeX509CertificateHandle x);
         //X509_EXTENSION *X509_get_ext(const X509 *x, int loc);
-        [return: DontTakeOwnership]
         SafeX509ExtensionHandle X509_get_ext(SafeX509CertificateHandle x, int loc);
 
         //void X509_get0_signature(const ASN1_BIT_STRING **psig, const X509_ALGOR** palg, const X509* x);
-        void X509_get0_signature([DontTakeOwnership] out SafeASN1BitStringHandle psig, IntPtr palg, SafeX509CertificateHandle x);
+        void X509_get0_signature(out SafeASN1BitStringHandle psig, IntPtr palg, SafeX509CertificateHandle x);
 
         int X509_print_ex(SafeBioHandle bp, SafeX509CertificateHandle x, uint nmflag, uint cflag);
         int X509_print(SafeBioHandle bp, SafeX509CertificateHandle x);
         #endregion
 
         #region X509_EXTENSION
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509ExtensionHandle X509_EXTENSION_new();
         void X509_EXTENSION_free(IntPtr x);
         IntPtr X509_EXTENSION_dup(SafeX509ExtensionHandle ex);
@@ -406,9 +395,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         int X509_add1_ext_i2d(SafeX509CertificateHandle x, int nid, in byte value, int crit, uint flags);
 
         //X509_EXTENSION *X509_EXTENSION_create_by_NID(X509_EXTENSION **ex, int nid, int crit, ASN1_OCTET_STRING *data);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509ExtensionHandle X509_EXTENSION_create_by_NID(IntPtr ex, int nid, int crit, SafeASN1OctetStringHandle data);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509ExtensionHandle X509_EXTENSION_create_by_NID(IntPtr ex, int nid, int crit, IntPtr data);
 
         //int X509_EXTENSION_set_critical(X509_EXTENSION *ex, int crit);
@@ -420,7 +409,6 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int X509_EXTENSION_get_critical(const X509_EXTENSION *ex);
         int X509_EXTENSION_get_critical(SafeX509ExtensionHandle ex);
         //ASN1_OCTET_STRING *X509_EXTENSION_get_data(X509_EXTENSION *ne)
-        [return: DontTakeOwnership]
         SafeASN1OctetStringHandle X509_EXTENSION_get_data(SafeX509ExtensionHandle ne);
         #endregion
 
@@ -434,22 +422,21 @@ namespace OpenSSL.Core.Interop.Wrappers
         //void X509V3_set_ctx(X509V3_CTX *ctx, X509 *issuer, X509 *subj, X509_REQ *req, X509_CRL* crl, int flags)
         void X509V3_set_ctx(SafeX509ExtensionContextHandle ctx, IntPtr issuer, IntPtr subj, IntPtr req, IntPtr crl, int flags);
         //X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX* ctx, int ext_nid, const char* value)
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509ExtensionHandle X509V3_EXT_conf_nid(IntPtr conf, SafeX509ExtensionContextHandle ctx, int ext_nid, in byte value);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509ExtensionHandle X509V3_EXT_conf_nid(IntPtr conf, IntPtr ctx, int ext_nid, in byte value);
         #endregion
 
         #region X509_OBJECT
         //X509_OBJECT *X509_OBJECT_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509ObjectHandle X509_OBJECT_new();
         //void X509_OBJECT_free(X509_OBJECT *a);
         void X509_OBJECT_free(IntPtr a);
 
         //X509 *X509_OBJECT_get0_X509(const X509_OBJECT *a);
-        [return: DontCheckReturnType]
-        [return: DontTakeOwnership]
+        [return: DontVerifyType]
         SafeX509CertificateHandle X509_OBJECT_get0_X509(SafeX509ObjectHandle a);
         //X509_LOOKUP_TYPE X509_OBJECT_get_type(const X509_OBJECT *a)
         int X509_OBJECT_get_type(SafeX509ObjectHandle a);
@@ -464,13 +451,13 @@ namespace OpenSSL.Core.Interop.Wrappers
         //void X509_INFO_free(X509_INFO* a);
         void X509_INFO_free(IntPtr a);
         //STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,  pem_password_cb* cb, void* u)
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeStackHandle<SafeX509InfoHandle> PEM_X509_INFO_read_bio(SafeBioHandle bp, IntPtr sk, pem_password_cb cb, IntPtr u);
         #endregion
 
         #region X509_STORE
         //X509_STORE *X509_STORE_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509StoreHandle X509_STORE_new();
         //void X509_STORE_free(X509_STORE *v);
         void X509_STORE_free(IntPtr x);
@@ -490,7 +477,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region X509_STORE_CTX
         //X509_STORE_CTX *X509_STORE_CTX_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeX509StoreContextHandle X509_STORE_CTX_new();
         void X509_STORE_CTX_free(IntPtr x);
 
@@ -565,7 +552,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region DSA
         //DSA* DSA_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeDSAHandle DSA_new();
         //void DSA_free(DSA *dsa);
         void DSA_free(IntPtr dsa);
@@ -591,7 +578,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region RSA
         //RSA * RSA_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeRSAHandle RSA_new();
         //void RSA_free(RSA *rsa);
         void RSA_free(IntPtr rsa);
@@ -634,7 +621,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region DH
         //DH* DH_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeDHHandle DH_new();
         //void DH_free(DH *dh);
         void DH_free(IntPtr dh);
@@ -656,14 +643,14 @@ namespace OpenSSL.Core.Interop.Wrappers
         int DHparams_print(SafeBioHandle bp, SafeDHHandle x);
 
         //DH *d2i_DHparams(DH **a, unsigned char **pp, long length);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeDHHandle d2i_DHparams(IntPtr a, IntPtr pp, int length);
         //int i2d_DHparams(DH *a, unsigned char **pp);
         int i2d_DHparams(SafeDHHandle a, IntPtr pp);
         #endregion
 
         #region BIGNUM
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeBigNumberHandle BN_new();
         void BN_free(IntPtr a);
         void BN_clear_free(IntPtr a);
@@ -672,7 +659,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         SafeBigNumberHandle BN_value_one();
         //BIGNUM *BN_bin2bn(const unsigned char *s, int len, BIGNUM *ret);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeBigNumberHandle BN_bin2bn(in byte s, int len, IntPtr r);
         //int BN_bn2bin(const BIGNUM *a, unsigned char *to);
         int BN_bn2bin(SafeBigNumberHandle a, ref byte to);
@@ -680,7 +667,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         SafeBigNumberHandle BN_copy(SafeBigNumberHandle a, SafeBigNumberHandle b);
         //void BN_swap(BIGNUM *a, BIGNUM *b);
         void BN_swap(SafeBigNumberHandle a, SafeBigNumberHandle b);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int BN_cmp(SafeBigNumberHandle a, SafeBigNumberHandle b);
 
         //int BN_sub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b);
@@ -705,9 +692,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         //char *BN_bn2dec(const BIGNUM *a);
         IntPtr BN_bn2dec(SafeBigNumberHandle a);
         //int BN_hex2bn(BIGNUM **a, const char *str);
-        int BN_hex2bn([NewSafeHandle] out SafeBigNumberHandle a, in byte str);
+        int BN_hex2bn([TakeOwnership] out SafeBigNumberHandle a, in byte str);
         //int BN_dec2bn(BIGNUM **a, const char *str);
-        int BN_dec2bn([NewSafeHandle] out SafeBigNumberHandle a, in byte str);
+        int BN_dec2bn([TakeOwnership] out SafeBigNumberHandle a, in byte str);
 
         //BN_ULONG BN_mod_word(const BIGNUM *a, BN_ULONG w);
         uint BN_mod_word(SafeBigNumberHandle a, uint w);
@@ -729,7 +716,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region BN_CTX
         //BN_CTX *BN_CTX_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeBigNumberContextHandle BN_CTX_new();
         //void BN_CTX_free(BN_CTX *c);
         void BN_CTX_free(IntPtr c);
@@ -745,20 +732,20 @@ namespace OpenSSL.Core.Interop.Wrappers
         #region PKCS12
         void PKCS12_free(IntPtr p12);
         //PKCS12 *d2i_PKCS12_bio(BIO *bp, PKCS12 **p12);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafePKCS12Handle d2i_PKCS12_bio(SafeBioHandle bp, IntPtr ptr);
         //int i2d_PKCS12_bio(BIO *bp, PKCS12 *p12);
         int i2d_PKCS12_bio(SafeBioHandle bp, SafePKCS12Handle p12);
 
         //PKCS12 *PKCS12_create(char *pass, char *name, EVP_PKEY *pkey, X509 *cert, STACK_OF(X509) *ca, int nid_key, int nid_cert, int iter, int mac_iter, int keytype);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafePKCS12Handle PKCS12_create(string pass, string name, SafeKeyHandle pkey, SafeX509CertificateHandle cert,
             SafeStackHandle<SafeX509CertificateHandle> ca, int nid_key, int nid_cert, int iter, int mac_iter, int keytype);
         //int PKCS12_parse(PKCS12 *p12, const char *pass, EVP_PKEY **pkey, X509 **cert, STACK_OF(X509) **ca);
         int PKCS12_parse(SafePKCS12Handle p12, string pass,
-            [NewSafeHandle] out SafeKeyHandle pkey,
-            [NewSafeHandle] out SafeX509CertificateHandle cert,
-            [NewSafeHandle, DontCheckReturnType] out SafeStackHandle<SafeX509CertificateHandle> ca);
+            [TakeOwnership] out SafeKeyHandle pkey,
+            [TakeOwnership] out SafeX509CertificateHandle cert,
+            [TakeOwnership, DontVerifyType] out SafeStackHandle<SafeX509CertificateHandle> ca);
         #endregion
 
         #region PKCS7
@@ -767,10 +754,10 @@ namespace OpenSSL.Core.Interop.Wrappers
         IntPtr PKCS7_dup(SafePKCS7Handle p7);
 
         //PKCS7 *PEM_read_bio_PKCS7(BIO *bp, PKCS7 **x, pem_password_cb *cb, void *u);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafePKCS7Handle PEM_read_bio_PKCS7(SafeBioHandle bp, IntPtr x, pem_password_cb cb, IntPtr u);
         //PKCS7 *d2i_PKCS7_bio(BIO *bp, PKCS7 **p7);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafePKCS7Handle d2i_PKCS7_bio(SafeBioHandle bp, IntPtr p7);
         //int i2d_PKCS7_bio(BIO *bp, PKCS7 *p7);
         int i2d_PKCS7_bio(SafeBioHandle bp, SafePKCS7Handle p7);
@@ -822,7 +809,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region EVP_MD_CTX
         //EVP_MD_CTX *EVP_MD_CTX_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeMessageDigestContextHandle EVP_MD_CTX_new();
         //void EVP_MD_CTX_free(EVP_MD_CTX *ctx);
         void EVP_MD_CTX_free(IntPtr ctx);
@@ -851,13 +838,13 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int EVP_VerifyUpdate(EVP_MD_CTX *ctx, const void *d, unsigned int cnt);
         int EVP_VerifyUpdate(SafeMessageDigestContextHandle ctx, in byte d, uint cnt);
         //int EVP_VerifyFinal(EVP_MD_CTX *ctx, unsigned char *sigbuf, unsigned int siglen, EVP_PKEY *pkey);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int EVP_VerifyFinal(SafeMessageDigestContextHandle ctx, in byte sigbuf, uint siglen, SafeKeyHandle pkey);
         #endregion
 
         #region HMAC_CTX
         //HMAC_CTX* HMAC_CTX_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeHMACContextHandle HMAC_CTX_new();
         //void HMAC_CTX_free(HMAC_CTX *ctx);
         void HMAC_CTX_free(IntPtr ctx);
@@ -947,7 +934,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int EVP_CIPHER_type(const EVP_CIPHER *ctx);
         int EVP_CIPHER_type(SafeCipherHandle ctx);
         //int EVP_CIPHER_iv_length(const EVP_CIPHER *e);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int EVP_CIPHER_iv_length(SafeCipherHandle e);
         //int EVP_CIPHER_key_length(const EVP_CIPHER *e);
         int EVP_CIPHER_key_length(SafeCipherHandle e);
@@ -960,7 +947,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region EVP_CIPHER_CTX
         //EVP_CIPHER_CTX *EVP_CIPHER_CTX_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeCipherContextHandle EVP_CIPHER_CTX_new();
         //void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *a);
         void EVP_CIPHER_CTX_free(IntPtr a);
@@ -1021,14 +1008,14 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region EVP_PKEY
         //EVP_PKEY *EVP_PKEY_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeKeyHandle EVP_PKEY_new();
         //int EVP_PKEY_up_ref(EVP_PKEY *key);
         int EVP_PKEY_up_ref(SafeKeyHandle key);
         //void EVP_PKEY_free(EVP_PKEY *key);
         void EVP_PKEY_free(IntPtr pkey);
         //int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int EVP_PKEY_cmp(SafeKeyHandle a, SafeKeyHandle b);
 
         //int EVP_PKEY_base_id(const EVP_PKEY *pkey);
@@ -1050,34 +1037,30 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int EVP_PKEY_set1_RSA(EVP_PKEY *pkey,RSA *key);
         int EVP_PKEY_set1_RSA(SafeKeyHandle pkey, SafeRSAHandle key);
         //RSA *EVP_PKEY_get1_RSA(EVP_PKEY *pkey);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeRSAHandle EVP_PKEY_get1_RSA(SafeKeyHandle pkey);
         //RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
-        [return: DontTakeOwnership]
         SafeRSAHandle EVP_PKEY_get0_RSA(SafeKeyHandle pkey);
         //int EVP_PKEY_set1_DSA(EVP_PKEY *pkey,DSA *key);
         int EVP_PKEY_set1_DSA(SafeKeyHandle pkey, SafeDSAHandle key);
         //DSA *EVP_PKEY_get1_DSA(EVP_PKEY *pkey);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeDSAHandle EVP_PKEY_get1_DSA(SafeKeyHandle pkey);
         //DSA *EVP_PKEY_get0_DSA(EVP_PKEY *pkey)
-        [return: DontTakeOwnership]
         SafeDSAHandle EVP_PKEY_get0_DSA(SafeKeyHandle pkey);
         //int EVP_PKEY_set1_DH(EVP_PKEY *pkey,DH *key);
         int EVP_PKEY_set1_DH(SafeKeyHandle pkey, SafeDHHandle key);
         //DH *EVP_PKEY_get1_DH(EVP_PKEY *pkey);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeDHHandle EVP_PKEY_get1_DH(SafeKeyHandle pkey);
         //DH *EVP_PKEY_get0_DH(EVP_PKEY *pkey)
-        [return: DontTakeOwnership]
         SafeDHHandle EVP_PKEY_get0_DH(SafeKeyHandle pkey);
         //int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey,EC_KEY *key);
         int EVP_PKEY_set1_EC_KEY(SafeKeyHandle pkey, SafeECKeyHandle key);
         //EC_KEY *EVP_PKEY_get1_EC_KEY(EVP_PKEY *pkey);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeECKeyHandle EVP_PKEY_get1_EC_KEY(SafeKeyHandle pkey);
         //EC_KEY *EVP_PKEY_get0_EC_KEY(EVP_PKEY *pkey)
-        [return: DontTakeOwnership]
         SafeECKeyHandle EVP_PKEY_get0_EC_KEY(SafeKeyHandle pkey);
 
         // int EVP_PKEY_assign_RSA(EVP_PKEY *pkey, RSA *key);
@@ -1102,13 +1085,13 @@ namespace OpenSSL.Core.Interop.Wrappers
         int EVP_PKEY_save_parameters(SafeKeyHandle pkey, int mode);
 
         // EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bp, EVP_PKEY **x, pem_password_cb* cb, void* u);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeKeyHandle PEM_read_bio_PrivateKey(SafeBioHandle bp, IntPtr x, pem_password_cb cb, IntPtr u);
         //int PEM_write_bio_PrivateKey(BIO* bp, EVP_PKEY* x, const EVP_CIPHER* enc, unsigned char* kstr, int klen, pem_password_cb *cb, void* u);
         int PEM_write_bio_PrivateKey(SafeBioHandle bp, SafeKeyHandle x, SafeCipherHandle enc, IntPtr kstr, int klen, pem_password_cb cb, IntPtr u);
 
         //EVP_PKEY *d2i_PrivateKey_bio(BIO *bp, EVP_PKEY **a);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeKeyHandle d2i_PrivateKey_bio(SafeBioHandle bp, IntPtr a);
         //int i2d_PrivateKey_bio(BIO *bp, EVP_PKEY *pkey);
         int i2d_PrivateKey_bio(SafeBioHandle bp, SafeKeyHandle pkey);
@@ -1116,7 +1099,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int i2d_PUBKEY_bio(BIO *bp, EVP_PKEY *pkey);
         int i2d_PUBKEY_bio(SafeBioHandle bp, SafeKeyHandle pkey);
         //EVP_PKEY *d2i_PUBKEY_bio(BIO *bp, EVP_PKEY **a);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeKeyHandle d2i_PUBKEY_bio(SafeBioHandle bp, IntPtr a);
         #endregion
 
@@ -1124,8 +1107,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         void ENGINE_free(IntPtr e);
         int ENGINE_up_ref(SafeEngineHandle e);
         //ENGINE *ENGINE_by_id(const char *id);
-        [return: DontCheckReturnType]
-        [return: DontTakeOwnership]
+        [return: DontVerifyType]
         SafeEngineHandle ENGINE_by_id(in byte id);
         //int ENGINE_remove(ENGINE *e);
         int ENGINE_remove(SafeEngineHandle e);
@@ -1152,10 +1134,10 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region EVP_PKEY_CTX
         //EVP_PKEY_CTX* EVP_PKEY_CTX_new(EVP_PKEY* pkey, ENGINE* e);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeKeyContextHandle EVP_PKEY_CTX_new(SafeKeyHandle pkey, SafeEngineHandle e);
         //EVP_PKEY_CTX *EVP_PKEY_CTX_new_id(int id, ENGINE *e);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeKeyContextHandle EVP_PKEY_CTX_new_id(int id, SafeEngineHandle e);
         SafeKeyContextHandle EVP_PKEY_CTX_new_id(int id, IntPtr e);
         //void EVP_PKEY_CTX_free(EVP_PKEY_CTX* ctx);
@@ -1166,7 +1148,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int EVP_PKEY_keygen_init(EVP_PKEY_CTX* ctx);
         int EVP_PKEY_keygen_init(SafeKeyContextHandle ctx);
         //int EVP_PKEY_keygen(EVP_PKEY_CTX* ctx, EVP_PKEY** ppkey);
-        int EVP_PKEY_keygen(SafeKeyContextHandle ctx, [NewSafeHandle] out SafeKeyHandle ppkey);
+        int EVP_PKEY_keygen(SafeKeyContextHandle ctx, [TakeOwnership] out SafeKeyHandle ppkey);
 
         //int EVP_PKEY_CTX_set_rsa_keygen_bits(EVP_PKEY_CTX *ctx, int mbits);
         int EVP_PKEY_CTX_set_rsa_keygen_bits(SafeKeyContextHandle ctx, int mbits);
@@ -1196,7 +1178,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region EC_POINT
         //EC_POINT *EC_POINT_new(const EC_GROUP *group);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeECPointHandle EC_POINT_new(SafeECGroupHandle group);
         //void EC_POINT_free(EC_POINT *point);
         void EC_POINT_free(IntPtr point);
@@ -1272,7 +1254,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         int EC_get_builtin_curves(IntPtr r, int nitems);
 
         //EC_GROUP *EC_GROUP_new(const EC_METHOD *meth);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeECGroupHandle EC_GROUP_new(SafeECMethodHandle meth);
         //void EC_GROUP_free(EC_GROUP *group);
         void EC_GROUP_free(IntPtr group);
@@ -1288,13 +1270,13 @@ namespace OpenSSL.Core.Interop.Wrappers
         int EC_GROUP_cmp(SafeECGroupHandle a, SafeECGroupHandle b, SafeBigNumberContextHandle ctx);
 
         //EC_GROUP *EC_GROUP_new_curve_GFp(const BIGNUM *p, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeECGroupHandle EC_GROUP_new_curve_GFp(SafeBigNumberHandle p, SafeBigNumberHandle a, SafeBigNumberHandle b, SafeBigNumberContextHandle ctx);
         //EC_GROUP *EC_GROUP_new_curve_GF2m(const BIGNUM *p, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeECGroupHandle EC_GROUP_new_curve_GF2m(SafeBigNumberHandle p, SafeBigNumberHandle a, SafeBigNumberHandle b, SafeBigNumberContextHandle ctx);
         //EC_GROUP *EC_GROUP_new_by_curve_name(int nid);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeECGroupHandle EC_GROUP_new_by_curve_name(int nid);
 
         //int EC_GROUP_set_generator(EC_GROUP *group, const EC_POINT *generator, const BIGNUM *order, const BIGNUM *cofactor);
@@ -1350,10 +1332,10 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region EC_KEY
         //EC_KEY *EC_KEY_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeECKeyHandle EC_KEY_new();
         //EC_KEY *EC_KEY_new_by_curve_name(int nid);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeECKeyHandle EC_KEY_new_by_curve_name(int nid);
         //void EC_KEY_free(EC_KEY *key);
         void EC_KEY_free(IntPtr key);
@@ -1407,7 +1389,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region ECDSA_SIG
         //ECDSA_SIG* ECDSA_SIG_new(void);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeECDSASignatureHandle ECDSA_SIG_new();
         //void ECDSA_SIG_free(ECDSA_SIG *sig);
         void ECDSA_SIG_free(IntPtr sig);
@@ -1415,14 +1397,14 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int i2d_ECDSA_SIG(const ECDSA_SIG *sig, unsigned char **pp);
         int i2d_ECDSA_SIG(SafeECDSASignatureHandle sig, ref byte pp);
         //ECDSA_SIG* d2i_ECDSA_SIG(ECDSA_SIG **sig, const unsigned char **pp, long len);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeECDSASignatureHandle d2i_ECDSA_SIG(IntPtr sig, in byte pp, long len);
 
         //ECDSA_SIG* ECDSA_do_sign(const unsigned char *dgst, int dgst_len, EC_KEY* eckey);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeECDSASignatureHandle ECDSA_do_sign(in byte dgst, int dgst_len, SafeECKeyHandle eckey);
         //ECDSA_SIG* ECDSA_do_sign_ex(const unsigned char *dgst, int dgstlen, const BIGNUM* kinv, const BIGNUM* rp, EC_KEY *eckey);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeECDSASignatureHandle ECDSA_do_sign_ex(in byte dgst, int dgstlen, SafeBigNumberHandle kinv, SafeBigNumberHandle rp, SafeECKeyHandle eckey);
         //int ECDSA_do_verify(const unsigned char *dgst, int dgst_len, const ECDSA_SIG* sig, EC_KEY* eckey);
         int ECDSA_do_verify(in byte dgst, int dgst_len, SafeECDSASignatureHandle sig, SafeECKeyHandle eckey);
@@ -1460,19 +1442,19 @@ namespace OpenSSL.Core.Interop.Wrappers
         IntPtr BIO_f_null();
         IntPtr BIO_f_base64();
         //BIO *  BIO_new(const BIO_METHOD *type);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeBioHandle BIO_new(IntPtr type);
         //int BIO_up_ref(BIO *a);
         int BIO_up_ref(SafeBioHandle a);
 
         //BIO *BIO_new_file(const char *filename, const char *mode);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeBioHandle BIO_new_file(in byte filename, in byte mode);
         //BIO *BIO_new_mem_buf(const void *buf, int len);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeBioHandle BIO_new_mem_buf(ref byte buf, int len);
         //BIO *BIO_new_fp(FILE *stream, int flags);
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeBioHandle BIO_new_fp(Microsoft.Win32.SafeHandles.SafeFileHandle stream, int flags);
 
         //BIO *BIO_push(BIO *b, BIO *append);
@@ -1489,18 +1471,18 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int BIO_set_md(BIO* b, EVP_MD* md);
         int BIO_set_md(SafeBioHandle b, SafeMessageDigestHandle md);
         //int BIO_get_md_ctx(BIO *b,EVP_MD_CTX **mdcp);
-        int BIO_get_md_ctx(SafeBioHandle b, [NewSafeHandle] out SafeMessageDigestContextHandle mdcp);
+        int BIO_get_md_ctx(SafeBioHandle b, [TakeOwnership] out SafeMessageDigestContextHandle mdcp);
 
         //int BIO_read(BIO* b, void* data, int dlen);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int BIO_read(SafeBioHandle b, ref byte buf, int len);
         //int BIO_write(BIO *b, const void *data, int dlen);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int BIO_write(SafeBioHandle b, in byte buf, int len);
         //int BIO_puts(BIO *b, const char *buf);
         int BIO_puts(SafeBioHandle b, in byte buf);
         //int BIO_gets(BIO *b, char *buf, int size);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int BIO_gets(SafeBioHandle b, ref byte buf, int len);
 
         //int BIO_free(BIO *a);
@@ -1514,12 +1496,12 @@ namespace OpenSSL.Core.Interop.Wrappers
         ulong BIO_number_written(SafeBioHandle bio);
 
         //size_t BIO_ctrl_pending(BIO* b);
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         uint BIO_ctrl_pending(SafeBioHandle bio);
         #endregion
 
         #region ERR
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         ulong ERR_get_error();
         void ERR_error_string_n(ulong e, ref byte buf, int len);
         IntPtr ERR_lib_error_string(ulong e);

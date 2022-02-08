@@ -482,9 +482,9 @@ namespace OpenSSL.Core.SSL
                     out X509Certificate certificate, 
                     out PrivateKey privateKey))
                 {
-                    certificate.X509Wrapper.Handle.AddRef(); //add reference, so SSL doesn't free our objects
+                    certificate.X509Wrapper.Handle.AddReference(); //add reference, so SSL doesn't free our objects
                     x509Ptr = certificate.X509Wrapper.Handle.DangerousGetHandle();
-                    privateKey.KeyWrapper.Handle.AddRef(); //add reference, so SSL doesn't free our objects
+                    privateKey.KeyWrapper.Handle.AddReference(); //add reference, so SSL doesn't free our objects
                     pkeyPtr = privateKey.KeyWrapper.Handle.DangerousGetHandle();
                 }
             }

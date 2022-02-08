@@ -23,7 +23,6 @@ namespace OpenSSL.Core.Generator
         (
             InterfaceDeclarationSyntax factoryWrapper,
             ICollection<ClassDeclarationSyntax> abstractSafeBaseHandlesSyntax,
-            ParseOptions parseOptions,
             params string[] usings
         )
         {
@@ -91,7 +90,7 @@ namespace OpenSSL.Core.Generator
                             .AddMembers(classDeclaration)
                     )
                     .NormalizeWhitespace(),
-                    parseOptions as CSharpParseOptions,
+                    CSharpParseOptions.Default,
                     "",
                     Encoding.Unicode
             );
@@ -109,13 +108,9 @@ namespace OpenSSL.Core.Generator
             foreach(MethodDeclarationSyntax method in factoryWrapper.DescendantNodes().OfType<MethodDeclarationSyntax>())
             {
                 methodName = method.Identifier.WithoutTrivia().ToString();
-                if (methodName.Contains("New"))
+                if (methodName.Contains("TakeOwnership"))
                 {
-                    yield return GenerateNewFactoryMethod(method, abstractSafeBaseHandles);
-                }
-                else if (methodName.Contains("Reference"))
-                {
-                    yield return GenerateReferenceFactoryMethod(method, abstractSafeBaseHandles);
+                    yield return GenerateTakOwnershipFactoryMethod(method, abstractSafeBaseHandles);
                 }
                 else if (methodName.Contains("Wrapper"))
                 {
@@ -124,7 +119,7 @@ namespace OpenSSL.Core.Generator
             }
         }
 
-        private static MethodDeclarationSyntax GenerateNewFactoryMethod
+        private static MethodDeclarationSyntax GenerateTakOwnershipFactoryMethod
         (
             MethodDeclarationSyntax originalMethod,
             IEnumerable<ClassDeclarationSyntax> abstractSafeBaseHandles
@@ -134,21 +129,7 @@ namespace OpenSSL.Core.Generator
             (
                 originalMethod,
                 abstractSafeBaseHandles,
-                _NewHandleSuffix
-            );
-        }
-
-        private static MethodDeclarationSyntax GenerateReferenceFactoryMethod
-        (
-            MethodDeclarationSyntax originalMethod,
-            IEnumerable<ClassDeclarationSyntax> abstractSafeBaseHandles
-        )
-        {
-            return GenerateFactoryMethod
-            (
-                originalMethod,
-                abstractSafeBaseHandles,
-                _ReferenceHandleSuffix
+                _TakeOwnershipHandleSuffix
             );
         }
 

@@ -34,12 +34,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// </summary>
 	internal abstract class SafeX509ExtensionHandle : BaseValue, IStackable
 	{
-        internal SafeX509ExtensionHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeX509ExtensionHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeX509ExtensionHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeX509ExtensionHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region Overrides
@@ -51,11 +51,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 		{
 			CryptoWrapper.X509_EXTENSION_free(this.handle);
             return true;
-		}
-
-		internal override IntPtr Duplicate()
-		{
-			return CryptoWrapper.X509_EXTENSION_dup(this);
 		}
 
 		#endregion

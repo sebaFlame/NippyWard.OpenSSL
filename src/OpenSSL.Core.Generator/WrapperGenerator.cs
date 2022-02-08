@@ -27,18 +27,15 @@ namespace OpenSSL.Core.Generator
         private const string _SafeHandleValueName = "BaseValue";
         private const string _SafeZeroHandleName = "SafeZeroHandle";
         private const string _SafeHandelBaseNamespaceName = "OpenSSL.Core.Interop.SafeHandles";
-        private const string _NewSafeHandleAttributeName = "NewSafeHandle";
-        private const string _DontTakeOwnershipAttributeName = "DontTakeOwnership";
-        private const string _DontCheckReturnTypeName = "DontCheckReturnType";
+        private const string _TakeOwnershipAttributeName = "TakeOwnership";
+        private const string _DontVerifyTypeName = "DontVerifyType";
         private const string _NativeClassName = "Native";
         private const string _IntegerVerificationMethodName = "ExpectSuccess";
         private const string _SafeHandleVerificationMethodName = "ExpectNonNull";
         private const string _ReturnValueLocalName = "ret";
         private const string _GeneratorAttributeClassName = "GeneratorDecaratorAttribute";
         private const string _GeneratoAttributesNamespaceName = "OpenSSL.Core.Interop.Attributes";
-        private const string _PostConstructionMethodName = "PostConstruction";
-        private const string _NewHandleSuffix = "NewSafeHandle";
-        private const string _ReferenceHandleSuffix = "ReferenceSafeHandle";
+        private const string _TakeOwnershipHandleSuffix = "TakeOwnershipSafeHandle";
         private const string _WrapperHandleSuffix = "WrapperSafeHandle";
         private const string _OutParameterNamePrefix = "out";
         private const string _PtrTypeName = "IntPtr";
@@ -68,7 +65,7 @@ namespace OpenSSL.Core.Generator
             .Where(static x => x is not null);
 
             //get all wrapper interfaces
-            IncrementalValuesProvider <InterfaceDeclarationSyntax> wrapperInterfaces =
+            IncrementalValuesProvider<(InterfaceDeclarationSyntax, SemanticModel)> wrapperInterfaces =
                 context.SyntaxProvider.CreateSyntaxProvider
             (
                 IsWrapperInterface,
@@ -77,24 +74,27 @@ namespace OpenSSL.Core.Generator
 
             context.RegisterSourceOutput
             (
-                context.ParseOptionsProvider.Combine(abstractSafeHandles.Collect()),
-                static (spc, tpl) => ExecuteConcreteSafeHandleTypeGeneration(spc, tpl.Left, tpl.Right)
+                abstractSafeHandles.Collect(),
+                ExecuteConcreteSafeHandleTypeGeneration
             );
 
             context.RegisterSourceOutput
             (
-                context.CompilationProvider.Combine
-                (
-                    context.ParseOptionsProvider.Combine
-                    (
-                        wrapperInterfaces
-                            //combine with all abstract safe handles
-                            .Combine(abstractSafeHandles.Collect())
-                            .Collect()
-                    )
-                ),
-                static (spc, tpl) => ExecuteWrapperInterfaceGenerator(spc, tpl.Left, tpl.Right)
+                wrapperInterfaces
+                    //combine with all abstract safe handles
+                    .Combine(abstractSafeHandles.Collect().WithComparer(new ClassCountComparer())),
+                ExecuteWrapperInterfaceGenerator
             );
+        }
+
+        //only check lengths
+        private class ClassCountComparer : IEqualityComparer<ImmutableArray<ClassDeclarationSyntax>>
+        {
+            public bool Equals(ImmutableArray<ClassDeclarationSyntax> x, ImmutableArray<ClassDeclarationSyntax> y)
+                => x.Length == y.Length;
+
+            public int GetHashCode(ImmutableArray<ClassDeclarationSyntax> obj)
+                => 0;
         }
 
         private static bool IsSafeHandleCandidate
@@ -160,14 +160,12 @@ namespace OpenSSL.Core.Generator
         private static void ExecuteConcreteSafeHandleTypeGeneration
         (
             SourceProductionContext sourceProductionContext,
-            ParseOptions parseOptions,
             ImmutableArray<ClassDeclarationSyntax> abstractSafeBaseHandlesSyntax
         )
         {
             SourceText concreteText = GenerateSafeHandleInstances
             (
                 abstractSafeBaseHandlesSyntax,
-                parseOptions,
                 "OpenSSL.Core.Interop.SafeHandles",
                 "OpenSSL.Core.Interop.SafeHandles.SSL",
                 "OpenSSL.Core.Interop.SafeHandles.Crypto",
@@ -208,116 +206,98 @@ namespace OpenSSL.Core.Generator
             return false;
         }
 
-        private static InterfaceDeclarationSyntax TransformWrapperInterface
+        private static (InterfaceDeclarationSyntax, SemanticModel) TransformWrapperInterface
         (
             GeneratorSyntaxContext generatorSyntaxContext,
             CancellationToken cancellationToken
         )
-            => (InterfaceDeclarationSyntax)generatorSyntaxContext.Node;
+            => ((InterfaceDeclarationSyntax)generatorSyntaxContext.Node, generatorSyntaxContext.SemanticModel);
 
         private static void ExecuteWrapperInterfaceGenerator
         (
             SourceProductionContext sourceProductionContext,
-            Compilation compilation,
-            (ParseOptions, ImmutableArray<(InterfaceDeclarationSyntax, ImmutableArray<ClassDeclarationSyntax>)>) interfaces
+            ((InterfaceDeclarationSyntax, SemanticModel), ImmutableArray<ClassDeclarationSyntax>) tpl
         )
         {
-            ParseOptions parseOptions = interfaces.Item1;
+            SourceText sourceText = null;
+            string hintName = String.Empty;
 
-            SemanticModel semanticModel;
-            SourceText sourceText;
-            HashSet<string> abstractSafeBaseHandles;
-            string hintName;
-            InterfaceDeclarationSyntax @interface;
+            InterfaceDeclarationSyntax @interface = tpl.Item1.Item1;
+            SemanticModel semanticModel = tpl.Item1.Item2;
+            ICollection<ClassDeclarationSyntax> abstractSafeBaseHandlesSyntax = tpl.Item2;
 
-            foreach ((InterfaceDeclarationSyntax, ImmutableArray<ClassDeclarationSyntax>) tpl in interfaces.Item2)
+            HashSet<string> abstractSafeBaseHandles = new HashSet<string>(abstractSafeBaseHandlesSyntax.Select(x => x.Identifier.WithoutTrivia().ValueText));
+
+            if (string.Equals(_SslWrapperInterfaceName, @interface.Identifier.Text))
             {
-                sourceText = null;
-                hintName = string.Empty;
-                @interface = tpl.Item1;
-
-                abstractSafeBaseHandles = new HashSet<string>(tpl.Item2.Select(x => x.Identifier.WithoutTrivia().ValueText));
-
-                semanticModel = compilation.GetSemanticModel
+                sourceText = GenerateInterfaceWrapper
                 (
-                    tpl.Item1.SyntaxTree
+                    _SslWrapperName,
+                    _SslNativeLibrary,
+                    @interface,
+                    semanticModel,
+                    abstractSafeBaseHandles,
+                    "OpenSSL.Core.Interop.SafeHandles",
+                    "OpenSSL.Core.Interop.SafeHandles.SSL",
+                    "OpenSSL.Core.Interop.SafeHandles.Crypto",
+                    "OpenSSL.Core.Interop.SafeHandles.X509"
                 );
 
-                if (string.Equals(_SslWrapperInterfaceName, @interface.Identifier.Text))
-                {
-                    sourceText = GenerateInterfaceWrapper
-                    (
-                        _SslWrapperName,
-                        _SslNativeLibrary,
-                        @interface,
-                        semanticModel,
-                        abstractSafeBaseHandles,
-                        parseOptions,
-                        "OpenSSL.Core.Interop.SafeHandles",
-                        "OpenSSL.Core.Interop.SafeHandles.SSL",
-                        "OpenSSL.Core.Interop.SafeHandles.Crypto",
-                        "OpenSSL.Core.Interop.SafeHandles.X509"
-                    );
-
-                    hintName = $"{_SslWrapperName}.g.cs";
-                }
-                else if (string.Equals(_CryptoWrapperInterfaceName, @interface.Identifier.Text))
-                {
-                    sourceText = GenerateInterfaceWrapper
-                    (
-                        _CryptoWrapperName,
-                        _CryptoNativeLibrary,
-                        @interface,
-                        semanticModel,
-                        abstractSafeBaseHandles,
-                        parseOptions,
-                        "OpenSSL.Core.Interop.SafeHandles",
-                        "OpenSSL.Core.Interop.SafeHandles.X509",
-                        "OpenSSL.Core.Interop.SafeHandles.Crypto",
-                        "OpenSSL.Core.Interop.SafeHandles.Crypto.EC"
-                    );
-
-                    hintName = $"{_CryptoWrapperName}.g.cs";
-                }
-                else if (string.Equals(_StackWrapperInterfaceName, @interface.Identifier.Text))
-                {
-                    sourceText = GenerateInterfaceWrapper
-                    (
-                        _StackWrapperClassName,
-                        _CryptoNativeLibrary,
-                        @interface,
-                        semanticModel,
-                        abstractSafeBaseHandles,
-                        parseOptions,
-                        "OpenSSL.Core.Interop.SafeHandles"
-                    );
-
-                    hintName = $"StackWrapper.g.cs";
-                }
-                else if (string.Equals(_SafeHandleFactoryInterfaceName, @interface.Identifier.Text))
-                {
-                    sourceText = GenerateSafeHandleFactory
-                    (
-                        @interface,
-                        tpl.Item2,
-                        parseOptions,
-                        "OpenSSL.Core.Interop.SafeHandles",
-                        "OpenSSL.Core.Interop.SafeHandles.SSL",
-                        "OpenSSL.Core.Interop.SafeHandles.Crypto",
-                        "OpenSSL.Core.Interop.SafeHandles.X509"
-                    );
-                    hintName = "SafeHandleFactory.g.cs";
-                }
-
-                if (sourceText is null)
-                {
-                    continue;
-                }
-
-                //string src = sourceText.ToString();
-
-                sourceProductionContext.AddSource(hintName, sourceText);
+                hintName = $"{_SslWrapperName}.g.cs";
             }
+            else if (string.Equals(_CryptoWrapperInterfaceName, @interface.Identifier.Text))
+            {
+                sourceText = GenerateInterfaceWrapper
+                (
+                    _CryptoWrapperName,
+                    _CryptoNativeLibrary,
+                    @interface,
+                    semanticModel,
+                    abstractSafeBaseHandles,
+                    "OpenSSL.Core.Interop.SafeHandles",
+                    "OpenSSL.Core.Interop.SafeHandles.X509",
+                    "OpenSSL.Core.Interop.SafeHandles.Crypto",
+                    "OpenSSL.Core.Interop.SafeHandles.Crypto.EC"
+                );
+
+                hintName = $"{_CryptoWrapperName}.g.cs";
+            }
+            else if (string.Equals(_StackWrapperInterfaceName, @interface.Identifier.Text))
+            {
+                sourceText = GenerateInterfaceWrapper
+                (
+                    _StackWrapperClassName,
+                    _CryptoNativeLibrary,
+                    @interface,
+                    semanticModel,
+                    abstractSafeBaseHandles,
+                    "OpenSSL.Core.Interop.SafeHandles"
+                );
+
+                hintName = $"StackWrapper.g.cs";
+            }
+            else if (string.Equals(_SafeHandleFactoryInterfaceName, @interface.Identifier.Text))
+            {
+                sourceText = GenerateSafeHandleFactory
+                (
+                    @interface,
+                    abstractSafeBaseHandlesSyntax,
+                    "OpenSSL.Core.Interop.SafeHandles",
+                    "OpenSSL.Core.Interop.SafeHandles.SSL",
+                    "OpenSSL.Core.Interop.SafeHandles.Crypto",
+                    "OpenSSL.Core.Interop.SafeHandles.X509"
+                );
+                hintName = "SafeHandleFactory.g.cs";
+            }
+
+            if (sourceText is null)
+            {
+                return;
+            }
+
+            //string src = sourceText.ToString();
+
+            sourceProductionContext.AddSource(hintName, sourceText);
         }
 
         internal static NamespaceDeclarationSyntax FindParentNamespace(SyntaxNode node)
@@ -409,7 +389,7 @@ namespace OpenSSL.Core.Generator
         private static TypeSyntax GenerateConcreteSafeHandleTypeName
         (
             TypeSyntax typeSyntax,
-            (bool takeOwnership, bool isNew) modifiers
+            bool takeOwnership
         )
         {
             string name;
@@ -425,13 +405,9 @@ namespace OpenSSL.Core.Generator
                 name = typeSyntax.WithoutTrivia().ToString();
             }
 
-            if (modifiers.takeOwnership && modifiers.isNew)
+            if (takeOwnership)
             {
-                name = string.Concat(name, _NewHandleSuffix);
-            }
-            else if(modifiers.takeOwnership)
-            {
-                name = string.Concat(name, _ReferenceHandleSuffix);
+                name = string.Concat(name, _TakeOwnershipHandleSuffix);
             }
             else
             {
@@ -484,22 +460,14 @@ namespace OpenSSL.Core.Generator
             //if known (!) abstract (!) safe handle type, construct concrete type
             else if (abstractSafeBaseHandles.Contains(name))
             {
-                (bool takeOwnership, bool isNew) concreteTypeName;
+                bool takeOwnership = false;
 
-                if (symbolAttributes.Any(x => x.Attributes.Any(y => string.Equals(y.Name.ToString(), _NewSafeHandleAttributeName))))
+                if (symbolAttributes.Any(x => x.Attributes.Any(y => string.Equals(y.Name.ToString(), _TakeOwnershipAttributeName))))
                 {
-                    concreteTypeName = (true, true);
-                }
-                else if (symbolAttributes.Any(x => x.Attributes.Any(y => string.Equals(y.Name.ToString(), _DontTakeOwnershipAttributeName))))
-                {
-                    concreteTypeName = (false, false);
-                }
-                else
-                {
-                    concreteTypeName = (true, false);
+                    takeOwnership = true;
                 }
 
-                return GenerateConcreteSafeHandleTypeName(originalTypeSyntax, concreteTypeName);
+                return GenerateConcreteSafeHandleTypeName(originalTypeSyntax, takeOwnership);
             }
             //else return the original type
             else
@@ -564,8 +532,7 @@ namespace OpenSSL.Core.Generator
             TypeSyntax typeSyntax,
             IdentifierNameSyntax localName,
             SemanticModel semanticModel,
-            out InvocationExpressionSyntax verificationInvocation,
-            out InvocationExpressionSyntax postConstructionInvocation
+            out InvocationExpressionSyntax verificationInvocation
         )
         {
             IdentifierNameSyntax methodName;
@@ -573,32 +540,18 @@ namespace OpenSSL.Core.Generator
             if (string.Equals(typeSyntax.ToString(), "int"))
             {
                 methodName = SyntaxFactory.IdentifierName(_IntegerVerificationMethodName);
-
-                postConstructionInvocation = null;
             }
             else if (IsSafeHandle(typeSyntax, semanticModel))
             {
                 methodName = SyntaxFactory.IdentifierName(_SafeHandleVerificationMethodName);
-
-                postConstructionInvocation = GeneratePostConstructionMethod
-                (
-                    localName
-                );
             }
             else if (ContainsGenericTypeParameter(typeSyntax, semanticModel, out _))
             {
                 methodName = SyntaxFactory.IdentifierName(_SafeHandleVerificationMethodName);
-
-                postConstructionInvocation = GeneratePostConstructionMethod
-                (
-                    localName
-                );
             }
             else
             {
                 verificationInvocation = null;
-                postConstructionInvocation = null;
-
                 return false;
             }
 
@@ -639,23 +592,6 @@ namespace OpenSSL.Core.Generator
                         }
                     )
                 )
-            );
-        }
-
-        private static InvocationExpressionSyntax GeneratePostConstructionMethod
-        (
-            IdentifierNameSyntax localName
-        )
-        {
-            return SyntaxFactory.InvocationExpression
-            (
-                SyntaxFactory.MemberAccessExpression
-                (
-                    SyntaxKind.SimpleMemberAccessExpression,
-                    localName,
-                    SyntaxFactory.IdentifierName(_PostConstructionMethodName)
-                ),
-                SyntaxFactory.ArgumentList()
             );
         }
 

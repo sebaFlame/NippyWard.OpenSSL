@@ -6,12 +6,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 {
     internal abstract class SafeEngineHandle : BaseReference
     {
-        internal SafeEngineHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeEngineHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeEngineHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeEngineHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         protected override bool ReleaseHandle()
@@ -20,7 +20,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             return true;
         }
 
-        internal override void AddRef()
+        internal override void AddReference()
         {
             CryptoWrapper.ENGINE_up_ref(this);
         }

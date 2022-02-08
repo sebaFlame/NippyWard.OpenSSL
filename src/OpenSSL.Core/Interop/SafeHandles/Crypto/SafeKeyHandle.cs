@@ -60,12 +60,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 #endif
         #endregion
 
-        internal SafeKeyHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeKeyHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeKeyHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeKeyHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         public bool Equals(SafeKeyHandle other)
@@ -82,7 +82,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             return true;
 		}
 
-        internal override void AddRef()
+        internal override void AddReference()
         {
             CryptoWrapper.EVP_PKEY_up_ref(this);
         }

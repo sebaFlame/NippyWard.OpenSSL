@@ -21,7 +21,6 @@ namespace OpenSSL.Core.Generator
             InterfaceDeclarationSyntax wrapperInterface,
             SemanticModel semanticModel,
             ISet<string> abstractSafeBaseHandles,
-            ParseOptions parseOptions,
             params string[] usings
         )
         {
@@ -92,7 +91,7 @@ namespace OpenSSL.Core.Generator
                             .AddMembers(classDeclaration)
                     )
                     .NormalizeWhitespace(),
-                    parseOptions as CSharpParseOptions,
+                    CSharpParseOptions.Default,
                     "",
                     Encoding.Unicode
             );
@@ -485,10 +484,8 @@ namespace OpenSSL.Core.Generator
                 }
             }
 
-            List<InvocationExpressionSyntax> postConstructionMethods = new List<InvocationExpressionSyntax>();
-
             //check return type
-            if (!methodAttributes.Any(x => x.Attributes.Any(y => string.Equals(y.Name.ToString(), _DontCheckReturnTypeName))))
+            if (!methodAttributes.Any(x => x.Attributes.Any(y => string.Equals(y.Name.ToString(), _DontVerifyTypeName))))
             {
                 if (concreteReturnType is not null
                     && HasSupportedVerificationType
@@ -496,8 +493,7 @@ namespace OpenSSL.Core.Generator
                         interfaceMethod.ReturnType,
                         SyntaxFactory.IdentifierName(_ReturnValueLocalName),
                         semanticModel,
-                        out verificationExpression,
-                        out postConstructionExpression
+                        out verificationExpression
                     ))
                 {
                     blockSyntax = blockSyntax.AddStatements
@@ -508,11 +504,6 @@ namespace OpenSSL.Core.Generator
                         )
                     )
                     .NormalizeWhitespace();
-
-                    if (postConstructionExpression is not null)
-                    {
-                        postConstructionMethods.Add(postConstructionExpression);
-                    }
                 }
             }
 
@@ -520,7 +511,7 @@ namespace OpenSSL.Core.Generator
             foreach (ParameterSyntax parameter in interfaceMethod.ParameterList.Parameters.Where
             (
                 x => x.Modifiers.Any(y => y.WithoutTrivia().ValueText.Equals("out"))
-                    && !x.AttributeLists.Any(x => x.Attributes.Any(y => string.Equals(y.Name.ToString(), _DontCheckReturnTypeName)))
+                    && !x.AttributeLists.Any(x => x.Attributes.Any(y => string.Equals(y.Name.ToString(), _DontVerifyTypeName)))
                     && (IsSafeHandle(x.Type, semanticModel)
                         || ContainsGenericTypeParameter(x.Type, semanticModel, out _))
             ))
@@ -530,8 +521,7 @@ namespace OpenSSL.Core.Generator
                     parameter.Type,
                     SyntaxFactory.IdentifierName(GenerateOutArgumentName(parameter, semanticModel, false)),
                     semanticModel,
-                    out verificationExpression,
-                    out postConstructionExpression
+                    out verificationExpression
                 ))
                 {
                     continue;
@@ -542,23 +532,6 @@ namespace OpenSSL.Core.Generator
                     SyntaxFactory.ExpressionStatement
                     (
                         verificationExpression
-                    )
-                )
-                .NormalizeWhitespace();
-
-                if (postConstructionExpression is not null)
-                {
-                    postConstructionMethods.Add(postConstructionExpression);
-                }
-            }
-
-            foreach (InvocationExpressionSyntax post in postConstructionMethods)
-            {
-                blockSyntax = blockSyntax.AddStatements
-                (
-                    SyntaxFactory.ExpressionStatement
-                    (
-                        post
                     )
                 )
                 .NormalizeWhitespace();

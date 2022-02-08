@@ -35,12 +35,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
 	{
         internal SafeECGroupHandle Group;
 
-        internal SafeECPointHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeECPointHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeECPointHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeECPointHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region Overrides
@@ -50,11 +50,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
 			CryptoWrapper.EC_POINT_free(this.handle);
             return true;
 		}
-
-        internal override IntPtr Duplicate()
-        {
-            return CryptoWrapper.EC_POINT_dup(this, this.Group);
-        }
         #endregion
     }
 }

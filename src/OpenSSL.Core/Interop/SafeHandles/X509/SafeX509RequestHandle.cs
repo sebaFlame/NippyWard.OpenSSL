@@ -33,12 +33,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// </summary>
 	internal abstract class SafeX509RequestHandle : BaseValue
 	{
-        internal SafeX509RequestHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeX509RequestHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeX509RequestHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeX509RequestHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region Overrides Members
@@ -51,11 +51,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 			CryptoWrapper.X509_REQ_free(this.handle);
             return true;
 		}
-
-        internal override IntPtr Duplicate()
-        {
-            return CryptoWrapper.X509_REQ_dup(this);
-        }
 
         #endregion
     }

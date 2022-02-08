@@ -14,12 +14,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
         /// Calls OPENSSL_malloc() and initializes the buffer using EVP_CIPHER_CTX_init()
         /// </summary>
         /// <param name="cipher"></param>
-        internal SafeCipherContextHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeCipherContextHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeCipherContextHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeCipherContextHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region IDisposable Members
@@ -29,12 +29,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             CryptoWrapper.EVP_CIPHER_CTX_free(this.handle);
             return true;
         }
-
-        internal override IntPtr Duplicate()
-        {
-            throw new NotSupportedException();
-        }
-
         #endregion
     }
 }

@@ -37,8 +37,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
         internal readonly static IStackWrapper StackWrapper;
         internal readonly static ISafeHandleFactory SafeHandleFactory;
 
-        protected bool IsNew { get; private set; }
-
         static SafeBaseHandle()
         {
             CryptoWrapper = Native.CryptoWrapper;
@@ -51,48 +49,32 @@ namespace OpenSSL.Core.Interop.SafeHandles
         /// Handles to be constructed by P/Invoke
         /// DO NOT construct manually
         /// </summary>
-        protected SafeBaseHandle(bool takeOwnership, bool isNew)
+        protected SafeBaseHandle(bool takeOwnership)
             : base(takeOwnership)
-        {
-            this.IsNew = isNew;
-        }
+        { }
 
-        protected SafeBaseHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : this(takeOwnership, isNew)
+        protected SafeBaseHandle(IntPtr ptr, bool takeOwnership)
+            : this(takeOwnership)
         {
             this.SetHandle(ptr);
         }
-
-        /// <summary>
-        /// Method to be executed by dynamic code generation
-        /// After class construction
-        /// </summary>
-        internal abstract void PostConstruction();
     }
 
 	internal abstract class BaseReference : SafeBaseHandle
 	{
-        protected BaseReference(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        protected BaseReference(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        protected BaseReference(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        protected BaseReference(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
-
-        internal override void PostConstruction()
-        {
-            if (this.TakeOwnership && !this.IsNew)
-            {
-                this.AddRef();
-            }
-        }
 
         /// <summary>
         /// Derived classes must use a _up_ref() method to add a reference
         /// </summary>
         /// <returns></returns>
-        internal abstract void AddRef();
+        internal abstract void AddReference();
 	}
 
     /// <summary>
@@ -100,27 +82,13 @@ namespace OpenSSL.Core.Interop.SafeHandles
     /// </summary>
     internal abstract class BaseValue : SafeBaseHandle
 	{
-        protected BaseValue(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        protected BaseValue(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        protected BaseValue(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        protected BaseValue(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
-
-        internal override void PostConstruction()
-        {
-            if (this.TakeOwnership && !this.IsNew)
-            {
-                this.SetHandle(this.Duplicate());
-            }
-        }
-
-        /// <summary>
-        /// Derived classes must use a _dup() method to make a copy of the underlying native data structure.
-        /// </summary>
-        /// <returns></returns>
-        internal abstract IntPtr Duplicate();
 	}
 
     internal abstract class SafeZeroHandle : SafeHandle

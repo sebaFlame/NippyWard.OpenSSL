@@ -33,12 +33,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// </summary>
 	internal abstract class SafePKCS12Handle : BaseValue
 	{
-        internal SafePKCS12Handle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafePKCS12Handle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafePKCS12Handle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafePKCS12Handle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region Overrides
@@ -51,11 +51,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 			CryptoWrapper.PKCS12_free(this.handle);
             return true;
 		}
-
-        internal override IntPtr Duplicate()
-        {
-            throw new NotSupportedException();
-        }
 
         #endregion
 

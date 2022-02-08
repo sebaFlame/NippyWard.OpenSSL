@@ -6,12 +6,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
 {
     internal abstract class SafeSslSessionHandle : BaseReference
     {
-        internal SafeSslSessionHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeSslSessionHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeSslSessionHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeSslSessionHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         protected override bool ReleaseHandle()
@@ -20,7 +20,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
             return true;
         }
 
-        internal override void AddRef()
+        internal override void AddReference()
         {
             SSLWrapper.SSL_SESSION_up_ref(this);
         }

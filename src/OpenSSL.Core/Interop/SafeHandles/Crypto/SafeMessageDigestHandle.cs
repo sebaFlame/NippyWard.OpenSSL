@@ -36,7 +36,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	internal class SafeMessageDigestHandle : BaseValue, IStackable
     {
         private SafeMessageDigestHandle()
-            : base(false, false) { }
+            : base(false) { }
 
         /// <summary>
         /// Not implemented, these objects should never be disposed
@@ -44,11 +44,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
         protected override bool ReleaseHandle()
         {
             return true;
-        }
-
-        internal override IntPtr Duplicate()
-        {
-            throw new NotSupportedException();
         }
     }
 }

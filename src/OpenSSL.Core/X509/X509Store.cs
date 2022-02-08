@@ -112,7 +112,10 @@ namespace OpenSSL.Core.X509
             foreach (SafeX509ObjectHandle obj in safeObjHandle)
             {
                 if (!((certificate = CryptoWrapper.X509_OBJECT_get0_X509(obj)) is null))
+                {
+                    certificate.AddReference();
                     safeCertHandle.Add(certificate);
+                }
             }
 
             return OpenSslReadOnlyCollection<X509Certificate>.CreateFromSafeHandle(safeCertHandle);

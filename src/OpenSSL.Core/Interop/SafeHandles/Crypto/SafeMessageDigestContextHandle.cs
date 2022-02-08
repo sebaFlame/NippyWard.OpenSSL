@@ -10,12 +10,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
     /// </summary>
     internal abstract class SafeMessageDigestContextHandle : BaseValue
     {
-        internal SafeMessageDigestContextHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeMessageDigestContextHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeMessageDigestContextHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeMessageDigestContextHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region IDisposable Members
@@ -28,12 +28,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             CryptoWrapper.EVP_MD_CTX_free(this.handle);
             return true;
         }
-
-        internal override IntPtr Duplicate()
-        {
-            throw new NotSupportedException();
-        }
-
         #endregion
     }
 }

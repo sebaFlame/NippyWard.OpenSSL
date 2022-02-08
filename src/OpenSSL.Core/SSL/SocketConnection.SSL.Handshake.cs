@@ -451,8 +451,8 @@ namespace OpenSSL.Core.SSL
             SSLWrapper.SSL_set_bio(this.sslHandle, this.readHandle, this.writeHandle);
 
             //add references for correct disposal
-            this.readHandle.AddRef();
-            this.writeHandle.AddRef();
+            this.readHandle.AddReference();
+            this.writeHandle.AddReference();
 
             //set correct connection endpoint options
             if (isServer)

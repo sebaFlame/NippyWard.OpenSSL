@@ -14,13 +14,13 @@ namespace OpenSSL.Core.Interop.Wrappers
     internal interface IStackWrapper
     {
         #region STACKOF
-        [return: NewSafeHandle]
+        [return: TakeOwnership]
         SafeStackHandle<TStackable> OPENSSL_sk_new_null<TStackable>()
             where TStackable : SafeBaseHandle, IStackable;
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int OPENSSL_sk_num<TStackable>(SafeStackHandle<TStackable> stack)
             where TStackable : SafeBaseHandle, IStackable;
-        [return: DontCheckReturnType]
+        [return: DontVerifyType]
         int OPENSSL_sk_find<TStackable>(SafeStackHandle<TStackable> stack, TStackable data)
             where TStackable : SafeBaseHandle, IStackable;
         int OPENSSL_sk_insert<TStackable>(SafeStackHandle<TStackable> stack, TStackable data, int where)
@@ -33,12 +33,10 @@ namespace OpenSSL.Core.Interop.Wrappers
             where TStackable : SafeBaseHandle, IStackable;
         TStackable OPENSSL_sk_pop<TStackable>(SafeStackHandle<TStackable> stack)
             where TStackable : SafeBaseHandle, IStackable;
-        [return: DontCheckReturnType]
-        [return: DontTakeOwnership]
+        [return: DontVerifyType]
         TStackable OPENSSL_sk_delete<TStackable>(SafeStackHandle<TStackable> stack, int loc)
             where TStackable : SafeBaseHandle, IStackable;
-        [return: DontCheckReturnType]
-        [return: DontTakeOwnership]
+        [return: DontVerifyType]
         TStackable OPENSSL_sk_delete_ptr<TStackable>(SafeStackHandle<TStackable> stack, TStackable p)
             where TStackable : SafeBaseHandle, IStackable;
         TStackable OPENSSL_sk_value<TStackable>(SafeStackHandle<TStackable> stack, int index)

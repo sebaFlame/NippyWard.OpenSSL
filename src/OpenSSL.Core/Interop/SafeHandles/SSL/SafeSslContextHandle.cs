@@ -38,12 +38,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
         /// <param name="sslMethod"></param>
         /// <param name="end"></param>
         /// <param name="protoList"></param>
-        internal SafeSslContextHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeSslContextHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeSslContextHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeSslContextHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region IDisposable Members
@@ -57,7 +57,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
             return true;
 		}
 
-        internal override void AddRef()
+        internal override void AddReference()
         {
             SSLWrapper.SSL_CTX_up_ref(this);
         }

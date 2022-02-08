@@ -35,12 +35,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	internal abstract class SafeDHHandle : BaseReference
 	{
 
-        internal SafeDHHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeDHHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeDHHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeDHHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region IDisposable Members
@@ -54,7 +54,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             return true;
 		}
 
-        internal override void AddRef()
+        internal override void AddReference()
         {
             CryptoWrapper.DH_up_ref(this);
         }

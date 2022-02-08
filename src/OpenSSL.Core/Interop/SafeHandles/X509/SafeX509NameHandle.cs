@@ -32,12 +32,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// </summary>
 	internal abstract class SafeX509NameHandle : BaseValue, IComparable<SafeX509NameHandle>, IStackable, IEquatable<SafeX509NameHandle>
 	{
-        internal SafeX509NameHandle(bool takeOwnership, bool isNew)
-            : base(takeOwnership, isNew)
+        internal SafeX509NameHandle(bool takeOwnership)
+            : base(takeOwnership)
         { }
 
-        internal SafeX509NameHandle(IntPtr ptr, bool takeOwnership, bool isNew)
-            : base(ptr, takeOwnership, isNew)
+        internal SafeX509NameHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
         { }
 
         #region Overrides
@@ -49,11 +49,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 		{
 			CryptoWrapper.X509_NAME_free(this.handle);
             return true;
-		}
-
-		internal override IntPtr Duplicate()
-		{
-			return CryptoWrapper.X509_NAME_dup(this);
 		}
 
 		#endregion

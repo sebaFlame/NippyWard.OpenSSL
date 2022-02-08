@@ -39,7 +39,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	internal class SafeCipherHandle : BaseValue, IStackable
 	{
         public SafeCipherHandle()
-            : base(false, false) { }
+            : base(false) { }
 
 		/// <summary>
 		/// Not implemented, these objects should never be disposed
@@ -48,11 +48,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 		{
             return true;
 		}
-
-        internal override IntPtr Duplicate()
-        {
-            throw new NotSupportedException();
-        }
     }
 	#endregion
 }
