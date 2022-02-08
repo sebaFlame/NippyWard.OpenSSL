@@ -73,21 +73,21 @@ namespace OpenSSL.Core.Ciphers
             if (this.ivLength > 0 && !(this.IV is null))
             {
                 Span<byte> iv = new Span<byte>(this.IV);
-                this.CryptoWrapper.EVP_DecryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), iv.GetPinnableReference());
+                CryptoWrapper.EVP_DecryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), iv.GetPinnableReference());
             }
             else
-                this.CryptoWrapper.EVP_DecryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), IntPtr.Zero);
+                CryptoWrapper.EVP_DecryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), IntPtr.Zero);
         }
 
         protected override int UpdateInternal(in Span<byte> inputBuffer, ref Span<byte> outputBuffer)
         {
-            this.CryptoWrapper.EVP_DecryptUpdate(this.CipherContextHandle, ref outputBuffer.GetPinnableReference(), out int outl, inputBuffer.GetPinnableReference(), inputBuffer.Length);
+            CryptoWrapper.EVP_DecryptUpdate(this.CipherContextHandle, ref outputBuffer.GetPinnableReference(), out int outl, inputBuffer.GetPinnableReference(), inputBuffer.Length);
             return outl;
         }
 
         protected override int FinalizeInternal(ref Span<byte> outputBuffer)
         {
-            this.CryptoWrapper.EVP_DecryptFinal_ex(this.CipherContextHandle, ref outputBuffer.GetPinnableReference(), out int outl);
+            CryptoWrapper.EVP_DecryptFinal_ex(this.CipherContextHandle, ref outputBuffer.GetPinnableReference(), out int outl);
             return outl;
         }
     }

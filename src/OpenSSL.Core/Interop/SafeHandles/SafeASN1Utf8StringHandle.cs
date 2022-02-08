@@ -10,19 +10,19 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeASN1Utf8StringHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeASN1Utf8StringHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         protected override bool ReleaseHandle()
         {
-            this.CryptoWrapper.ASN1_UTF8STRING_free(this.handle);
+            CryptoWrapper.ASN1_UTF8STRING_free(this.handle);
             return true;
         }
 
         internal override IntPtr Duplicate()
         {
-            return this.CryptoWrapper.ASN1_STRING_dup(this);
+            return CryptoWrapper.ASN1_STRING_dup(this);
         }
     }
 }

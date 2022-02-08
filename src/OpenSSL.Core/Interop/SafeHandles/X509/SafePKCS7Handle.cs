@@ -38,24 +38,24 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
             : base(takeOwnership, isNew)
         { }
 
-        internal SafePKCS7Handle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafePKCS7Handle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
-		#region Overrides
+        #region Overrides
 
-		/// <summary>
-		/// Calls PKCS7_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
+        /// <summary>
+        /// Calls PKCS7_free()
+        /// </summary>
+        protected override bool ReleaseHandle()
 		{
-			this.CryptoWrapper.PKCS7_free(this.handle);
+			CryptoWrapper.PKCS7_free(this.handle);
             return true;
 		}
 
         internal override IntPtr Duplicate()
         {
-            return this.CryptoWrapper.PKCS7_dup(this);
+            return CryptoWrapper.PKCS7_dup(this);
         }
 
         #endregion

@@ -42,8 +42,8 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeSslHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeSslHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         #region Overrides
@@ -54,13 +54,13 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
         protected override bool ReleaseHandle()
         {
             //also frees bios
-			this.SSLWrapper.SSL_free(this.handle);
+			SSLWrapper.SSL_free(this.handle);
             return true;
 		}
 
         internal override void AddRef()
         {
-            this.SSLWrapper.SSL_up_ref(this);
+            SSLWrapper.SSL_up_ref(this);
         }
 
         #endregion

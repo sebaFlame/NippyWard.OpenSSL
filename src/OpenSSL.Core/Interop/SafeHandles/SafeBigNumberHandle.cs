@@ -46,25 +46,25 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeBigNumberHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeBigNumberHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
         #endregion
 
-		#region IDisposable Members
+        #region IDisposable Members
 
-		/// <summary>
-		/// Calls BN_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
+        /// <summary>
+        /// Calls BN_free()
+        /// </summary>
+        protected override bool ReleaseHandle()
 		{
-			this.CryptoWrapper.BN_free(this.handle);
+			CryptoWrapper.BN_free(this.handle);
             return true;
 		}
 
         internal override IntPtr Duplicate()
         {
-            return this.CryptoWrapper.BN_dup(this);
+            return CryptoWrapper.BN_dup(this);
         }
         #endregion
 

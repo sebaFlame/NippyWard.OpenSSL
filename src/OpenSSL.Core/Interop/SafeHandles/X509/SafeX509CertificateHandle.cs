@@ -38,25 +38,25 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeX509CertificateHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeX509CertificateHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
-		#region Overrides
+        #region Overrides
 
-		/// <summary>
-		/// Calls X509_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
+        /// <summary>
+        /// Calls X509_free()
+        /// </summary>
+        protected override bool ReleaseHandle()
 		{
             //this also frees the private key if it is set
-			this.CryptoWrapper.X509_free(this.handle);
+			CryptoWrapper.X509_free(this.handle);
             return true;
 		}
 
         internal override void AddRef()
         {
-            this.CryptoWrapper.X509_up_ref(this);
+            CryptoWrapper.X509_up_ref(this);
         }
 
 
@@ -66,12 +66,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 
 		public int CompareTo(SafeX509CertificateHandle other)
 		{
-			return this.CryptoWrapper.X509_cmp(this, other);
+			return CryptoWrapper.X509_cmp(this, other);
 		}
 
         public bool Equals(SafeX509CertificateHandle other)
         {
-            return this.CryptoWrapper.X509_cmp(this, other) == 0;
+            return CryptoWrapper.X509_cmp(this, other) == 0;
         }
 
         #endregion

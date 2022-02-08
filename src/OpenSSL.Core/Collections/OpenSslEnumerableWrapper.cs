@@ -49,11 +49,11 @@ namespace OpenSSL.Core.Collections
         { }
 
         internal OpenSslEnumerableWrapper()
-            : base(Native.CryptoWrapper.OPENSSL_sk_new_null<THandle>())
+            : base(Native.StackWrapper.OPENSSL_sk_new_null<THandle>())
         { }
 
-        public IEnumerator<TOuter> GetEnumerator() => new OpenSslEnumerator(this.CryptoWrapper, this.Handle);
-        IEnumerator IEnumerable.GetEnumerator() => new OpenSslEnumerator(this.CryptoWrapper, this.Handle);
+        public IEnumerator<TOuter> GetEnumerator() => new OpenSslEnumerator(CryptoWrapper, this.Handle);
+        IEnumerator IEnumerable.GetEnumerator() => new OpenSslEnumerator(CryptoWrapper, this.Handle);
 
         private struct OpenSslEnumerator : IEnumerator<TOuter>
         {
@@ -64,7 +64,7 @@ namespace OpenSSL.Core.Collections
                 ILibCryptoWrapper cryptoWrapper,
                 SafeStackHandle<THandle> stackHandle)
             {
-                this.CryptoWrapper = cryptoWrapper;
+                CryptoWrapper = cryptoWrapper;
                 this.stackEnumerator = stackHandle.GetEnumerator();
             }
 

@@ -5,7 +5,7 @@ using System.Text;
 namespace OpenSSL.Core.Interop.SafeHandles.X509
 {
     /// <summary>
-    /// Wraps the X509_STORE object
+    /// Wraps the X509_OBJECT object. Can contain a X509, X509_CRL or EVP_PKEY
     /// </summary>
     internal abstract class SafeX509ObjectHandle : BaseReference, IStackable
     {
@@ -13,20 +13,19 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeX509ObjectHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeX509ObjectHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         protected override bool ReleaseHandle()
         {
-            this.CryptoWrapper.X509_OBJECT_free(this.handle);
+            CryptoWrapper.X509_OBJECT_free(this.handle);
             return true;
         }
 
         internal override void AddRef()
         {
-            //this adds a reference on the internal object!!! (X509 or X509_CRL)
-            //this.CryptoWrapper.X509_OBJECT_up_ref_count(this);
+            CryptoWrapper.X509_OBJECT_up_ref_count(this);
         }
     }
 }

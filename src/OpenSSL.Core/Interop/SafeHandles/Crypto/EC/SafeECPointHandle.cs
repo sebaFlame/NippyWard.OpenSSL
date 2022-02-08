@@ -39,21 +39,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeECPointHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeECPointHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
-		#region Overrides
+        #region Overrides
 
-		protected override bool ReleaseHandle()
+        protected override bool ReleaseHandle()
 		{
-			this.CryptoWrapper.EC_POINT_free(this.handle);
+			CryptoWrapper.EC_POINT_free(this.handle);
             return true;
 		}
 
         internal override IntPtr Duplicate()
         {
-            return this.CryptoWrapper.EC_POINT_dup(this, this.Group);
+            return CryptoWrapper.EC_POINT_dup(this, this.Group);
         }
         #endregion
     }

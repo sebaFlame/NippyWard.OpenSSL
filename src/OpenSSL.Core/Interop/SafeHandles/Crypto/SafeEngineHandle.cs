@@ -10,19 +10,19 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeEngineHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeEngineHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         protected override bool ReleaseHandle()
         {
-            this.CryptoWrapper.ENGINE_free(this.handle);
+            CryptoWrapper.ENGINE_free(this.handle);
             return true;
         }
 
         internal override void AddRef()
         {
-            this.CryptoWrapper.ENGINE_up_ref(this);
+            CryptoWrapper.ENGINE_up_ref(this);
         }
     }
 }

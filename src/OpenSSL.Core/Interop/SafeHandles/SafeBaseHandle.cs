@@ -32,10 +32,20 @@ namespace OpenSSL.Core.Interop.SafeHandles
 {
     internal abstract class SafeBaseHandle : SafeZeroHandle
     {
-        internal ILibCryptoWrapper CryptoWrapper { get; private set; }
-        internal ILibSSLWrapper SSLWrapper { get; private set; }
+        internal readonly static ILibCryptoWrapper CryptoWrapper;
+        internal readonly static ILibSSLWrapper SSLWrapper;
+        internal readonly static IStackWrapper StackWrapper;
+        internal readonly static ISafeHandleFactory SafeHandleFactory;
 
         protected bool IsNew { get; private set; }
+
+        static SafeBaseHandle()
+        {
+            CryptoWrapper = Native.CryptoWrapper;
+            SSLWrapper = Native.SSLWrapper;
+            StackWrapper = Native.StackWrapper;
+            SafeHandleFactory = Native.SafeHandleFactory;
+        }
 
         /// <summary>
         /// Handles to be constructed by P/Invoke
@@ -45,15 +55,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(takeOwnership)
         {
             this.IsNew = isNew;
-
-            this.CryptoWrapper = Native.CryptoWrapper;
-            this.SSLWrapper = Native.SSLWrapper;
-        }
-
-        protected SafeBaseHandle(IntPtr ptr, bool takeOwnership)
-            : this(takeOwnership, false)
-        {
-            this.SetHandle(ptr);
         }
 
         protected SafeBaseHandle(IntPtr ptr, bool takeOwnership, bool isNew)
@@ -75,10 +76,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(takeOwnership, isNew)
         { }
 
-        protected BaseReference(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
-        { }
-
         protected BaseReference(IntPtr ptr, bool takeOwnership, bool isNew)
             : base(ptr, takeOwnership, isNew)
         { }
@@ -86,7 +83,9 @@ namespace OpenSSL.Core.Interop.SafeHandles
         internal override void PostConstruction()
         {
             if (this.TakeOwnership && !this.IsNew)
+            {
                 this.AddRef();
+            }
         }
 
         /// <summary>
@@ -105,10 +104,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(takeOwnership, isNew)
         { }
 
-        protected BaseValue(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
-        { }
-
         protected BaseValue(IntPtr ptr, bool takeOwnership, bool isNew)
             : base(ptr, takeOwnership, isNew)
         { }
@@ -116,7 +111,9 @@ namespace OpenSSL.Core.Interop.SafeHandles
         internal override void PostConstruction()
         {
             if (this.TakeOwnership && !this.IsNew)
+            {
                 this.SetHandle(this.Duplicate());
+            }
         }
 
         /// <summary>
@@ -130,7 +127,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
     {
         public override bool IsInvalid => this.handle == IntPtr.Zero;
 
-        protected bool TakeOwnership { get; private set; }
+        internal bool TakeOwnership { get; private set; }
 
         protected SafeZeroHandle(bool takeOwnership)
             : base(IntPtr.Zero, takeOwnership)

@@ -25,7 +25,7 @@ namespace OpenSSL.Core.X509
         private X509ExtensionType extensionType;
 
         public string Name => this.extensionType.LongName;
-        public bool Critical => this.CryptoWrapper.X509_EXTENSION_get_critical(this.X509ExtensionWrapper.Handle) == 1;
+        public bool Critical => CryptoWrapper.X509_EXTENSION_get_critical(this.X509ExtensionWrapper.Handle) == 1;
 
         private string data;
         public string Data
@@ -35,17 +35,17 @@ namespace OpenSSL.Core.X509
                 if (!string.IsNullOrEmpty(this.data))
                     return this.data;
 
-                using (SafeBioHandle bio = this.CryptoWrapper.BIO_new(this.CryptoWrapper.BIO_s_mem()))
+                using (SafeBioHandle bio = CryptoWrapper.BIO_new(CryptoWrapper.BIO_s_mem()))
                 {
-                    this.CryptoWrapper.X509V3_EXT_print(bio, this.X509ExtensionWrapper.Handle, 0, 0);
-                    int bLength = (int)this.CryptoWrapper.BIO_ctrl_pending(bio);
+                    CryptoWrapper.X509V3_EXT_print(bio, this.X509ExtensionWrapper.Handle, 0, 0);
+                    int bLength = (int)CryptoWrapper.BIO_ctrl_pending(bio);
                     int ret;
 
                     unsafe
                     {
                         byte* bBuf = stackalloc byte[bLength];
                         Span<byte> bSpan = new Span<byte>(bBuf, bLength);
-                        if ((ret = this.CryptoWrapper.BIO_read(bio, ref bSpan.GetPinnableReference(), bLength)) != bLength)
+                        if ((ret = CryptoWrapper.BIO_read(bio, ref bSpan.GetPinnableReference(), bLength)) != bLength)
                             throw new OpenSslException();
 
                         int cLength = Encoding.ASCII.GetDecoder().GetCharCount(bBuf, bSpan.Length, false);
@@ -68,7 +68,7 @@ namespace OpenSSL.Core.X509
             : base()
         {
             this.X509ExtensionWrapper = new X509ExtensionInternal(extensionHandle);
-            this.extensionType = new X509ExtensionType(this.CryptoWrapper.X509_EXTENSION_get_object(this.X509ExtensionWrapper.Handle));
+            this.extensionType = new X509ExtensionType(CryptoWrapper.X509_EXTENSION_get_object(this.X509ExtensionWrapper.Handle));
         }
 
         protected override void Dispose(bool disposing)

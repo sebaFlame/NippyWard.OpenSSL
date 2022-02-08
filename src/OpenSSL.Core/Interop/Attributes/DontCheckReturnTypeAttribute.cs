@@ -7,7 +7,7 @@ namespace OpenSSL.Core.Interop.Attributes
     /// <summary>
     /// An attribute to signify you don't want to check the return type
     /// </summary>
-    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
-    internal class DontCheckReturnTypeAttribute : Attribute
+    [AttributeUsage(AttributeTargets.ReturnValue | AttributeTargets.Parameter, AllowMultiple = false)]
+    internal class DontCheckReturnTypeAttribute : GeneratorDecaratorAttribute
     { }
 }

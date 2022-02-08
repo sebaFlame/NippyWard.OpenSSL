@@ -14,8 +14,8 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeMessageDigestContextHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeMessageDigestContextHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         #region IDisposable Members
@@ -25,7 +25,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
         /// </summary>
         protected override bool ReleaseHandle()
         {
-            this.CryptoWrapper.EVP_MD_CTX_free(this.handle);
+            CryptoWrapper.EVP_MD_CTX_free(this.handle);
             return true;
         }
 

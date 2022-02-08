@@ -38,24 +38,24 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeX509ExtensionHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeX509ExtensionHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
-		#region Overrides
+        #region Overrides
 
-		/// <summary>
-		/// Calls X509_EXTENSION_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
+        /// <summary>
+        /// Calls X509_EXTENSION_free()
+        /// </summary>
+        protected override bool ReleaseHandle()
 		{
-			this.CryptoWrapper.X509_EXTENSION_free(this.handle);
+			CryptoWrapper.X509_EXTENSION_free(this.handle);
             return true;
 		}
 
 		internal override IntPtr Duplicate()
 		{
-			return this.CryptoWrapper.X509_EXTENSION_dup(this);
+			return CryptoWrapper.X509_EXTENSION_dup(this);
 		}
 
 		#endregion

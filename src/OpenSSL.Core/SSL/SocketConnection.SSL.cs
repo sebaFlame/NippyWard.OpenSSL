@@ -101,8 +101,8 @@ namespace OpenSSL.Core.SSL
                 if (!this.encryptionEnabled)
                     throw new InvalidOperationException("Encryption has not been enabled yet");
 
-                using (SafeSslCipherHandle cipher = this.SSLWrapper.SSL_get_current_cipher(this.sslHandle))
-                    return Native.PtrToStringAnsi(this.SSLWrapper.SSL_CIPHER_get_name(cipher), false);
+                using (SafeSslCipherHandle cipher = SSLWrapper.SSL_get_current_cipher(this.sslHandle))
+                    return Native.PtrToStringAnsi(SSLWrapper.SSL_CIPHER_get_name(cipher), false);
             }
         }
 
@@ -113,7 +113,7 @@ namespace OpenSSL.Core.SSL
                 if (!this.encryptionEnabled)
                     throw new InvalidOperationException("Encryption has not been enabled yet");
 
-                int versionNumber = this.SSLWrapper.SSL_version(this.sslHandle);
+                int versionNumber = SSLWrapper.SSL_version(this.sslHandle);
                 SslVersion version = (SslVersion)versionNumber;
                 switch (version)
                 {
@@ -140,11 +140,11 @@ namespace OpenSSL.Core.SSL
                 if (!this.IsAvailable(out SslState sslState))
                     throw new InvalidOperationException(sslState == SslState.None ? "Encryption has not been enabled yet" : $"Current connection state: {sslState}");
 
-                return new X509Certificate(this.SSLWrapper.SSL_get_peer_certificate(this.sslHandle));
+                return new X509Certificate(SSLWrapper.SSL_get_peer_certificate(this.sslHandle));
             }
         }
 
-        public bool SessionReused => !(this.SessionHandle is null) && this.SSLWrapper.SSL_session_reused(this.sslHandle) == 1;
+        public bool SessionReused => !(this.SessionHandle is null) && SSLWrapper.SSL_session_reused(this.sslHandle) == 1;
 
         private ClientCertificateCallbackHandler clientCertificateCallbackHandler;
         /// <summary>
@@ -159,9 +159,9 @@ namespace OpenSSL.Core.SSL
                     this.s_ClientCertificateCallback = this.ClientCertificateCallback;
 
                 if (value is null)
-                    this.SSLWrapper.SSL_CTX_set_client_cert_cb(this.SslContextWrapper.SslContextHandle, null);
+                    SSLWrapper.SSL_CTX_set_client_cert_cb(this.SslContextWrapper.SslContextHandle, null);
                 else
-                    this.SSLWrapper.SSL_CTX_set_client_cert_cb(this.SslContextWrapper.SslContextHandle, this.s_ClientCertificateCallback);
+                    SSLWrapper.SSL_CTX_set_client_cert_cb(this.SslContextWrapper.SslContextHandle, this.s_ClientCertificateCallback);
 
                 this.clientCertificateCallbackHandler = value;
             }
@@ -176,7 +176,7 @@ namespace OpenSSL.Core.SSL
         /// <param name="addToChain">Add the certificate to the verification chain if it's not available in the current <see cref="CertificateStore"/></param>
         public void AddClientCertificateCA(X509Certificate caCertificate, bool addToChain = true)
         {
-            this.SSLWrapper.SSL_CTX_add_client_CA(this.SslContextWrapper.SslContextHandle, caCertificate.X509Wrapper.Handle);
+            SSLWrapper.SSL_CTX_add_client_CA(this.SslContextWrapper.SslContextHandle, caCertificate.X509Wrapper.Handle);
             if (addToChain)
                 this.CertificateStore.AddCertificate(caCertificate);
         }
@@ -189,8 +189,8 @@ namespace OpenSSL.Core.SSL
 
         public X509Store CertificateStore
         {
-            get => new X509Store(this.SSLWrapper.SSL_CTX_get_cert_store(this.SslContextWrapper.SslContextHandle));
-            set => this.SSLWrapper.SSL_CTX_set_cert_store(this.SslContextWrapper.SslContextHandle, value.StoreWrapper.Handle);
+            get => new X509Store(SSLWrapper.SSL_CTX_get_cert_store(this.SslContextWrapper.SslContextHandle));
+            set => SSLWrapper.SSL_CTX_set_cert_store(this.SslContextWrapper.SslContextHandle, value.StoreWrapper.Handle);
         }
 
         /// <summary>
@@ -200,8 +200,8 @@ namespace OpenSSL.Core.SSL
         /// </summary>
         public X509Certificate Certificate
         {
-            get => new X509Certificate(this.SSLWrapper.SSL_CTX_get0_certificate(this.SslContextWrapper.SslContextHandle));
-            set => this.SSLWrapper.SSL_CTX_use_certificate(this.SslContextWrapper.SslContextHandle, value.X509Wrapper.Handle);
+            get => new X509Certificate(SSLWrapper.SSL_CTX_get0_certificate(this.SslContextWrapper.SslContextHandle));
+            set => SSLWrapper.SSL_CTX_use_certificate(this.SslContextWrapper.SslContextHandle, value.X509Wrapper.Handle);
         }
 
         /// <summary>
@@ -209,8 +209,8 @@ namespace OpenSSL.Core.SSL
         /// </summary>
         public PrivateKey PrivateKey
         {
-            get => PrivateKey.GetCorrectKey(this.SSLWrapper.SSL_CTX_get0_privatekey(this.SslContextWrapper.SslContextHandle));
-            set => this.SSLWrapper.SSL_CTX_use_PrivateKey(this.SslContextWrapper.SslContextHandle, value.KeyWrapper.Handle);
+            get => PrivateKey.GetCorrectKey(SSLWrapper.SSL_CTX_get0_privatekey(this.SslContextWrapper.SslContextHandle));
+            set => SSLWrapper.SSL_CTX_use_PrivateKey(this.SslContextWrapper.SslContextHandle, value.KeyWrapper.Handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -267,7 +267,7 @@ namespace OpenSSL.Core.SSL
 
         internal int WriteToSslBio(ReadOnlyMemory<byte> readBuffer)
         {
-            int read = this.CryptoWrapper.BIO_write(this.readHandle, readBuffer.Span.GetPinnableReference(), readBuffer.Length);
+            int read = CryptoWrapper.BIO_write(this.readHandle, readBuffer.Span.GetPinnableReference(), readBuffer.Length);
 
             if(read < readBuffer.Length)
                 throw new ArgumentOutOfRangeException("Data not correctly written to BIO"); //TODO: undo operation / advance pipe?
@@ -277,8 +277,8 @@ namespace OpenSSL.Core.SSL
 
         internal int ReadFromSsl(Memory<byte> writeBuffer, out int pending)
         {
-            int read = this.SSLWrapper.SSL_read(this.sslHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length);
-            pending = this.SSLWrapper.SSL_pending(this.sslHandle);
+            int read = SSLWrapper.SSL_read(this.sslHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length);
+            pending = SSLWrapper.SSL_pending(this.sslHandle);
 
             //TODO: manage renegotiate
 
@@ -288,11 +288,11 @@ namespace OpenSSL.Core.SSL
             if (read > 0)
                 return read;
 
-            if (this.SSLWrapper.SSL_get_shutdown(this.sslHandle) == 2)
+            if (SSLWrapper.SSL_get_shutdown(this.sslHandle) == 2)
                 throw new ShutdownException();
 
             //TODO: error handling incorrect
-            int errorCode = this.SSLWrapper.SSL_get_error(this.sslHandle, read);
+            int errorCode = SSLWrapper.SSL_get_error(this.sslHandle, read);
             SslError error = (SslError)errorCode;
 
             if (error == SslError.SSL_ERROR_WANT_READ)
@@ -311,13 +311,13 @@ namespace OpenSSL.Core.SSL
             else
                 buffer = readBuffer.Slice(startPostion).Span;
 
-            written = this.SSLWrapper.SSL_write(this.sslHandle, buffer.GetPinnableReference(), buffer.Length);
+            written = SSLWrapper.SSL_write(this.sslHandle, buffer.GetPinnableReference(), buffer.Length);
 
             if (written > 0)
                 return written;
 
             //TODO: error handling incorrect
-            int errorCode = this.SSLWrapper.SSL_get_error(this.sslHandle, written);
+            int errorCode = SSLWrapper.SSL_get_error(this.sslHandle, written);
             SslError error = (SslError)errorCode;
 
             if (error == SslError.SSL_ERROR_WANT_WRITE)
@@ -330,15 +330,15 @@ namespace OpenSSL.Core.SSL
         {
             pending = 0;
             if (writeBuffer.IsEmpty)
-                return (int)this.CryptoWrapper.BIO_ctrl_pending(this.writeHandle);
+                return (int)CryptoWrapper.BIO_ctrl_pending(this.writeHandle);
 
             try
             {
-                return this.CryptoWrapper.BIO_read(this.writeHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length);
+                return CryptoWrapper.BIO_read(this.writeHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length);
             }
             finally
             {
-                pending = (int)this.CryptoWrapper.BIO_ctrl_pending(this.writeHandle);
+                pending = (int)CryptoWrapper.BIO_ctrl_pending(this.writeHandle);
             }
         }
 
@@ -348,13 +348,13 @@ namespace OpenSSL.Core.SSL
             int read, totalRead = 0;
             Memory<byte> writeBuffer;
 
-            while ((waiting = this.CryptoWrapper.BIO_ctrl_pending(this.writeHandle)) > 0)
+            while ((waiting = CryptoWrapper.BIO_ctrl_pending(this.writeHandle)) > 0)
             {
                 //get a buffer from the writer pool
                 writeBuffer = this._sendToSocket.GetMemoryInternal(Native.SSL2_MAX_RECORD_LENGTH_3_BYTE_HEADER);
 
                 //read what needs to be sent to the other party
-                totalRead += (read = this.CryptoWrapper.BIO_read(this.writeHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length));
+                totalRead += (read = CryptoWrapper.BIO_read(this.writeHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length));
 
                 //advance writer
                 this._sendToSocket.AdvanceInternal(read);
@@ -402,11 +402,11 @@ namespace OpenSSL.Core.SSL
 
                 //write what was read from the other party
                 if (readSequence.IsSingleSegment)
-                    this.CryptoWrapper.BIO_write(this.readHandle, readSequence.First.Span.GetPinnableReference(), (int)readSequence.First.Length);
+                    CryptoWrapper.BIO_write(this.readHandle, readSequence.First.Span.GetPinnableReference(), (int)readSequence.First.Length);
                 else
                 {
                     foreach (ReadOnlyMemory<byte> memory in readSequence)
-                        this.CryptoWrapper.BIO_write(this.readHandle, memory.Span.GetPinnableReference(), memory.Length);
+                        CryptoWrapper.BIO_write(this.readHandle, memory.Span.GetPinnableReference(), memory.Length);
                 }
 
                 endPosition = readSequence.End;
@@ -429,9 +429,9 @@ namespace OpenSSL.Core.SSL
                 this.s_VerifyCallback = this.VerifyCertificateCallback;
 
             if (remoteCertificateValidationHandler is null)
-                this.SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, 0, null);
+                SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, 0, null);
             else
-                this.SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, (int)verifyMode, this.s_VerifyCallback);
+                SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, (int)verifyMode, this.s_VerifyCallback);
 
             this.remoteCertificateValidationHandler = remoteCertificateValidationHandler;
         }
@@ -442,14 +442,14 @@ namespace OpenSSL.Core.SSL
             if (this.remoteCertificateValidationHandler is null)
                 throw new InvalidOperationException("No verification callback has been defined");
 
-            Type storeCtxType = DynamicTypeBuilder.GetConcreteOwnType<SafeX509StoreContextHandle>();
+            Type storeCtxType = null;
             ConstructorInfo ctor = storeCtxType.GetConstructor(new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) });
             object newObj = ctor.Invoke(new object[] { x509_store_ctx_ptr, false, false });
             SafeX509StoreContextHandle x509_store_ctx = newObj as SafeX509StoreContextHandle;
 
-            using (X509Certificate remoteCertificate = new X509Certificate(this.CryptoWrapper.X509_STORE_CTX_get_current_cert(x509_store_ctx)))
+            using (X509Certificate remoteCertificate = new X509Certificate(CryptoWrapper.X509_STORE_CTX_get_current_cert(x509_store_ctx)))
             {
-                using (X509Store store = new X509Store(this.CryptoWrapper.X509_STORE_CTX_get0_store(x509_store_ctx)))
+                using (X509Store store = new X509Store(CryptoWrapper.X509_STORE_CTX_get0_store(x509_store_ctx)))
                 {
                     using (OpenSslReadOnlyCollection<X509Certificate> certList = store.GetCertificates())
                     {
@@ -465,7 +465,7 @@ namespace OpenSSL.Core.SSL
             if (this.clientCertificateCallbackHandler is null)
                 throw new InvalidOperationException("No client certificate callback has been defined");
 
-            Type sslType = DynamicTypeBuilder.GetConcreteOwnType<SafeSslHandle>();
+            Type sslType = null;
             ConstructorInfo ctor = sslType.GetConstructor(new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) });
             object newObj = ctor.Invoke(new object[] { sslPtr, false, false });
             SafeSslHandle ssl = newObj as SafeSslHandle;
@@ -474,7 +474,7 @@ namespace OpenSSL.Core.SSL
             x509Ptr = IntPtr.Zero;
             pkeyPtr = IntPtr.Zero;
 
-            SafeStackHandle<SafeX509NameHandle> nameStackHandle = this.SSLWrapper.SSL_get_client_CA_list(ssl);
+            SafeStackHandle<SafeX509NameHandle> nameStackHandle = SSLWrapper.SSL_get_client_CA_list(ssl);
             using(OpenSslReadOnlyCollection<X509Name> nameList = OpenSslReadOnlyCollection<X509Name>.CreateFromSafeHandle(nameStackHandle))
             {
                 if (succes = this.clientCertificateCallbackHandler(

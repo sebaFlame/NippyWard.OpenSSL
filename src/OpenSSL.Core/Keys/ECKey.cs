@@ -33,14 +33,14 @@ namespace OpenSSL.Core.Keys
         internal ECKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {
-            this.ecHandle = this.CryptoWrapper.EVP_PKEY_get0_EC_KEY(this.KeyWrapper.Handle);
+            this.ecHandle = CryptoWrapper.EVP_PKEY_get0_EC_KEY(this.KeyWrapper.Handle);
         }
 
         //TODO: more options?
         public ECKey(string curveName)
             : base()
         {
-            int nid = this.CryptoWrapper.OBJ_txt2nid(curveName);
+            int nid = CryptoWrapper.OBJ_txt2nid(curveName);
             this.generateEC(nid);
         }
 
@@ -52,8 +52,8 @@ namespace OpenSSL.Core.Keys
 
         private void generateEC(int curveName)
         {
-            this.ecHandle = this.CryptoWrapper.EC_KEY_new_by_curve_name(curveName);
-            this.CryptoWrapper.EC_KEY_generate_key(this.ecHandle);
+            this.ecHandle = CryptoWrapper.EC_KEY_new_by_curve_name(curveName);
+            CryptoWrapper.EC_KEY_generate_key(this.ecHandle);
         }
 
         internal override KeyInternal GenerateKeyInternal()
@@ -61,10 +61,10 @@ namespace OpenSSL.Core.Keys
             if (this.ecHandle is null || this.ecHandle.IsInvalid)
                 throw new InvalidOperationException("RSA key has not been created yet");
 
-            this.CryptoWrapper.EC_KEY_check_key(this.ecHandle);
+            CryptoWrapper.EC_KEY_check_key(this.ecHandle);
 
-            SafeKeyHandle keyHandle = this.CryptoWrapper.EVP_PKEY_new();
-            this.CryptoWrapper.EVP_PKEY_set1_EC_KEY(keyHandle, this.ecHandle);
+            SafeKeyHandle keyHandle = CryptoWrapper.EVP_PKEY_new();
+            CryptoWrapper.EVP_PKEY_set1_EC_KEY(keyHandle, this.ecHandle);
             return new KeyInternal(keyHandle);
         }
 

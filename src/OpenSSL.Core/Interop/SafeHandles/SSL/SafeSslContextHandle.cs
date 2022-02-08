@@ -42,24 +42,24 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeSslContextHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeSslContextHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
-		#region IDisposable Members
+        #region IDisposable Members
 
-		/// <summary>
-		///     base override - calls SSL_CTX_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
+        /// <summary>
+        ///     base override - calls SSL_CTX_free()
+        /// </summary>
+        protected override bool ReleaseHandle()
 		{
-			this.SSLWrapper.SSL_CTX_free(this.handle);
+			SSLWrapper.SSL_CTX_free(this.handle);
             return true;
 		}
 
         internal override void AddRef()
         {
-            this.SSLWrapper.SSL_CTX_up_ref(this);
+            SSLWrapper.SSL_CTX_up_ref(this);
         }
 
         #endregion

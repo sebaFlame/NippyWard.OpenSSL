@@ -24,7 +24,7 @@ namespace OpenSSL.Core.Ciphers
             this.Key = new byte[this.GetKeyLength()];
 
             Span<byte> bufSpan = new Span<byte>(this.Key);
-            this.CryptoWrapper.EVP_CIPHER_CTX_rand_key(this.CipherContextHandle, ref bufSpan.GetPinnableReference());
+            CryptoWrapper.EVP_CIPHER_CTX_rand_key(this.CipherContextHandle, ref bufSpan.GetPinnableReference());
 
             if ((this.ivLength = this.GetIVLength()) > 0)
                 this.IV = Interop.Random.Bytes(this.ivLength);
@@ -91,21 +91,21 @@ namespace OpenSSL.Core.Ciphers
             if (this.ivLength > 0 && !(this.IV is null))
             {
                 Span<byte> iv = new Span<byte>(this.IV);
-                this.CryptoWrapper.EVP_EncryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), iv.GetPinnableReference());
+                CryptoWrapper.EVP_EncryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), iv.GetPinnableReference());
             }
             else
-                this.CryptoWrapper.EVP_EncryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), IntPtr.Zero);
+                CryptoWrapper.EVP_EncryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), IntPtr.Zero);
         }
 
         protected override int UpdateInternal(in Span<byte> inputBuffer, ref Span<byte> outputBuffer)
         {
-            this.CryptoWrapper.EVP_EncryptUpdate(this.CipherContextHandle, ref outputBuffer.GetPinnableReference(), out int outl, inputBuffer.GetPinnableReference(), inputBuffer.Length);
+            CryptoWrapper.EVP_EncryptUpdate(this.CipherContextHandle, ref outputBuffer.GetPinnableReference(), out int outl, inputBuffer.GetPinnableReference(), inputBuffer.Length);
             return outl;
         }
 
         protected override int FinalizeInternal(ref Span<byte> outputBuffer)
         {
-            this.CryptoWrapper.EVP_EncryptFinal_ex(this.CipherContextHandle, ref outputBuffer.GetPinnableReference(), out int outl);
+            CryptoWrapper.EVP_EncryptFinal_ex(this.CipherContextHandle, ref outputBuffer.GetPinnableReference(), out int outl);
             return outl;
         }
     }

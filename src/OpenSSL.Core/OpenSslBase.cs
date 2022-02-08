@@ -9,13 +9,17 @@ namespace OpenSSL.Core
 {
     public abstract class OpenSslBase
     {
-        internal ILibCryptoWrapper CryptoWrapper { get; private set; }
-        internal ILibSSLWrapper SSLWrapper { get; private set; }
+        internal readonly static ILibCryptoWrapper CryptoWrapper;
+        internal readonly static ILibSSLWrapper SSLWrapper;
+        internal readonly static IStackWrapper StackWrapper;
+        internal readonly static ISafeHandleFactory SafeHandleFactory;
 
-        protected OpenSslBase()
+        static OpenSslBase()
         {
-            this.CryptoWrapper = Native.CryptoWrapper;
-            this.SSLWrapper = Native.SSLWrapper;
+            CryptoWrapper = Native.CryptoWrapper;
+            SSLWrapper = Native.SSLWrapper;
+            StackWrapper = Native.StackWrapper;
+            SafeHandleFactory = Native.SafeHandleFactory;
         }
     }
 }

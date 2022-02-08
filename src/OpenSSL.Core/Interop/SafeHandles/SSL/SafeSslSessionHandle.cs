@@ -10,19 +10,19 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeSslSessionHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeSslSessionHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         protected override bool ReleaseHandle()
         {
-            this.SSLWrapper.SSL_SESSION_free(this.handle);
+            SSLWrapper.SSL_SESSION_free(this.handle);
             return true;
         }
 
         internal override void AddRef()
         {
-            this.SSLWrapper.SSL_SESSION_up_ref(this);
+            SSLWrapper.SSL_SESSION_up_ref(this);
         }
     }
 }

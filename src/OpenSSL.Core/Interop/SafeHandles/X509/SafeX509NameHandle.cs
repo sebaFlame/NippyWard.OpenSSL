@@ -36,24 +36,24 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeX509NameHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeX509NameHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
-		#region Overrides
+        #region Overrides
 
-		/// <summary>
-		/// Calls X509_NAME_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
+        /// <summary>
+        /// Calls X509_NAME_free()
+        /// </summary>
+        protected override bool ReleaseHandle()
 		{
-			this.CryptoWrapper.X509_NAME_free(this.handle);
+			CryptoWrapper.X509_NAME_free(this.handle);
             return true;
 		}
 
 		internal override IntPtr Duplicate()
 		{
-			return this.CryptoWrapper.X509_NAME_dup(this);
+			return CryptoWrapper.X509_NAME_dup(this);
 		}
 
 		#endregion
@@ -67,12 +67,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 		/// <returns></returns>
 		public int CompareTo(SafeX509NameHandle other)
 		{
-			return this.CryptoWrapper.X509_NAME_cmp(this, other);
+			return CryptoWrapper.X509_NAME_cmp(this, other);
 		}
 
         public bool Equals(SafeX509NameHandle other)
         {
-            return this.CryptoWrapper.X509_NAME_cmp(this, other) == 0;
+            return CryptoWrapper.X509_NAME_cmp(this, other) == 0;
         }
 
         #endregion

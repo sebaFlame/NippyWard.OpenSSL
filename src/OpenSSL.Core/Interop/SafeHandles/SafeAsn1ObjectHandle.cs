@@ -50,24 +50,24 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeAsn1ObjectHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeAsn1ObjectHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         public bool Equals(SafeAsn1ObjectHandle other)
         {
-            return this.CryptoWrapper.OBJ_cmp(this, other) == 0;
+            return CryptoWrapper.OBJ_cmp(this, other) == 0;
         }
 
         protected override bool ReleaseHandle()
         {
-            this.CryptoWrapper.ASN1_OBJECT_free(this.handle);
+            CryptoWrapper.ASN1_OBJECT_free(this.handle);
             return true;
         }
 
         internal override IntPtr Duplicate()
         {
-            return this.CryptoWrapper.OBJ_dup(this);
+            return CryptoWrapper.OBJ_dup(this);
         }
     }
 }

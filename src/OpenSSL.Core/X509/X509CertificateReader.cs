@@ -84,10 +84,11 @@ namespace OpenSSL.Core.X509
             SafeStackHandle<SafeX509CertificateHandle> certificates;
             using (SafeStackHandle<SafeX509InfoHandle> currentInfoStack = Native.CryptoWrapper.PEM_X509_INFO_read_bio(currentBio, IntPtr.Zero, null, IntPtr.Zero))
             {
-                certificates = Native.CryptoWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
+                certificates = Native.StackWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
                 SafeX509CertificateHandle certificate;
 
-                foreach(SafeX509InfoHandle info in currentInfoStack)
+                //SafeX509InfoHandle gets disposed immediately after enumeration / and the certificate with it!
+                foreach (SafeX509InfoHandle info in currentInfoStack)
                 {
                     certificate = info.X509Certificate;
                     if (certificate is null)
@@ -104,7 +105,7 @@ namespace OpenSSL.Core.X509
         //TODO: add exception handling
         private OpenSslList<X509Certificate> ProcessDir(DirectoryInfo dir)
         {
-            SafeStackHandle<SafeX509CertificateHandle> certificates = Native.CryptoWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
+            SafeStackHandle<SafeX509CertificateHandle> certificates = Native.StackWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
             this.GetCertificates(dir, certificates);
             return OpenSslList<X509Certificate>.CreateFromSafeHandle(certificates);
         }
@@ -156,7 +157,7 @@ namespace OpenSSL.Core.X509
             if (this.Certificates.InternalEnumerable is SafeHandleWrapper<SafeStackHandle<SafeX509CertificateHandle>> handleWrapper)
             {
                 SafeStackHandle<SafeX509CertificateHandle> stack = handleWrapper.Handle;
-                Native.CryptoWrapper.OPENSSL_sk_pop_free(stack, Native.CryptoWrapper.X509_free);
+                Native.StackWrapper.OPENSSL_sk_pop_free(stack, Native.CryptoWrapper.X509_free);
                 stack.SetHandleAsInvalid();
                 this.Certificates = null;
             }

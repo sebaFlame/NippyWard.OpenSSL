@@ -294,6 +294,9 @@ namespace OpenSSL.Core.Tests
             {
                 using (X509CertificateRequest req = new X509CertificateRequest(caCert.PublicKey, "localhost", "root"))
                 {
+                    Assert.Equal("localhost", req.OrganizationUnit);
+                    Assert.Equal("root", req.Common);
+
                     using (X509Certificate cert = ca.ProcessRequest(req, start, end, DigestType.SHA256))
                     {
                         Assert.True(cert.VerifyPrivateKey(caCert.PublicKey));

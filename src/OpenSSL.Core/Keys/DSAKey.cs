@@ -17,7 +17,7 @@ namespace OpenSSL.Core.Keys
         internal DSAKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {
-            this.dsaHandle = this.CryptoWrapper.EVP_PKEY_get0_DSA(this.KeyWrapper.Handle);
+            this.dsaHandle = CryptoWrapper.EVP_PKEY_get0_DSA(this.KeyWrapper.Handle);
         }
 
         public DSAKey(int bits, Span<byte> seed)
@@ -35,9 +35,9 @@ namespace OpenSSL.Core.Keys
 
         private void generateDSA(int bits, Span<byte> seed)
         {
-            this.dsaHandle = this.CryptoWrapper.DSA_new();
-            this.CryptoWrapper.DSA_generate_parameters_ex(this.dsaHandle, bits, seed.GetPinnableReference(), seed.Length, out int counter_ret, out ulong h_ret, null);
-            this.CryptoWrapper.DSA_generate_key(this.dsaHandle);
+            this.dsaHandle = CryptoWrapper.DSA_new();
+            CryptoWrapper.DSA_generate_parameters_ex(this.dsaHandle, bits, seed.GetPinnableReference(), seed.Length, out int counter_ret, out ulong h_ret, null);
+            CryptoWrapper.DSA_generate_key(this.dsaHandle);
         }
 
         internal override KeyInternal GenerateKeyInternal()
@@ -45,8 +45,8 @@ namespace OpenSSL.Core.Keys
             if (this.dsaHandle is null || this.dsaHandle.IsInvalid)
                 throw new InvalidOperationException("RSA key has not been created yet");
 
-            SafeKeyHandle keyHandle = this.CryptoWrapper.EVP_PKEY_new();
-            this.CryptoWrapper.EVP_PKEY_set1_DSA(keyHandle, this.dsaHandle);
+            SafeKeyHandle keyHandle = CryptoWrapper.EVP_PKEY_new();
+            CryptoWrapper.EVP_PKEY_set1_DSA(keyHandle, this.dsaHandle);
             return new KeyInternal(keyHandle);
         }
 

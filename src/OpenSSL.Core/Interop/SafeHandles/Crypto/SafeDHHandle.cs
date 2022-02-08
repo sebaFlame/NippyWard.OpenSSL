@@ -39,24 +39,24 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeDHHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeDHHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
-		#region IDisposable Members
+        #region IDisposable Members
 
-		/// <summary>
-		/// Calls DH_free().
-		/// </summary>
-		protected override bool ReleaseHandle()
+        /// <summary>
+        /// Calls DH_free().
+        /// </summary>
+        protected override bool ReleaseHandle()
         {
-			this.CryptoWrapper.DH_free(this.handle);
+			CryptoWrapper.DH_free(this.handle);
             return true;
 		}
 
         internal override void AddRef()
         {
-            this.CryptoWrapper.DH_up_ref(this);
+            CryptoWrapper.DH_up_ref(this);
         }
 
         #endregion

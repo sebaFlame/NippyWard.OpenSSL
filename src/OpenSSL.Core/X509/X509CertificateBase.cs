@@ -139,7 +139,7 @@ namespace OpenSSL.Core.X509
         public void Sign(Key key, DigestType digestType)
         {
             SafeMessageDigestHandle md;
-            using (md = this.CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr))
+            using (md = CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr))
             {
                 this.Sign(key.KeyWrapper.Handle, md);
             }
@@ -174,11 +174,11 @@ namespace OpenSSL.Core.X509
             try
             {
                 int read;
-                using (SafeBioHandle bio = this.CryptoWrapper.BIO_new(this.CryptoWrapper.BIO_s_mem()))
+                using (SafeBioHandle bio = CryptoWrapper.BIO_new(CryptoWrapper.BIO_s_mem()))
                 {
                     this.WriteCertificate(bio, password, cipherType, fileEncoding);
                     Span<byte> bufSpan = new Span<byte>(buf);
-                    while ((read = this.CryptoWrapper.BIO_read(bio, ref bufSpan.GetPinnableReference(), bufSpan.Length)) > 0)
+                    while ((read = CryptoWrapper.BIO_read(bio, ref bufSpan.GetPinnableReference(), bufSpan.Length)) > 0)
                     {
                         stream.Write(buf, 0, read);
                         Array.Clear(buf, 0, read);

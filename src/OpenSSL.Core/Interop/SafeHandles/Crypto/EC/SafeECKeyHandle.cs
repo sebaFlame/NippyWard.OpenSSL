@@ -38,24 +38,24 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeECKeyHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeECKeyHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
-		#region Overrides
+        #region Overrides
 
-		/// <summary>
-		/// This method must be implemented in derived classes.
-		/// </summary>
-		protected override bool ReleaseHandle()
+        /// <summary>
+        /// This method must be implemented in derived classes.
+        /// </summary>
+        protected override bool ReleaseHandle()
 		{
-			this.CryptoWrapper.EC_KEY_free(this.handle);
+			CryptoWrapper.EC_KEY_free(this.handle);
             return true;
 		}
 
 		internal override void AddRef()
 		{
-			this.CryptoWrapper.EC_KEY_up_ref(this);
+			CryptoWrapper.EC_KEY_up_ref(this);
 		}
 
 		#endregion

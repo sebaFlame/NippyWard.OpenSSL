@@ -184,10 +184,10 @@ namespace OpenSSL.Core.SSL
             int currentlyWritten;
 
             //encrypt all/partial (SSL_MODE_ENABLE_PARTIAL_WRITE)
-            writtenLength += (currentlyWritten = this.SSLWrapper.SSL_write(this.sslHandle, buf.Span.GetPinnableReference(), buf.Length));
+            writtenLength += (currentlyWritten = SSLWrapper.SSL_write(this.sslHandle, buf.Span.GetPinnableReference(), buf.Length));
 
             //read what needs to be sent to the other party
-            int readLength = this.CryptoWrapper.BIO_read(this.writeHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length);
+            int readLength = CryptoWrapper.BIO_read(this.writeHandle, ref writeBuffer.Span.GetPinnableReference(), writeBuffer.Length);
 
             return writeBuffer.Slice(0, readLength);
         }

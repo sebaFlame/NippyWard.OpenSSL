@@ -38,23 +38,22 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeDSAHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeDSAHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
-
-		/// <summary>
-		/// Calls DSA_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
+        /// <summary>
+        /// Calls DSA_free()
+        /// </summary>
+        protected override bool ReleaseHandle()
 		{
-            this.CryptoWrapper.DSA_free(this.handle);
+            CryptoWrapper.DSA_free(this.handle);
             return true;
 		}
 
         internal override void AddRef()
         {
-            this.CryptoWrapper.DSA_free(this.handle);
+            CryptoWrapper.DSA_up_ref(this.handle);
         }
 	}
 }

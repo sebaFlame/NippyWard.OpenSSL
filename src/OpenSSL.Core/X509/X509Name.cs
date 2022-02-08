@@ -155,7 +155,7 @@ namespace OpenSSL.Core.X509
                     Encoding.ASCII.GetEncoder().Convert(valChar, value.Length, valEncoded, byteCount, true, out charsUsed, out bytesUsed, out completed);
                     Span<byte> valSpan = new Span<byte>(valEncoded, byteCount);
 
-                    this.CryptoWrapper.X509_NAME_add_entry_by_txt(
+                    CryptoWrapper.X509_NAME_add_entry_by_txt(
                         this.X509NameWrapper.Handle,
                         fieldSpan.GetPinnableReference(),
                         Native.MBSTRING_ASC,
@@ -170,10 +170,10 @@ namespace OpenSSL.Core.X509
         private string GetTextByName(string field)
         {
             //get NID of the field
-            int nid = this.CryptoWrapper.OBJ_txt2nid(field);
+            int nid = CryptoWrapper.OBJ_txt2nid(field);
 
             //get length of the value of the field
-            int length = this.CryptoWrapper.X509_NAME_get_text_by_NID(this.X509NameWrapper.Handle, nid, IntPtr.Zero, 0);
+            int length = CryptoWrapper.X509_NAME_get_text_by_NID(this.X509NameWrapper.Handle, nid, IntPtr.Zero, 0);
             length++; //make room for final null
 
             string val = string.Empty;
@@ -181,7 +181,7 @@ namespace OpenSSL.Core.X509
             {
                 byte* valBytes = stackalloc byte[length];
                 Span<byte> valSpan = new Span<byte>(valBytes, length);
-                this.CryptoWrapper.X509_NAME_get_text_by_NID(this.X509NameWrapper.Handle, nid, ref valSpan.GetPinnableReference(), length);
+                CryptoWrapper.X509_NAME_get_text_by_NID(this.X509NameWrapper.Handle, nid, ref valSpan.GetPinnableReference(), length);
                 val = Encoding.ASCII.GetString(valBytes, length -1);
             }
 

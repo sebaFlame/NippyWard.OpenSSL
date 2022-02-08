@@ -10,16 +10,16 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeASN1BitStringHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeASN1BitStringHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         public Span<byte> Value
         {
             get  
             {
-                int length = this.CryptoWrapper.ASN1_STRING_length(this);
-                IntPtr ptr = this.CryptoWrapper.ASN1_STRING_get0_data(this);
+                int length = CryptoWrapper.ASN1_STRING_length(this);
+                IntPtr ptr = CryptoWrapper.ASN1_STRING_get0_data(this);
                 unsafe
                 {
                     return new Span<byte>(ptr.ToPointer(), length);
@@ -27,13 +27,13 @@ namespace OpenSSL.Core.Interop.SafeHandles
             }
             set
             {
-                this.CryptoWrapper.ASN1_BIT_STRING_set(this, value.GetPinnableReference(), value.Length);
+                CryptoWrapper.ASN1_BIT_STRING_set(this, value.GetPinnableReference(), value.Length);
             }
         }
 
         internal override IntPtr Duplicate()
         {
-            return this.CryptoWrapper.ASN1_BIT_STRING_dup(this);
+            return CryptoWrapper.ASN1_BIT_STRING_dup(this);
         }
 
         /// <summary>
@@ -41,7 +41,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
         /// </summary>
         protected override bool ReleaseHandle()
         {
-            this.CryptoWrapper.ASN1_BIT_STRING_free(this.handle);
+            CryptoWrapper.ASN1_BIT_STRING_free(this.handle);
             return true;
         }
     }

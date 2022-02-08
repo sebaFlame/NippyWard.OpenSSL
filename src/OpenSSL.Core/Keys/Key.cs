@@ -31,8 +31,8 @@ namespace OpenSSL.Core.Keys
 
         public abstract KeyType KeyType { get; }
 
-        public int Bits => this.CryptoWrapper.EVP_PKEY_bits(this.KeyWrapper.Handle);
-        public int Size => this.CryptoWrapper.EVP_PKEY_size(this.KeyWrapper.Handle);
+        public int Bits => CryptoWrapper.EVP_PKEY_bits(this.KeyWrapper.Handle);
+        public int Size => CryptoWrapper.EVP_PKEY_size(this.KeyWrapper.Handle);
 
         protected Key()
             : base() { }
@@ -62,8 +62,8 @@ namespace OpenSSL.Core.Keys
         private void InitializeEncryptionContext()
         {
             if (!(this.keyContextEncryptHandle is null)) return;
-            this.keyContextEncryptHandle = this.CryptoWrapper.EVP_PKEY_CTX_new(this.KeyWrapper.Handle, null);
-            this.CryptoWrapper.EVP_PKEY_encrypt_init(this.keyContextEncryptHandle); //TODO: make it possible to customize this operation after this call
+            this.keyContextEncryptHandle = CryptoWrapper.EVP_PKEY_CTX_new(this.KeyWrapper.Handle, null);
+            CryptoWrapper.EVP_PKEY_encrypt_init(this.keyContextEncryptHandle); //TODO: make it possible to customize this operation after this call
         }
 
         public uint EncryptedLength(Span<byte> buffer)
@@ -73,7 +73,7 @@ namespace OpenSSL.Core.Keys
             uint encryptedLength = 0;
 
             //compute output buffer size
-            this.CryptoWrapper.EVP_PKEY_encrypt(this.keyContextEncryptHandle, IntPtr.Zero, ref encryptedLength, buffer.GetPinnableReference(), (uint)buffer.Length);
+            CryptoWrapper.EVP_PKEY_encrypt(this.keyContextEncryptHandle, IntPtr.Zero, ref encryptedLength, buffer.GetPinnableReference(), (uint)buffer.Length);
             return encryptedLength;
         }
 
@@ -85,14 +85,14 @@ namespace OpenSSL.Core.Keys
             ref byte inputRef = ref buffer.GetPinnableReference();
 
             //encrypt the buffer
-            this.CryptoWrapper.EVP_PKEY_encrypt(this.keyContextEncryptHandle, ref encrypted.GetPinnableReference(), ref encryptedLength, inputRef, (uint)buffer.Length);
+            CryptoWrapper.EVP_PKEY_encrypt(this.keyContextEncryptHandle, ref encrypted.GetPinnableReference(), ref encryptedLength, inputRef, (uint)buffer.Length);
         }
 
         private void InitializeDecryptionContext()
         {
             if (!(this.keyContextDecryptHandle is null)) return;
-            this.keyContextDecryptHandle = this.CryptoWrapper.EVP_PKEY_CTX_new(this.KeyWrapper.Handle, null);
-            this.CryptoWrapper.EVP_PKEY_decrypt_init(this.keyContextDecryptHandle); //TODO: make it possible to customize this operation after this call
+            this.keyContextDecryptHandle = CryptoWrapper.EVP_PKEY_CTX_new(this.KeyWrapper.Handle, null);
+            CryptoWrapper.EVP_PKEY_decrypt_init(this.keyContextDecryptHandle); //TODO: make it possible to customize this operation after this call
         }
 
         public uint DecryptedLength(Span<byte> buffer)
@@ -102,7 +102,7 @@ namespace OpenSSL.Core.Keys
             uint decryptedLength = 0;
 
             //compute output buffer size
-            this.CryptoWrapper.EVP_PKEY_decrypt(this.keyContextEncryptHandle, IntPtr.Zero, ref decryptedLength, buffer.GetPinnableReference(), (uint)buffer.Length);
+            CryptoWrapper.EVP_PKEY_decrypt(this.keyContextEncryptHandle, IntPtr.Zero, ref decryptedLength, buffer.GetPinnableReference(), (uint)buffer.Length);
             return decryptedLength;
         }
 
@@ -114,7 +114,7 @@ namespace OpenSSL.Core.Keys
             ref byte inputRef = ref buffer.GetPinnableReference();
 
             //decrypt the buffer
-            this.CryptoWrapper.EVP_PKEY_decrypt(this.keyContextEncryptHandle, ref decrypted.GetPinnableReference(), ref decryptedLength, inputRef, (uint)buffer.Length);
+            CryptoWrapper.EVP_PKEY_decrypt(this.keyContextEncryptHandle, ref decrypted.GetPinnableReference(), ref decryptedLength, inputRef, (uint)buffer.Length);
         }
 
         public bool Equals(Key other)
@@ -125,7 +125,7 @@ namespace OpenSSL.Core.Keys
             if (this.KeyWrapper.Handle is null || this.KeyWrapper.Handle.IsInvalid)
                 throw new InvalidOperationException("Key hasn't been generated yet");
 
-            return this.CryptoWrapper.EVP_PKEY_cmp(this.KeyWrapper.Handle, other.KeyWrapper.Handle) == 1;
+            return CryptoWrapper.EVP_PKEY_cmp(this.KeyWrapper.Handle, other.KeyWrapper.Handle) == 1;
         }
 
         public override bool Equals(object obj)

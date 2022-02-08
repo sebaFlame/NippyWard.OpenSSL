@@ -25,7 +25,7 @@ namespace OpenSSL.Core.ASN1
             get
             {
                 return nid == 0  
-                    ? (nid = this.CryptoWrapper.OBJ_obj2nid(this.ASN1ObjectWrapper.Handle))
+                    ? (nid = CryptoWrapper.OBJ_obj2nid(this.ASN1ObjectWrapper.Handle))
                     : nid;
             }
         }
@@ -36,7 +36,7 @@ namespace OpenSSL.Core.ASN1
             get
             {
                 return string.IsNullOrEmpty(longName)
-                    ? longName = Native.PtrToStringAnsi(this.CryptoWrapper.OBJ_nid2ln(this.NID), false)
+                    ? longName = Native.PtrToStringAnsi(CryptoWrapper.OBJ_nid2ln(this.NID), false)
                     : longName;
             }
         }
@@ -47,7 +47,7 @@ namespace OpenSSL.Core.ASN1
             get
             {
                 return string.IsNullOrEmpty(shortName)
-                    ? shortName = Native.PtrToStringAnsi(this.CryptoWrapper.OBJ_nid2sn(this.NID), false)
+                    ? shortName = Native.PtrToStringAnsi(CryptoWrapper.OBJ_nid2sn(this.NID), false)
                     : shortName;
             }
         }

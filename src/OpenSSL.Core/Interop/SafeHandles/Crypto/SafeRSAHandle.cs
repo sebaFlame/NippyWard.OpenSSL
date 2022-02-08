@@ -85,8 +85,8 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeRSAHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeRSAHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         #region IDisposable Members
@@ -96,13 +96,13 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 #if DEBUG
             int refs = this.References;
 #endif
-            this.CryptoWrapper.RSA_free(this.handle);
+            CryptoWrapper.RSA_free(this.handle);
             return true;
 		}
 
         internal override void AddRef()
         {
-            this.CryptoWrapper.RSA_up_ref(this);
+            CryptoWrapper.RSA_up_ref(this);
         }
 
         #endregion

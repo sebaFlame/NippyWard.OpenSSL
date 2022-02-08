@@ -18,15 +18,15 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeCipherContextHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeCipherContextHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         #region IDisposable Members
 
         protected override bool ReleaseHandle()
         {
-            this.CryptoWrapper.EVP_CIPHER_CTX_free(this.handle);
+            CryptoWrapper.EVP_CIPHER_CTX_free(this.handle);
             return true;
         }
 

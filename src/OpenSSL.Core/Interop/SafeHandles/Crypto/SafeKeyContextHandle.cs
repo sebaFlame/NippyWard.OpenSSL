@@ -10,19 +10,19 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeKeyContextHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeKeyContextHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         protected override bool ReleaseHandle()
         {
-            this.CryptoWrapper.EVP_PKEY_CTX_free(this.handle);
+            CryptoWrapper.EVP_PKEY_CTX_free(this.handle);
             return true;
         }
 
         internal override IntPtr Duplicate()
         {
-            return this.CryptoWrapper.EVP_PKEY_CTX_dup(this);
+            return CryptoWrapper.EVP_PKEY_CTX_dup(this);
         }
     }
 }

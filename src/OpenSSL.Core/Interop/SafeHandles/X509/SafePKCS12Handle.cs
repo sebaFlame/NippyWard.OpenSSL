@@ -37,18 +37,18 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
             : base(takeOwnership, isNew)
         { }
 
-        internal SafePKCS12Handle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafePKCS12Handle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
-		#region Overrides
+        #region Overrides
 
-		/// <summary>
-		/// Calls PKCS12_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
+        /// <summary>
+        /// Calls PKCS12_free()
+        /// </summary>
+        protected override bool ReleaseHandle()
 		{
-			this.CryptoWrapper.PKCS12_free(this.handle);
+			CryptoWrapper.PKCS12_free(this.handle);
             return true;
 		}
 

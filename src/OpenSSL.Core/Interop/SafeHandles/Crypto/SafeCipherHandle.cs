@@ -38,7 +38,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	/// </summary>
 	internal class SafeCipherHandle : BaseValue, IStackable
 	{
-        private SafeCipherHandle()
+        public SafeCipherHandle()
             : base(false, false) { }
 
 		/// <summary>

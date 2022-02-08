@@ -64,13 +64,13 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeKeyHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeKeyHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         public bool Equals(SafeKeyHandle other)
         {
-            return this.CryptoWrapper.EVP_PKEY_cmp(this, other) == 0;
+            return CryptoWrapper.EVP_PKEY_cmp(this, other) == 0;
         }
 
         protected override bool ReleaseHandle()
@@ -78,13 +78,13 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 #if DEBUG
             int refs = this.References;
 #endif
-            this.CryptoWrapper.EVP_PKEY_free(this.handle);
+            CryptoWrapper.EVP_PKEY_free(this.handle);
             return true;
 		}
 
         internal override void AddRef()
         {
-            this.CryptoWrapper.EVP_PKEY_up_ref(this);
+            CryptoWrapper.EVP_PKEY_up_ref(this);
         }
 	}
 }

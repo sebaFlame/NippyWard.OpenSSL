@@ -38,17 +38,17 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeHMACContextHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeHMACContextHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
-		#region Overrides
-		/// <summary>
-		/// Calls HMAC_CTX_cleanup() and then OPENSSL_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
+        #region Overrides
+        /// <summary>
+        /// Calls HMAC_CTX_cleanup() and then OPENSSL_free()
+        /// </summary>
+        protected override bool ReleaseHandle()
         {
-			this.CryptoWrapper.HMAC_CTX_free(this.handle);
+			CryptoWrapper.HMAC_CTX_free(this.handle);
             return true;
 		}
 

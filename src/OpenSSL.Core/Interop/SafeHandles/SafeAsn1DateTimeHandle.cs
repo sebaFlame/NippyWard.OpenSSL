@@ -36,8 +36,8 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeAsn1DateTimeHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeAsn1DateTimeHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         public DateTime DateTime => ToDateTime();
@@ -58,17 +58,17 @@ namespace OpenSSL.Core.Interop.SafeHandles
             string str;
             SafeBioHandle bio;
 
-            using (bio = this.CryptoWrapper.BIO_new(this.CryptoWrapper.BIO_s_mem()))
+            using (bio = CryptoWrapper.BIO_new(CryptoWrapper.BIO_s_mem()))
             {
-                this.CryptoWrapper.ASN1_TIME_print(bio, this);
+                CryptoWrapper.ASN1_TIME_print(bio, this);
 
-                uint bioLength = this.CryptoWrapper.BIO_ctrl_pending(bio);
+                uint bioLength = CryptoWrapper.BIO_ctrl_pending(bio);
                 int bioLengthInt = (int)bioLength;
                 unsafe
                 {
                     byte* b = stackalloc byte[bioLengthInt];
                     Span<byte> dateBuf = new Span<byte>(b, bioLengthInt);
-                    this.CryptoWrapper.BIO_read(bio, ref dateBuf.GetPinnableReference(), bioLengthInt);
+                    CryptoWrapper.BIO_read(bio, ref dateBuf.GetPinnableReference(), bioLengthInt);
 
                     int charCount = Encoding.ASCII.GetDecoder().GetCharCount(b, bioLengthInt, false);
                     char* c = stackalloc char[charCount];
@@ -89,7 +89,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
 
         protected override bool ReleaseHandle()
         {
-            this.CryptoWrapper.ASN1_TIME_free(this.handle);
+            CryptoWrapper.ASN1_TIME_free(this.handle);
             return true;
         }
     }

@@ -37,24 +37,24 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeX509RequestHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeX509RequestHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
-		#region Overrides Members
+        #region Overrides Members
 
-		/// <summary>
-		/// Calls X509_REQ_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
+        /// <summary>
+        /// Calls X509_REQ_free()
+        /// </summary>
+        protected override bool ReleaseHandle()
 		{
-			this.CryptoWrapper.X509_REQ_free(this.handle);
+			CryptoWrapper.X509_REQ_free(this.handle);
             return true;
 		}
 
         internal override IntPtr Duplicate()
         {
-            return this.CryptoWrapper.X509_REQ_dup(this);
+            return CryptoWrapper.X509_REQ_dup(this);
         }
 
         #endregion

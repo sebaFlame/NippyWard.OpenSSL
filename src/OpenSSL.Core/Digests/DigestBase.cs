@@ -43,8 +43,8 @@ namespace OpenSSL.Core.Digests
         protected DigestBase(DigestType digestType)
             : base()
         {
-            this.DigestWrapper = new DigestInternal(this.CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr));
-            this.digestCtxHandle = this.CryptoWrapper.EVP_MD_CTX_new();
+            this.DigestWrapper = new DigestInternal(CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr));
+            this.digestCtxHandle = CryptoWrapper.EVP_MD_CTX_new();
         }
 
         protected override void Dispose(bool disposing)

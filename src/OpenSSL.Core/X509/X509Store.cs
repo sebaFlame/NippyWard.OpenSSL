@@ -29,7 +29,7 @@ namespace OpenSSL.Core.X509
         public X509Store()
             : base()
         {
-            this.StoreWrapper = new X509StoreInternal(this.CryptoWrapper.X509_STORE_new());
+            this.StoreWrapper = new X509StoreInternal(CryptoWrapper.X509_STORE_new());
         }
 
         public X509Store(FileInfo CAFile)
@@ -50,17 +50,17 @@ namespace OpenSSL.Core.X509
                 certPathSpan = GetCorrectPath(certPath.FullName);
 
             if(!(CAFile is null) && !(certPath is null))
-                this.CryptoWrapper.X509_STORE_load_locations(
+                CryptoWrapper.X509_STORE_load_locations(
                     this.StoreWrapper.Handle,
                     caFileSpan.GetPinnableReference(),
                     certPathSpan.GetPinnableReference());
             else if(!(CAFile is null))
-                this.CryptoWrapper.X509_STORE_load_locations(
+                CryptoWrapper.X509_STORE_load_locations(
                     this.StoreWrapper.Handle,
                     caFileSpan.GetPinnableReference(),
                     IntPtr.Zero);
             else if(!(certPath is null))
-                this.CryptoWrapper.X509_STORE_load_locations(
+                CryptoWrapper.X509_STORE_load_locations(
                     this.StoreWrapper.Handle,
                     IntPtr.Zero,
                     certPathSpan.GetPinnableReference());
@@ -82,14 +82,14 @@ namespace OpenSSL.Core.X509
             : this()
         {
             foreach (X509Certificate cert in caList)
-                this.CryptoWrapper.X509_STORE_add_cert(this.StoreWrapper.Handle, cert.X509Wrapper.Handle);
+                CryptoWrapper.X509_STORE_add_cert(this.StoreWrapper.Handle, cert.X509Wrapper.Handle);
         }
 
         internal X509Store(SafeStackHandle<SafeX509CertificateHandle> stackHandle)
             : this()
         {
             foreach (SafeX509CertificateHandle cert in stackHandle)
-                this.CryptoWrapper.X509_STORE_add_cert(this.StoreWrapper.Handle, cert);
+                CryptoWrapper.X509_STORE_add_cert(this.StoreWrapper.Handle, cert);
         }
 
         private static ReadOnlySpan<byte> GetCorrectPath(string fullName)
@@ -100,18 +100,18 @@ namespace OpenSSL.Core.X509
 
         public void AddCertificate(X509Certificate certificate)
         {
-            this.CryptoWrapper.X509_STORE_add_cert(this.StoreWrapper.Handle, certificate.X509Wrapper.Handle);
+            CryptoWrapper.X509_STORE_add_cert(this.StoreWrapper.Handle, certificate.X509Wrapper.Handle);
         }
 
         public OpenSslReadOnlyCollection<X509Certificate> GetCertificates()
         {
-            SafeStackHandle<SafeX509ObjectHandle> safeObjHandle = this.CryptoWrapper.X509_STORE_get0_objects(this.StoreWrapper.Handle);
-            SafeStackHandle<SafeX509CertificateHandle> safeCertHandle = this.CryptoWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
+            SafeStackHandle<SafeX509ObjectHandle> safeObjHandle = CryptoWrapper.X509_STORE_get0_objects(this.StoreWrapper.Handle);
+            SafeStackHandle<SafeX509CertificateHandle> safeCertHandle = StackWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
 
             SafeX509CertificateHandle certificate;
             foreach (SafeX509ObjectHandle obj in safeObjHandle)
             {
-                if (!((certificate = this.CryptoWrapper.X509_OBJECT_get0_X509(obj)) is null))
+                if (!((certificate = CryptoWrapper.X509_OBJECT_get0_X509(obj)) is null))
                     safeCertHandle.Add(certificate);
             }
 
@@ -126,20 +126,20 @@ namespace OpenSSL.Core.X509
         /// <returns></returns>
         public bool Verify(X509Certificate cert, out VerifyResult verifyResult, OpenSslEnumerable<X509Certificate> extraChain = null)
         {
-            using (SafeX509StoreContextHandle ctx = this.CryptoWrapper.X509_STORE_CTX_new())
+            using (SafeX509StoreContextHandle ctx = CryptoWrapper.X509_STORE_CTX_new())
             {
-                this.CryptoWrapper.X509_STORE_CTX_init(
+                CryptoWrapper.X509_STORE_CTX_init(
                     ctx, 
                     this.StoreWrapper.Handle, 
                     cert.X509Wrapper.Handle, 
                     extraChain is null ? null : (SafeStackHandle<SafeX509CertificateHandle>)extraChain.InternalEnumerable.Handle);
                 try
                 {
-                    return this.CryptoWrapper.X509_verify_cert(ctx) == 1;
+                    return CryptoWrapper.X509_verify_cert(ctx) == 1;
                 }
                 finally
                 {
-                    if ((verifyResult = (VerifyResult)this.CryptoWrapper.X509_STORE_CTX_get_error(ctx)) != VerifyResult.X509_V_OK)
+                    if ((verifyResult = (VerifyResult)CryptoWrapper.X509_STORE_CTX_get_error(ctx)) != VerifyResult.X509_V_OK)
                         throw new OpenSslException(new VerifyError(verifyResult));
                 }
             }

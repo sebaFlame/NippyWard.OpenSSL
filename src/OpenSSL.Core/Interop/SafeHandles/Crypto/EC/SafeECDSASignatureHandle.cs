@@ -38,8 +38,8 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeECDSASignatureHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeECDSASignatureHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
 		#region Overrides
@@ -48,7 +48,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
 		/// </summary>
 		protected override bool ReleaseHandle()
 		{
-			this.CryptoWrapper.ECDSA_SIG_free(this.handle);
+			CryptoWrapper.ECDSA_SIG_free(this.handle);
             return true;
 		}
 

@@ -37,8 +37,8 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeECGroupHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeECGroupHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
 		#region Overrides
@@ -47,13 +47,13 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
 		/// </summary>
 		protected override bool ReleaseHandle()
 		{
-			this.CryptoWrapper.EC_GROUP_free(this.handle);
+			CryptoWrapper.EC_GROUP_free(this.handle);
             return true;
 		}
 
         internal override IntPtr Duplicate()
         {
-            return this.CryptoWrapper.EC_GROUP_dup(this);
+            return CryptoWrapper.EC_GROUP_dup(this);
         }
         #endregion
     }

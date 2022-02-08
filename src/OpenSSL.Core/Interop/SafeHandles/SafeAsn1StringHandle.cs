@@ -67,15 +67,15 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeAsn1StringHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeAsn1StringHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
-		#region Overrides
+        #region Overrides
 
-		internal override IntPtr Duplicate()
+        internal override IntPtr Duplicate()
 		{
-			return this.CryptoWrapper.ASN1_STRING_dup(this);
+			return CryptoWrapper.ASN1_STRING_dup(this);
 		}
 
 		/// <summary>
@@ -83,7 +83,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
 		/// </summary>
 		protected override bool ReleaseHandle()
 		{
-			this.CryptoWrapper.ASN1_STRING_free(this.handle);
+			CryptoWrapper.ASN1_STRING_free(this.handle);
             return true;
 		}
 
@@ -93,7 +93,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
 
 		public int CompareTo(SafeAsn1StringHandle other)
 		{
-			return this.CryptoWrapper.ASN1_STRING_cmp(this, other);
+			return CryptoWrapper.ASN1_STRING_cmp(this, other);
 		}
 
 		#endregion

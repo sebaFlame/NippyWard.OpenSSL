@@ -143,11 +143,11 @@ namespace OpenSSL.Core.Keys
             try
             {
                 int read;
-                using (SafeBioHandle bio = this.CryptoWrapper.BIO_new(this.CryptoWrapper.BIO_s_mem()))
+                using (SafeBioHandle bio = CryptoWrapper.BIO_new(CryptoWrapper.BIO_s_mem()))
                 {
                     this.WriteKey(bio, password, cipherType, fileEncoding);
                     Span<byte> bufSpan = new Span<byte>(buf);
-                    while ((read = this.CryptoWrapper.BIO_read(bio, ref bufSpan.GetPinnableReference(), bufSpan.Length)) > 0)
+                    while ((read = CryptoWrapper.BIO_read(bio, ref bufSpan.GetPinnableReference(), bufSpan.Length)) > 0)
                     {
                         stream.Write(buf, 0, read);
                         Array.Clear(buf, 0, read);
@@ -170,18 +170,18 @@ namespace OpenSSL.Core.Keys
                 case FileEncoding.PEM:
                     {
                         SafeCipherHandle cipherHandle;
-                        using (cipherHandle = this.CryptoWrapper.EVP_get_cipherbyname(cipherType.ShortNamePtr))
-                            this.CryptoWrapper.PEM_write_bio_PrivateKey(bioHandle, this.KeyWrapper.Handle, cipherHandle, IntPtr.Zero, 0, pass.Callback, IntPtr.Zero);
+                        using (cipherHandle = CryptoWrapper.EVP_get_cipherbyname(cipherType.ShortNamePtr))
+                            CryptoWrapper.PEM_write_bio_PrivateKey(bioHandle, this.KeyWrapper.Handle, cipherHandle, IntPtr.Zero, 0, pass.Callback, IntPtr.Zero);
                         break;
                     }
                 case FileEncoding.DER:
-                    this.CryptoWrapper.i2d_PrivateKey_bio(bioHandle, this.KeyWrapper.Handle);
+                    CryptoWrapper.i2d_PrivateKey_bio(bioHandle, this.KeyWrapper.Handle);
                     break;
                 case FileEncoding.PKCS12:
                     {
                         //TODO: cipherType incorrect? should be a PBE?
-                        SafePKCS12Handle pkcs12Handle = this.CryptoWrapper.PKCS12_create(password, "", this.KeyWrapper.Handle, null, null, cipherType.NID, 0, 2048, 1, 0);
-                        this.CryptoWrapper.i2d_PKCS12_bio(bioHandle, pkcs12Handle);
+                        SafePKCS12Handle pkcs12Handle = CryptoWrapper.PKCS12_create(password, "", this.KeyWrapper.Handle, null, null, cipherType.NID, 0, 2048, 1, 0);
+                        CryptoWrapper.i2d_PKCS12_bio(bioHandle, pkcs12Handle);
                         break;
                     }
                 default:

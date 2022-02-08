@@ -34,6 +34,7 @@ namespace OpenSSL.Core.SSL.Pipelines
             _synchronizationContext = null;
             _executionContext = null;
             _useSynchronizationContext = useSynchronizationContext;
+            _cancellationToken = default;
         }
 
         public bool IsCompleted => ReferenceEquals(_completion, s_awaitableIsCompleted);

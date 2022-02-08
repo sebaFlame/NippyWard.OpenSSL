@@ -128,7 +128,7 @@ namespace OpenSSL.Core.SSL
                     this.CertificateStore.AddCertificate(cert);
 
                 //enable internal peer certificate validation
-                this.SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, (int)VerifyMode.SSL_VERIFY_PEER, null);
+                SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, (int)VerifyMode.SSL_VERIFY_PEER, null);
 
                 return this.DoHandshake(false);
             }
@@ -213,7 +213,7 @@ namespace OpenSSL.Core.SSL
                         this.AddClientCertificateCA(cert);
 
                     //enable internal client certificate validation
-                    this.SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, (int)VerifyMode.SSL_VERIFY_PEER, null);
+                    SSLWrapper.SSL_CTX_set_verify(this.SslContextWrapper.SslContextHandle, (int)VerifyMode.SSL_VERIFY_PEER, null);
                 }
                 return this.DoHandshake(true);
             }
@@ -326,11 +326,11 @@ namespace OpenSSL.Core.SSL
                 throw new InvalidOperationException("Currently used OpenSSL library doesn't support TLS 1.3, atleast version 1.1.1 is needed.");
 
             if (isServer)
-                this.SslContextWrapper.SslContextHandle = this.SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultServerMethod);
+                this.SslContextWrapper.SslContextHandle = SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultServerMethod);
             else
-                this.SslContextWrapper.SslContextHandle = this.SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultClientMethod);
+                this.SslContextWrapper.SslContextHandle = SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultClientMethod);
 
-            this.SSLWrapper.SSL_CTX_ctrl(this.SslContextWrapper.SslContextHandle, Native.SSL_CTRL_MODE, (int)SslMode.SSL_MODE_ENABLE_PARTIAL_WRITE, IntPtr.Zero);
+            SSLWrapper.SSL_CTX_ctrl(this.SslContextWrapper.SslContextHandle, Native.SSL_CTRL_MODE, (int)SslMode.SSL_MODE_ENABLE_PARTIAL_WRITE, IntPtr.Zero);
 
             SslOptions protocolOptions = SslOptions.SSL_OP_ALL;
             if(!(sslProtocol is null))
@@ -352,7 +352,7 @@ namespace OpenSSL.Core.SSL
                     protocolOptions |= SslOptions.SSL_OP_NO_TLSv1_3;
             }
 
-            this.SSLWrapper.SSL_CTX_set_options(this.SslContextWrapper.SslContextHandle, (long)protocolOptions);
+            SSLWrapper.SSL_CTX_set_options(this.SslContextWrapper.SslContextHandle, (long)protocolOptions);
 
             if(!(ciphers is null))
             {
@@ -375,24 +375,24 @@ namespace OpenSSL.Core.SSL
 
                         if(!(sslProtocol is null)
                             && (sslProtocol & SslProtocol.Tls13) == SslProtocol.Tls13)
-                            this.SSLWrapper.SSL_CTX_set_ciphersuites(this.SslContextWrapper.SslContextHandle, bSpan.GetPinnableReference());
+                            SSLWrapper.SSL_CTX_set_ciphersuites(this.SslContextWrapper.SslContextHandle, bSpan.GetPinnableReference());
                         else
-                            this.SSLWrapper.SSL_CTX_set_cipher_list(this.SslContextWrapper.SslContextHandle, bSpan.GetPinnableReference());
+                            SSLWrapper.SSL_CTX_set_cipher_list(this.SslContextWrapper.SslContextHandle, bSpan.GetPinnableReference());
                     }
                 }
             }
 
             if(!(sslStrength is null))
-                this.SSLWrapper.SSL_CTX_set_security_level(this.SslContextWrapper.SslContextHandle, (int)sslStrength);
+                SSLWrapper.SSL_CTX_set_security_level(this.SslContextWrapper.SslContextHandle, (int)sslStrength);
 
             if(this.s_NewSessionCallbackCallback is null)
             {
                 this.s_NewSessionCallbackCallback = this.NewSessionCallback;
-                this.SSLWrapper.SSL_CTX_ctrl(this.SslContextWrapper.SslContextHandle,
+                SSLWrapper.SSL_CTX_ctrl(this.SslContextWrapper.SslContextHandle,
                                              Native.SSL_CTRL_SET_SESS_CACHE_MODE,
                                              (int)Native.SSL_SESS_CACHE_CLIENT | Native.SSL_SESS_CACHE_NO_INTERNAL,
                                              IntPtr.Zero);
-                this.SSLWrapper.SSL_CTX_sess_set_new_cb(this.SslContextWrapper.SslContextHandle, this.s_NewSessionCallbackCallback);
+                SSLWrapper.SSL_CTX_sess_set_new_cb(this.SslContextWrapper.SslContextHandle, this.s_NewSessionCallbackCallback);
             }
 
             return true;
@@ -403,22 +403,22 @@ namespace OpenSSL.Core.SSL
             if (!serverCertificate.VerifyPrivateKey(privateKey))
                 throw new InvalidOperationException("Public and private key do not match");
 
-            this.SSLWrapper.SSL_CTX_use_certificate(this.SslContextWrapper.SslContextHandle, serverCertificate.X509Wrapper.Handle);
-            this.SSLWrapper.SSL_CTX_use_PrivateKey(this.SslContextWrapper.SslContextHandle, privateKey.KeyWrapper.Handle);
+            SSLWrapper.SSL_CTX_use_certificate(this.SslContextWrapper.SslContextHandle, serverCertificate.X509Wrapper.Handle);
+            SSLWrapper.SSL_CTX_use_PrivateKey(this.SslContextWrapper.SslContextHandle, privateKey.KeyWrapper.Handle);
         }
         #endregion
 
         private int NewSessionCallback(IntPtr sslPtr, IntPtr sessPtr)
         {
-            Type sslType = DynamicTypeBuilder.GetConcreteOwnType<SafeSslHandle>();
+            Type sslType = null;
             ConstructorInfo sslCtor = sslType.GetConstructor(new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) });
             object newSslObj = sslCtor.Invoke(new object[] { sslPtr, false, false });
             SafeSslHandle ssl = newSslObj as SafeSslHandle;
 
-            if (!(this.SessionHandle is null) || this.SSLWrapper.SSL_session_reused(ssl) == 1)
+            if (!(this.SessionHandle is null) || SSLWrapper.SSL_session_reused(ssl) == 1)
                 return 0;
 
-            Type sessType = DynamicTypeBuilder.GetConcreteOwnType<SafeSslSessionHandle>();
+            Type sessType = null;
             ConstructorInfo sessCtor = sessType.GetConstructor(new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) });
             object newSessObj = sessCtor.Invoke(new object[] { sessPtr, false, false });
 
@@ -444,11 +444,11 @@ namespace OpenSSL.Core.SSL
             this.SSLCleanup();
 
             //create new native handles
-            this.readHandle = this.CryptoWrapper.BIO_new(this.CryptoWrapper.BIO_s_mem());
-            this.writeHandle = this.CryptoWrapper.BIO_new(this.CryptoWrapper.BIO_s_mem());
+            this.readHandle = CryptoWrapper.BIO_new(CryptoWrapper.BIO_s_mem());
+            this.writeHandle = CryptoWrapper.BIO_new(CryptoWrapper.BIO_s_mem());
 
-            this.sslHandle = this.SSLWrapper.SSL_new(this.SslContextWrapper.SslContextHandle);
-            this.SSLWrapper.SSL_set_bio(this.sslHandle, this.readHandle, this.writeHandle);
+            this.sslHandle = SSLWrapper.SSL_new(this.SslContextWrapper.SslContextHandle);
+            SSLWrapper.SSL_set_bio(this.sslHandle, this.readHandle, this.writeHandle);
 
             //add references for correct disposal
             this.readHandle.AddRef();
@@ -456,13 +456,13 @@ namespace OpenSSL.Core.SSL
 
             //set correct connection endpoint options
             if (isServer)
-                this.SSLWrapper.SSL_set_accept_state(this.sslHandle);
+                SSLWrapper.SSL_set_accept_state(this.sslHandle);
             else
-                this.SSLWrapper.SSL_set_connect_state(this.sslHandle);
+                SSLWrapper.SSL_set_connect_state(this.sslHandle);
 
             //reuse session if any was set in other connection/before reset
             if (!(this.SessionHandle is null))
-                this.SSLWrapper.SSL_set_session(this.sslHandle, this.SessionHandle);
+                SSLWrapper.SSL_set_session(this.sslHandle, this.SessionHandle);
 
             try
             {
@@ -490,11 +490,11 @@ namespace OpenSSL.Core.SSL
                 do
                 {
                     //get next action from OpenSSL wrapper
-                    ret_code = this.SSLWrapper.SSL_do_handshake(this.sslHandle);
-                    if ((result = this.SSLWrapper.SSL_get_error(this.sslHandle, ret_code)) == (int)SslError.SSL_ERROR_SSL)
+                    ret_code = SSLWrapper.SSL_do_handshake(this.sslHandle);
+                    if ((result = SSLWrapper.SSL_get_error(this.sslHandle, ret_code)) == (int)SslError.SSL_ERROR_SSL)
                     {
                         VerifyResult verifyResult;
-                        if ((verifyResult = (VerifyResult)this.SSLWrapper.SSL_get_verify_result(this.sslHandle)) > VerifyResult.X509_V_OK)
+                        if ((verifyResult = (VerifyResult)SSLWrapper.SSL_get_verify_result(this.sslHandle)) > VerifyResult.X509_V_OK)
                             throw new OpenSslException(new VerifyError(verifyResult));
 
                         throw new OpenSslException();
@@ -505,7 +505,7 @@ namespace OpenSSL.Core.SSL
                         await flushResult.ConfigureAwait(false);
 
                     await this.ReadPending((SslError)result).ConfigureAwait(false);
-                } while (this.SSLWrapper.SSL_is_init_finished(this.sslHandle) != 1);
+                } while (SSLWrapper.SSL_is_init_finished(this.sslHandle) != 1);
 
                 //set state to established
                 if (!this.TrySetSslState(SslState.Handshake, SslState.Established))

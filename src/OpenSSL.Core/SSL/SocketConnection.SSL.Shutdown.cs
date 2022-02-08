@@ -32,8 +32,8 @@ namespace OpenSSL.Core.SSL
                 //it is not mandatory to wait on confirmation from the other peer
                 do
                 {
-                    ret_code = this.SSLWrapper.SSL_shutdown(this.sslHandle);
-                    if ((result = this.SSLWrapper.SSL_get_error(this.sslHandle, ret_code)) == (int)SslError.SSL_ERROR_SSL)
+                    ret_code = SSLWrapper.SSL_shutdown(this.sslHandle);
+                    if ((result = SSLWrapper.SSL_get_error(this.sslHandle, ret_code)) == (int)SslError.SSL_ERROR_SSL)
                         throw new OpenSslException();
 
                     if (biDerictionalShutdown && this.Socket.Connected)
@@ -46,7 +46,7 @@ namespace OpenSSL.Core.SSL
                     }
                     else if (ret_code < 0)
                     {
-                        this.CryptoWrapper.ERR_clear_error();
+                        CryptoWrapper.ERR_clear_error();
                         break;
                     }
                 } while (ret_code != 1);

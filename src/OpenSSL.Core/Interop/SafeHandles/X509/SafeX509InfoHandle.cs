@@ -5,53 +5,38 @@ using System.Runtime.InteropServices;
 
 namespace OpenSSL.Core.Interop.SafeHandles.X509
 {
-    internal abstract class SafeX509InfoHandle : SafeBaseHandle, IStackable
+    internal abstract class SafeX509InfoHandle : BaseValue, IStackable
     {
-        private static Func<IntPtr, bool, SafeX509CertificateHandle> createCertificate;
-
-        private SafeX509CertificateHandle x509Certificate;
-        public SafeX509CertificateHandle X509Certificate => this.x509Certificate;
-
-        private static Func<IntPtr, bool, SafeX509CertificateHandle> CreateCertificateCreationDelegate()
-        {
-            Type concretetex509CertificateType = DynamicTypeBuilder.GetConcreteOwnType<SafeX509CertificateHandle>();
-            ConstructorInfo ctor = concretetex509CertificateType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(IntPtr), typeof(bool), typeof(bool) }, null);
-
-            ParameterExpression parPtr = Expression.Parameter(typeof(IntPtr));
-            ParameterExpression parOwn = Expression.Parameter(typeof(bool));
-            Expression constNew = Expression.Constant(true);
-
-            NewExpression create = Expression.New(ctor, parPtr, parOwn, constNew);
-            return Expression.Lambda<Func<IntPtr, bool, SafeX509CertificateHandle>>(create, parPtr, parOwn).Compile();
-        }
+        public SafeX509CertificateHandle X509Certificate { get; private set; }
 
         internal SafeX509InfoHandle(bool takeOwnership, bool isNew)
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeX509InfoHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeX509InfoHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         private SafeX509CertificateHandle GetCertificate(IntPtr ptr)
-        {
-            if (createCertificate is null)
-                createCertificate = CreateCertificateCreationDelegate();
-
-            return createCertificate(ptr, false);
-        }
+            => SafeHandleFactory.CreateReferenceSafeHandle<SafeX509CertificateHandle>(ptr);
 
         internal override void PostConstruction()
         {
             X509_INFO raw = Marshal.PtrToStructure<X509_INFO>(this.handle);
-            this.x509Certificate = this.GetCertificate(raw.x509);
+            this.X509Certificate = this.GetCertificate(raw.x509);
         }
 
         protected override bool ReleaseHandle()
         {
             //frees certificate!
-            this.CryptoWrapper.X509_INFO_free(this.handle);
+            CryptoWrapper.X509_INFO_free(this.handle);
             return true;
+        }
+
+        //does not get called
+        internal override IntPtr Duplicate()
+        {
+            throw new NotImplementedException();
         }
     }
 

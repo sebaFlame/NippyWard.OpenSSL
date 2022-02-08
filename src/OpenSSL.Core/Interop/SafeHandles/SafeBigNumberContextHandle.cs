@@ -13,8 +13,8 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeBigNumberContextHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeBigNumberContextHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
         /// </summary>
         protected override bool ReleaseHandle()
         {
-            this.CryptoWrapper.BN_CTX_free(this.handle);
+            CryptoWrapper.BN_CTX_free(this.handle);
             return true;
         }
 

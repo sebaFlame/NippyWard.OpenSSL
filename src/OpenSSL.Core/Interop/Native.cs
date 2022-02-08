@@ -35,6 +35,12 @@ using System.Diagnostics;
 using OpenSSL.Core.Error;
 using OpenSSL.Core.Interop.Wrappers;
 
+using OpenSSL.Core.Interop.Attributes;
+using OpenSSL.Core.Interop.SafeHandles;
+using OpenSSL.Core.Interop.SafeHandles.X509;
+using OpenSSL.Core.Interop.SafeHandles.Crypto;
+using OpenSSL.Core.Interop.SafeHandles.Crypto.EC;
+
 [assembly: InternalsVisibleTo("OpenSSL.Core.Tests")]
 [assembly: InternalsVisibleTo("OpenSSL.Core.Interop.Dynamic")]
 
@@ -53,11 +59,13 @@ namespace OpenSSL.Core.Interop
         internal static string DLLNAME { get; private set; }
         internal static string SSLDLLNAME { get; private set; }
 
-        private static ILibCryptoWrapper cryptoWrapper;
-        internal static ILibCryptoWrapper CryptoWrapper => cryptoWrapper;
+        private const string _BaseCryptoName = "libcrypto";
+        private const string _BaseSslName = "libssl";
 
-        private static ILibSSLWrapper sslWrapper;
-        internal static ILibSSLWrapper SSLWrapper => sslWrapper;
+        internal readonly static ILibCryptoWrapper CryptoWrapper;
+        internal readonly static ILibSSLWrapper SSLWrapper;
+        internal readonly static IStackWrapper StackWrapper;
+        internal readonly static ISafeHandleFactory SafeHandleFactory;
 
         #region Initialization
 
@@ -65,7 +73,8 @@ namespace OpenSSL.Core.Interop
         {
             //while(!Debugger.IsAttached) Thread.Sleep(500);
 
-            switch (Microsoft.DotNet.PlatformAbstractions.RuntimeEnvironment.GetRuntimeIdentifier())
+            //get correct dll name
+            switch (RuntimeInformation.RuntimeIdentifier)
             {
                 case "win7-x64":
                 case "win8-x64":
@@ -90,19 +99,27 @@ namespace OpenSSL.Core.Interop
                     break;
             }
 
-            cryptoWrapper = (ILibCryptoWrapper)Activator.CreateInstance(DynamicTypeBuilder.CreateOpenSSLWrapper<ILibCryptoWrapper>(DLLNAME));
-            sslWrapper = (ILibSSLWrapper)Activator.CreateInstance(DynamicTypeBuilder.CreateOpenSSLWrapper<ILibSSLWrapper>(SSLDLLNAME));
+            //initialize dll resolver
+            NativeLibrary.SetDllImportResolver(Assembly.GetExecutingAssembly(), DllImportResolver);
+
+            //TODO: assign interfaces
+            CryptoWrapper = new LibCryptoWrapper();
+            SSLWrapper = new LibSSLWrapper();
+            StackWrapper = new StackWrapper();
+            SafeHandleFactory = new SafeHandleFactory();
 
             //TODO: check for >= 1.1 or change config (SSLEnum, deprecated functions and whatnot)
             if (Version.Library < Version.MinimumOpenSslVersion)
+            {
                 throw new Exception(string.Format("Invalid version of {0}, expecting {1}, got: {2}", DLLNAME, Version.MinimumOpenSslVersion, Version.Library));
+            }
 
 #if ENABLE_MEMORYTRACKER
             MemoryTracker.Init();
 #endif
 
             SSLWrapper.OPENSSL_init_ssl(
-                OPENSSL_INIT_LOAD_SSL_STRINGS | 
+                OPENSSL_INIT_LOAD_SSL_STRINGS |
                 OPENSSL_INIT_LOAD_CRYPTO_STRINGS |
                 OPENSSL_INIT_NO_ADD_ALL_MACS |
                 OPENSSL_INIT_ENGINE_ALL_BUILTIN, IntPtr.Zero);
@@ -120,11 +137,25 @@ namespace OpenSSL.Core.Interop
                     rng.GetBytes(seed);
                     Span<byte> seedSpan = new Span<byte>(seed);
                     CryptoWrapper.RAND_seed(seedSpan.GetPinnableReference(), seedSpan.Length);
-                } while (CryptoWrapper.RAND_status() != 1) ;
+                } while (CryptoWrapper.RAND_status() != 1);
             }
 
             //initialize SSL_CTX static context
             SSLWrapper.SSL_get_ex_data_X509_STORE_CTX_idx();
+        }
+
+        //Resolved dll's get retried when IntPtr.Zero and get cached further up the chain
+        private static IntPtr DllImportResolver(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
+        {
+            switch (libraryName)
+            {
+                case _BaseCryptoName:
+                    return NativeLibrary.Load(DLLNAME, assembly, searchPath);
+                case _BaseSslName:
+                    return NativeLibrary.Load(SSLDLLNAME, assembly, searchPath);
+                default:
+                    return IntPtr.Zero;
+            }
         }
 
         #endregion
@@ -314,19 +345,39 @@ namespace OpenSSL.Core.Interop
         }
 
         //check if the safehandle is invalid and throws an exception if that's the case
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ExpectNonNull(SafeHandle handle)
         {
             if (handle.IsInvalid)
+            {
                 throw new OpenSslException();
+            }
         }
 
         //check if the return value is invalid and throws an exception if that's the case
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ExpectSuccess(int ret)
         {
             if (ret <= 0)
+            {
                 throw new OpenSslException();
+            }
         }
 
-#endregion
+        internal static TStackable CreateStackableItem<TStackable>(SafeStackHandle<TStackable> stack, IntPtr ptr)
+            where TStackable : SafeBaseHandle, IStackable
+        {
+            //if the stack is owned, all items should also be owned!
+            if (stack.TakeOwnership)
+            {
+                return SafeHandleFactory.CreateNewSafeHandle<TStackable>(ptr);
+            }
+            else
+            {
+                return SafeHandleFactory.CreateReferenceSafeHandle<TStackable>(ptr);
+            }
+        }
+        #endregion
+
     }
 }

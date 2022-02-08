@@ -49,8 +49,8 @@ namespace OpenSSL.Core
         protected Cipher(CipherType cipherType)
             : base()
         {
-            this.CipherWrapper = new CipherInternal(this.CryptoWrapper.EVP_get_cipherbyname(cipherType.ShortNamePtr));
-            this.CipherContextHandle = this.CryptoWrapper.EVP_CIPHER_CTX_new();
+            this.CipherWrapper = new CipherInternal(CryptoWrapper.EVP_get_cipherbyname(cipherType.ShortNamePtr));
+            this.CipherContextHandle = CryptoWrapper.EVP_CIPHER_CTX_new();
         }
 
         ~Cipher()
@@ -60,19 +60,19 @@ namespace OpenSSL.Core
 
         public int GetOutputBufferLength(Span<byte> inputBuffer)
         {
-            return inputBuffer.Length + (this.CryptoWrapper.EVP_CIPHER_block_size(this.CipherWrapper.Handle) - 1);
+            return inputBuffer.Length + (CryptoWrapper.EVP_CIPHER_block_size(this.CipherWrapper.Handle) - 1);
         }
 
-        protected int GetIVLength() => this.CryptoWrapper.EVP_CIPHER_iv_length(this.CipherWrapper.Handle);
-        protected int GetKeyLength() => this.CryptoWrapper.EVP_CIPHER_key_length(this.CipherWrapper.Handle);
+        protected int GetIVLength() => CryptoWrapper.EVP_CIPHER_iv_length(this.CipherWrapper.Handle);
+        protected int GetKeyLength() => CryptoWrapper.EVP_CIPHER_key_length(this.CipherWrapper.Handle);
 
-        public int GetCipherBlockSize() => this.CryptoWrapper.EVP_CIPHER_block_size(this.CipherWrapper.Handle);
+        public int GetCipherBlockSize() => CryptoWrapper.EVP_CIPHER_block_size(this.CipherWrapper.Handle);
         public int GetMaximumOutputLength(int intputLength) => this.GetCipherBlockSize() + intputLength - 1;
 
         //padding is enabled by default
         public void DisablePadding()
         {
-            this.CryptoWrapper.EVP_CIPHER_CTX_set_padding(this.CipherContextHandle, 0);
+            CryptoWrapper.EVP_CIPHER_CTX_set_padding(this.CipherContextHandle, 0);
         }
 
         protected abstract int UpdateInternal(in Span<byte> inputBuffer, ref Span<byte> outputBuffer);
@@ -107,9 +107,9 @@ namespace OpenSSL.Core
             iv = new byte[ivlen];
             Span<byte> ivSpan = new Span<byte>(iv);
 
-            SafeMessageDigestHandle digestHandle = this.CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr);
+            SafeMessageDigestHandle digestHandle = CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr);
 
-            this.CryptoWrapper.EVP_BytesToKey(
+            CryptoWrapper.EVP_BytesToKey(
                 this.CipherWrapper.Handle,
                 digestHandle,
                 salt.GetPinnableReference(),
@@ -141,7 +141,7 @@ namespace OpenSSL.Core
         //needs to be reinitialized
         //public void Reset()
         //{
-        //    this.CryptoWrapper.EVP_CIPHER_CTX_reset(this.CipherContextHandle);
+        //    CryptoWrapper.EVP_CIPHER_CTX_reset(this.CipherContextHandle);
         //}
 
         protected override void Dispose(bool disposing)

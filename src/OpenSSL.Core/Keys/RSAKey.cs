@@ -17,19 +17,19 @@ namespace OpenSSL.Core.Keys
         internal RSAKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         {
-            this.rsaHandle = this.CryptoWrapper.EVP_PKEY_get0_RSA(this.KeyWrapper.Handle);
+            this.rsaHandle = CryptoWrapper.EVP_PKEY_get0_RSA(this.KeyWrapper.Handle);
         }
 
         public RSAKey(int bits)
             : base()
         {
-            this.rsaHandle = this.CryptoWrapper.RSA_new();
+            this.rsaHandle = CryptoWrapper.RSA_new();
 
-            using (SafeBigNumberHandle bn = this.CryptoWrapper.BN_new())
+            using (SafeBigNumberHandle bn = CryptoWrapper.BN_new())
             {
-                this.CryptoWrapper.BN_rand(bn, 24, 65537, 1);
-                this.CryptoWrapper.BN_set_bit(bn, 0); //TODO: check if uneven
-                this.CryptoWrapper.RSA_generate_key_ex(this.rsaHandle, bits, bn, null);
+                CryptoWrapper.BN_rand(bn, 24, 65537, 1);
+                CryptoWrapper.BN_set_bit(bn, 0); //TODO: check if uneven
+                CryptoWrapper.RSA_generate_key_ex(this.rsaHandle, bits, bn, null);
             }
         }
 
@@ -38,10 +38,10 @@ namespace OpenSSL.Core.Keys
             if(this.rsaHandle is null || this.rsaHandle.IsInvalid)
                 throw new InvalidOperationException("RSA key has not been created yet");
 
-            this.CryptoWrapper.RSA_check_key(this.rsaHandle);
+            CryptoWrapper.RSA_check_key(this.rsaHandle);
 
-            SafeKeyHandle keyHandle = this.CryptoWrapper.EVP_PKEY_new();
-            this.CryptoWrapper.EVP_PKEY_set1_RSA(keyHandle, this.rsaHandle);
+            SafeKeyHandle keyHandle = CryptoWrapper.EVP_PKEY_new();
+            CryptoWrapper.EVP_PKEY_set1_RSA(keyHandle, this.rsaHandle);
             return new KeyInternal(keyHandle);
         }
 

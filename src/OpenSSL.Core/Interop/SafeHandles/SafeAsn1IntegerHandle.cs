@@ -34,25 +34,25 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeAsn1IntegerHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeAsn1IntegerHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         protected override bool ReleaseHandle()
 		{
-			this.CryptoWrapper.ASN1_INTEGER_free(this.handle);
+			CryptoWrapper.ASN1_INTEGER_free(this.handle);
             return true;
 		}
 
 		public int Value
 		{
-			get { return this.CryptoWrapper.ASN1_INTEGER_get(this); }
-			set { this.CryptoWrapper.ASN1_INTEGER_set(this, value); }
+			get { return CryptoWrapper.ASN1_INTEGER_get(this); }
+			set { CryptoWrapper.ASN1_INTEGER_set(this, value); }
 		}
 
         internal override IntPtr Duplicate()
         {
-            return this.CryptoWrapper.ASN1_INTEGER_dup(this);
+            return CryptoWrapper.ASN1_INTEGER_dup(this);
         }
     }
 }

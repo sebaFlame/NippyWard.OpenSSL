@@ -36,21 +36,21 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(takeOwnership, isNew)
         { }
 
-        internal SafeBioHandle(IntPtr ptr, bool takeOwnership)
-            : base(ptr, takeOwnership)
+        internal SafeBioHandle(IntPtr ptr, bool takeOwnership, bool isNew)
+            : base(ptr, takeOwnership, isNew)
         { }
 
         #region Overrides
 
         protected override bool ReleaseHandle()
         {
-            this.CryptoWrapper.BIO_free(this.handle);
+            CryptoWrapper.BIO_free(this.handle);
             return true;
         }
 
         internal override void AddRef()
         {
-            this.CryptoWrapper.BIO_up_ref(this);
+            CryptoWrapper.BIO_up_ref(this);
         }
 
         #endregion

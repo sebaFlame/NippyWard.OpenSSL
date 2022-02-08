@@ -99,7 +99,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int SSL_CTX_set_session_id_context(SSL_CTX *ctx, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
         int SSL_CTX_set_session_id_context(SafeSslContextHandle ctx, in byte sid_ctx, uint sid_ctx_len);
         //int SSL_CTX_add_session(SSL_CTX *ctx, SSL_SESSION *c)
-        [DontCheckReturnType]
+        [return: DontCheckReturnType]
         int SSL_CTX_add_session(SafeSslContextHandle ctx, SafeSslSessionHandle c);
         //void SSL_CTX_sess_set_new_cb(SSL_CTX *ctx, int (*cb) (struct ssl_st *ssl, SSL_SESSION *sess))
         void SSL_CTX_sess_set_new_cb(SafeSslContextHandle ctx, NewSessionCallback new_session_cb);
@@ -172,25 +172,25 @@ namespace OpenSSL.Core.Interop.Wrappers
         SafeSslCipherHandle SSL_get_current_cipher(SafeSslHandle ssl);
 
         //int SSL_get_error(const SSL *ssl, int ret);
-        [DontCheckReturnType]
+        [return: DontCheckReturnType]
         int SSL_get_error(SafeSslHandle ssl, int ret_code);
         //int SSL_accept(SSL *ssl);
         int SSL_accept(SafeSslHandle ssl);
         //int SSL_shutdown(SSL *ssl);
-        [DontCheckReturnType]
+        [return: DontCheckReturnType]
         int SSL_shutdown(SafeSslHandle ssl);
         //int SSL_get_shutdown(const SSL* ssl);
-        [DontCheckReturnType]
+        [return: DontCheckReturnType]
         int SSL_get_shutdown(SafeSslHandle ssl);
 
         //int SSL_write(SSL *ssl, const void *buf, int num);
-        [DontCheckReturnType]
+        [return: DontCheckReturnType]
         int SSL_write(SafeSslHandle ssl, in byte buf, int len);
         //int SSL_read(SSL *ssl, void *buf, int num);
-        [DontCheckReturnType]
+        [return: DontCheckReturnType]
         int SSL_read(SafeSslHandle ssl, ref byte buf, int len);
         //int SSL_pending(const SSL *ssl);
-        [DontCheckReturnType]
+        [return: DontCheckReturnType]
         int SSL_pending(SafeSslHandle ssl);
 
         //int SSL_renegotiate(SSL *s);
@@ -198,7 +198,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int SSL_set_session_id_context(SSL *ssl, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
         int SSL_set_session_id_context(SafeSslHandle ssl, byte[] sid_ctx, uint sid_ctx_len);
         //int SSL_do_handshake(SSL *ssl);
-        [DontCheckReturnType]
+        [return: DontCheckReturnType]
         int SSL_do_handshake(SafeSslHandle ssl);
         //void SSL_set_connect_state(SSL *ssl);
         void SSL_set_connect_state(SafeSslHandle ssl);
@@ -230,7 +230,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int SSL_get_servername_type(const SSL *s);
         int SSL_get_servername_type(SafeSslHandle s);
         //int SSL_is_init_finished(const SSL *s);
-        [DontCheckReturnType]
+        [return: DontCheckReturnType]
         int SSL_is_init_finished(SafeSslHandle s);
         //int SSL_up_ref(SSL *s);
         int SSL_up_ref(SafeSslHandle s);
@@ -250,7 +250,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int SSL_set_session(SSL *ssl, SSL_SESSION *session);
         int SSL_set_session(SafeSslHandle ssl, SafeSslSessionHandle session);
         //int SSL_session_reused(SSL *ssl);
-        [DontCheckReturnType]
+        [return: DontCheckReturnType]
         int SSL_session_reused(SafeSslHandle ssl);
         //int SSL_SESSION_up_ref(SSL_SESSION *ses);
         int SSL_SESSION_up_ref(SafeSslSessionHandle ses);

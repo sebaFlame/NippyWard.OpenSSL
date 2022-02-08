@@ -121,17 +121,19 @@ namespace OpenSSL.Core.X509
 		{
             //convert and sign
             //do not use X509_REQ_to_X509 as it uses MD5 to sign
-            SafeX509CertificateHandle certHandle = this.CryptoWrapper.X509_new();
+            SafeX509CertificateHandle certHandle = CryptoWrapper.X509_new();
 
             //set the correct subjects
-            SafeX509NameHandle x509Name = this.CryptoWrapper.X509_REQ_get_subject_name(request.X509RequestWrapper.Handle);
-            this.CryptoWrapper.X509_set_subject_name(certHandle, x509Name);
+            SafeX509NameHandle x509Name = CryptoWrapper.X509_REQ_get_subject_name(request.X509RequestWrapper.Handle);
 
-            //set the correct issues
-            this.CryptoWrapper.X509_set_issuer_name(certHandle, this.caCert.X509Name.X509NameWrapper.Handle);
+            //set the correct issuer
+            CryptoWrapper.X509_set_issuer_name(certHandle, x509Name);
+
+            //set the correct subject
+            CryptoWrapper.X509_set_subject_name(certHandle, x509Name);
 
             //set the public key
-            this.CryptoWrapper.X509_set_pubkey(certHandle, request.PublicKey.KeyWrapper.Handle);
+            CryptoWrapper.X509_set_pubkey(certHandle, request.PublicKey.KeyWrapper.Handle);
 
             //create managed wrapper
             X509Certificate cert = new X509Certificate(certHandle);

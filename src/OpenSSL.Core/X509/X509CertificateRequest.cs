@@ -74,43 +74,43 @@ namespace OpenSSL.Core.X509
 
         public override int Version
         {
-            get => (int)this.CryptoWrapper.X509_REQ_get_version(this.X509RequestWrapper.Handle);
-            set => this.CryptoWrapper.X509_REQ_set_version(this.X509RequestWrapper.Handle, value);
+            get => (int)CryptoWrapper.X509_REQ_get_version(this.X509RequestWrapper.Handle);
+            set => CryptoWrapper.X509_REQ_set_version(this.X509RequestWrapper.Handle, value);
         }
 
         public override bool VerifyPrivateKey(PrivateKey key)
         {
-            return this.CryptoWrapper.X509_REQ_check_private_key(this.X509RequestWrapper.Handle, key.KeyWrapper.Handle) == 1;
+            return CryptoWrapper.X509_REQ_check_private_key(this.X509RequestWrapper.Handle, key.KeyWrapper.Handle) == 1;
         }
 
         public override bool VerifyPublicKey(IPublicKey key)
         {
-            return this.CryptoWrapper.X509_REQ_verify(this.X509RequestWrapper.Handle, ((Key)key).KeyWrapper.Handle) == 1;
+            return CryptoWrapper.X509_REQ_verify(this.X509RequestWrapper.Handle, ((Key)key).KeyWrapper.Handle) == 1;
         }
 
         internal override void CreateSafeHandle()
         {
-            this.X509RequestWrapper = new X509CertificateRequestInternal(this.CryptoWrapper.X509_REQ_new());
+            this.X509RequestWrapper = new X509CertificateRequestInternal(CryptoWrapper.X509_REQ_new());
         }
 
         internal override PrivateKey GetPublicKey()
         {
-            return PrivateKey.GetCorrectKey(this.CryptoWrapper.X509_REQ_get0_pubkey(this.X509RequestWrapper.Handle));
+            return PrivateKey.GetCorrectKey(CryptoWrapper.X509_REQ_get0_pubkey(this.X509RequestWrapper.Handle));
         }
 
         internal override SafeX509NameHandle GetSubject()
         {
-            return this.CryptoWrapper.X509_REQ_get_subject_name(this.X509RequestWrapper.Handle);
+            return CryptoWrapper.X509_REQ_get_subject_name(this.X509RequestWrapper.Handle);
         }
 
         internal override void SetPublicKey(PrivateKey privateKey)
         {
-            this.CryptoWrapper.X509_REQ_set_pubkey(this.X509RequestWrapper.Handle, privateKey.KeyWrapper.Handle);
+            CryptoWrapper.X509_REQ_set_pubkey(this.X509RequestWrapper.Handle, privateKey.KeyWrapper.Handle);
         }
 
         internal override void Sign(SafeKeyHandle keyHandle, SafeMessageDigestHandle md)
         {
-            this.CryptoWrapper.X509_REQ_sign(this.X509RequestWrapper.Handle, keyHandle, md);
+            CryptoWrapper.X509_REQ_sign(this.X509RequestWrapper.Handle, keyHandle, md);
         }
 
         public static X509CertificateRequest Read(string filePath, string password, FileEncoding fileEncoding = FileEncoding.PEM)
@@ -174,9 +174,9 @@ namespace OpenSSL.Core.X509
             PasswordThunk pass = new PasswordThunk(callBack.OnPassword);
 
             if (fileEncoding == FileEncoding.PEM)
-                this.CryptoWrapper.PEM_write_bio_X509_REQ(bioHandle, this.X509RequestWrapper.Handle);
+                CryptoWrapper.PEM_write_bio_X509_REQ(bioHandle, this.X509RequestWrapper.Handle);
             else if (fileEncoding == FileEncoding.DER)
-                this.CryptoWrapper.i2d_X509_REQ_bio(bioHandle, this.X509RequestWrapper.Handle);
+                CryptoWrapper.i2d_X509_REQ_bio(bioHandle, this.X509RequestWrapper.Handle);
             else
                 throw new FormatException("Encoding not supported");
         }
