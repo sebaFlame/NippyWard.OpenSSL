@@ -6,7 +6,7 @@
     <AssemblyName>OpenSSL.Core</AssemblyName>
     <PackageId>OpenSSL.Core</PackageId>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-	<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+	<!--<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>-->
   </PropertyGroup>
 
   <PropertyGroup>

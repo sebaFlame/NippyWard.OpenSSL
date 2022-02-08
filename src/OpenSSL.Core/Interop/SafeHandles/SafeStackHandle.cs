@@ -45,7 +45,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
 	/// Encapsulates the sk_* functions
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
-	internal abstract class SafeStackHandle<T> : BaseValue, IStack, IList<T>
+	internal abstract class SafeStackHandle<T> : BaseValue, IStack, IList<T>, IReadOnlyList<T>
 		where T : SafeBaseHandle, IStackable
 	{
         public T this[int index]

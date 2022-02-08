@@ -22,7 +22,7 @@ namespace OpenSSL.Core.Generator
         private static SourceText GenerateSafeHandleFactory
         (
             InterfaceDeclarationSyntax factoryWrapper,
-            ISet<ClassDeclarationSyntax> abstractSafeBaseHandlesSyntax,
+            ICollection<ClassDeclarationSyntax> abstractSafeBaseHandlesSyntax,
             ParseOptions parseOptions,
             params string[] usings
         )

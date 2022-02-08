@@ -19,7 +19,7 @@ namespace OpenSSL.Core.Generator
 
         private static SourceText GenerateSafeHandleInstances
         (
-            ISet<ClassDeclarationSyntax> abstractSafeBaseHandles,
+            ICollection<ClassDeclarationSyntax> abstractSafeBaseHandles,
             ParseOptions parseOptions,
             params string[] usings
         )
