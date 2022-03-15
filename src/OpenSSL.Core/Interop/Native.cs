@@ -102,13 +102,13 @@ namespace OpenSSL.Core.Interop
             //initialize dll resolver
             NativeLibrary.SetDllImportResolver(Assembly.GetExecutingAssembly(), DllImportResolver);
 
-            //TODO: assign interfaces
+            //assign interfaces implementations
             CryptoWrapper = new LibCryptoWrapper();
             SSLWrapper = new LibSSLWrapper();
             StackWrapper = new StackWrapper();
             SafeHandleFactory = new SafeHandleFactory();
 
-            //TODO: check for >= 1.1 or change config (SSLEnum, deprecated functions and whatnot)
+            //check for >= 1.1 or change config (SSLEnum, deprecated functions and whatnot)
             if (Version.Library < Version.MinimumOpenSslVersion)
             {
                 throw new Exception(string.Format("Invalid version of {0}, expecting {1}, got: {2}", DLLNAME, Version.MinimumOpenSslVersion, Version.Library));

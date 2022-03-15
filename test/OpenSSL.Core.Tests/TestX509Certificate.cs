@@ -300,6 +300,8 @@ namespace OpenSSL.Core.Tests
                     using (X509Certificate cert = ca.ProcessRequest(req, start, end, DigestType.SHA256))
                     {
                         Assert.True(cert.VerifyPrivateKey(caCert.PublicKey));
+                        Assert.True(cert.VerifyPublicKey((IPublicKey)cert.PublicKey));
+
                         Assert.Equal(1, cert.SerialNumber);
                         Assert.Equal("root", cert.Common);
                         Assert.Equal("localhost", cert.OrganizationUnit);

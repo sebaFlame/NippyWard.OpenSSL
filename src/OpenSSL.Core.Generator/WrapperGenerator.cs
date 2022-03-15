@@ -13,7 +13,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace OpenSSL.Core.Generator
 {
     /* TODO
-     * Make all safe handle classes abstract and add constructors through generator
+     * Make all safe handle classes partial abstract and add constructors through generator
      */
     [Generator]
     public partial class WrapperGenerator : IIncrementalGenerator

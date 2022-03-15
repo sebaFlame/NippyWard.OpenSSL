@@ -401,16 +401,15 @@ namespace OpenSSL.Core.X509
         public override int GetHashCode()
         {
             if (this.hashCode > 0)
-                return this.hashCode;
-
-            SafeASN1BitStringHandle stringHandle;
-            IntPtr algorithm = new IntPtr();
-            using (stringHandle = CryptoWrapper.ASN1_BIT_STRING_new())
             {
-                CryptoWrapper.X509_get0_signature(out stringHandle, algorithm, this.X509Wrapper.Handle);
-                Span<byte> sig = stringHandle.Value;
-                this.hashCode = sig.GetHashCode();
+                return this.hashCode;
             }
+
+            IntPtr algorithm = new IntPtr();
+
+            CryptoWrapper.X509_get0_signature(out SafeASN1BitStringHandle stringHandle, algorithm, this.X509Wrapper.Handle);
+            Span<byte> sig = stringHandle.Value;
+            this.hashCode = sig.GetHashCode();
 
             return this.hashCode;
         }
