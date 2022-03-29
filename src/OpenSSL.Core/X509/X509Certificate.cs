@@ -251,7 +251,7 @@ namespace OpenSSL.Core.X509
             using (md = CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr))
             {
                 CryptoWrapper.X509_sign(this.X509Wrapper.Handle, this.PublicKey.KeyWrapper.Handle, md);
-                CryptoWrapper.X509_set_issuer_name(this.X509Wrapper.Handle, this.X509Name.X509NameWrapper.Handle);
+                //CryptoWrapper.X509_set_issuer_name(this.X509Wrapper.Handle, this.X509Name.X509NameWrapper.Handle);
             }
         }
 
@@ -271,6 +271,7 @@ namespace OpenSSL.Core.X509
             this.AddExtension(null, type, value);
         }
 
+        //TODO: share context over multiple extensions
         internal void AddExtension(
             X509Certificate issuer,
             X509CertificateRequest request,

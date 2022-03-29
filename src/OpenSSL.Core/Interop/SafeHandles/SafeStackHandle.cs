@@ -48,6 +48,9 @@ namespace OpenSSL.Core.Interop.SafeHandles
 	internal abstract class SafeStackHandle<T> : BaseValue, IStack, IList<T>
 		where T : SafeBaseHandle, IStackable
 	{
+        internal static SafeStackHandle<T> Zero
+            => new SafeStackHandleWrapperSafeHandle<T>(IntPtr.Zero);
+
         public T this[int index]
         {
             get => StackWrapper.OPENSSL_sk_value(this, index);

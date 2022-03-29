@@ -36,7 +36,9 @@ namespace OpenSSL.Core.Keys
         internal override KeyInternal GenerateKeyInternal()
         {
             if(this.rsaHandle is null || this.rsaHandle.IsInvalid)
+            {
                 throw new InvalidOperationException("RSA key has not been created yet");
+            }
 
             CryptoWrapper.RSA_check_key(this.rsaHandle);
 

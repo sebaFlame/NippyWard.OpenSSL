@@ -10,10 +10,10 @@ namespace OpenSSL.Core.SSL
     [Flags]
     public enum SslProtocol
     {
-        Ssl3 = 1 << 1,
-        Tls = 1 << 2,
-        Tls11 = 1 << 3,
-        Tls12 = 1 << 4,
-        Tls13 = 1 << 5
+        Ssl3 = 1 << 0,
+        Tls = 1 << 1,
+        Tls11 = 1 << 2,
+        Tls12 = 1 << 3,
+        Tls13 = 1 << 4
     }
 }

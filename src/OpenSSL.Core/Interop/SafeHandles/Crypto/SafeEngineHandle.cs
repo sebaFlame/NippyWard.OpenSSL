@@ -6,6 +6,9 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 {
     internal abstract class SafeEngineHandle : BaseReference
     {
+        internal static SafeEngineHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeEngineHandle>(IntPtr.Zero);
+
         internal SafeEngineHandle(bool takeOwnership)
             : base(takeOwnership)
         { }

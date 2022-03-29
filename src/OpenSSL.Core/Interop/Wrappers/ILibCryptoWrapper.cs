@@ -295,12 +295,12 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         //int X509_sign(X509 *x, EVP_PKEY *pkey, const EVP_MD *md);
         int X509_sign(SafeX509CertificateHandle x, SafeKeyHandle pkey, SafeMessageDigestHandle md);
+        //int X509_sign_ctx(X509 *x, EVP_MD_CTX *ctx);
+        int X509_sign_ctx(SafeX509CertificateHandle x, SafeMessageDigestContextHandle ctx);
 
         //int X509_verify(X509 *a, EVP_PKEY *r);
-        [return: DontVerifyType]
         int X509_verify(SafeX509CertificateHandle x, SafeKeyHandle pkey);
         //int X509_check_private_key(X509 *x, EVP_PKEY *k);
-        [return: DontVerifyType]
         int X509_check_private_key(SafeX509CertificateHandle x509, SafeKeyHandle pkey);
 
         //int X509_pubkey_digest(const X509 *data, const EVP_MD *type, unsigned char* md, unsigned int* len);
@@ -484,6 +484,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509* x509, STACK_OF(X509) *chain);
         int X509_STORE_CTX_init(SafeX509StoreContextHandle ctx, SafeX509StoreHandle store, SafeX509CertificateHandle x509, SafeStackHandle<SafeX509CertificateHandle> chain);
         //int X509_verify_cert(X509_STORE_CTX *ctx);
+        [return: DontVerifyType]
         int X509_verify_cert(SafeX509StoreContextHandle ctx);
 
         //X509 *X509_STORE_CTX_get_current_cert(X509_STORE_CTX *ctx);
@@ -492,6 +493,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         int X509_STORE_CTX_get_error_depth(SafeX509StoreContextHandle x509_store_ctx);
         
         //int X509_STORE_CTX_get_error(X509_STORE_CTX *ctx);
+        [return: DontVerifyType]
         int X509_STORE_CTX_get_error(SafeX509StoreContextHandle x509_store_ctx);
         //void X509_STORE_CTX_set_error(X509_STORE_CTX *ctx, int s);
         void X509_STORE_CTX_set_error(SafeX509StoreContextHandle x509_store_ctx, int error);
@@ -814,6 +816,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         //void EVP_MD_CTX_free(EVP_MD_CTX *ctx);
         void EVP_MD_CTX_free(IntPtr ctx);
 
+        //int EVP_DigestSignInit(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx, const EVP_MD* type, ENGINE *e, EVP_PKEY* pkey);
+        int EVP_DigestSignInit(SafeMessageDigestContextHandle ctx, out SafeKeyContextHandle pctx, SafeMessageDigestHandle type, SafeEngineHandle e, SafeKeyHandle pkey);
+
         //int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl);
         int EVP_DigestInit_ex(SafeMessageDigestContextHandle ctx, SafeMessageDigestHandle type, SafeEngineHandle impl);
         //int EVP_DigestInit(EVP_MD_CTX *ctx, const EVP_MD *type);
@@ -1078,6 +1083,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from);
         int EVP_PKEY_copy_parameters(SafeKeyHandle to, SafeKeyHandle from);
         //int EVP_PKEY_missing_parameters(const EVP_PKEY *pkey);
+        [return: DontVerifyType]
         int EVP_PKEY_missing_parameters(SafeKeyHandle pkey);
         //int EVP_PKEY_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b);
         int EVP_PKEY_cmp_parameters(SafeKeyHandle a, SafeKeyHandle b);

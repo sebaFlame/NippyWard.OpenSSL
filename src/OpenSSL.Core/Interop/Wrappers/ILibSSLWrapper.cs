@@ -18,7 +18,7 @@ namespace OpenSSL.Core.Interop.Wrappers
     internal delegate int VerifyCertificateCallback(int preVerify, IntPtr x509_store_ctx);
 
     //int (*cb) (struct ssl_st *ssl, SSL_SESSION *sess)
-    internal delegate int NewSessionCallback(IntPtr ssl, IntPtr sess);
+    internal delegate int SessionCallback(IntPtr ssl, IntPtr sess);
 
     internal interface ILibSSLWrapper
     {
@@ -72,6 +72,8 @@ namespace OpenSSL.Core.Interop.Wrappers
         SafeStackHandle<SafeSslCipherHandle> SSL_CTX_get_ciphers(SafeSslContextHandle ctx);
         //long SSL_CTX_set_options(SSL_CTX *ctx, long options);
         long SSL_CTX_set_options(SafeSslContextHandle ctx, long options);
+        //long SSL_CTX_clear_options(SSL_CTX *ctx, long options);
+        long SSL_CTX_clear_options(SafeSslContextHandle ctx, long options);
         //void SSL_CTX_set_security_level(SSL_CTX *ctx, int level);
         void SSL_CTX_set_security_level(SafeSslContextHandle ctx, int level);
 
@@ -102,7 +104,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         [return: DontVerifyType]
         int SSL_CTX_add_session(SafeSslContextHandle ctx, SafeSslSessionHandle c);
         //void SSL_CTX_sess_set_new_cb(SSL_CTX *ctx, int (*cb) (struct ssl_st *ssl, SSL_SESSION *sess))
-        void SSL_CTX_sess_set_new_cb(SafeSslContextHandle ctx, NewSessionCallback new_session_cb);
+        void SSL_CTX_sess_set_new_cb(SafeSslContextHandle ctx, SessionCallback new_session_cb);
 
         //int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x);
         int SSL_CTX_use_certificate(SafeSslContextHandle ctx, SafeX509CertificateHandle cert);
@@ -190,9 +192,22 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int SSL_pending(const SSL *ssl);
         [return: DontVerifyType]
         int SSL_pending(SafeSslHandle ssl);
+        [return: DontVerifyType]
+        int SSL_peek(SafeSslHandle ssl, ref byte buf, int len);
 
         //int SSL_renegotiate(SSL *s);
         int SSL_renegotiate(SafeSslHandle ssl);
+        //int SSL_renegotiate_abbreviated(SSL *s);
+        int SSL_renegotiate_abbreviated(SafeSslHandle ssl);
+        //int SSL_key_update(SSL *s, int updatetype);
+        int SSL_key_update(SafeSslHandle ssl, int updatetype);
+        //int SSL_renegotiate_pending(const SSL* s);
+        [return: DontVerifyType]
+        int SSL_renegotiate_pending(SafeSslHandle ssl);
+        //int SSL_get_key_update_type(const SSL *s);
+        [return: DontVerifyType]
+        int SSL_get_key_update_type(SafeSslHandle ssl);
+
         //int SSL_set_session_id_context(SSL *ssl, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
         int SSL_set_session_id_context(SafeSslHandle ssl, byte[] sid_ctx, uint sid_ctx_len);
         //int SSL_do_handshake(SSL *ssl);

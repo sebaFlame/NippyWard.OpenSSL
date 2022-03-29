@@ -6,7 +6,7 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>OpenSSL.Core.Tests</AssemblyName>
     <LangVersion>7.3</LangVersion>
-	<!--<EnableMemoryTracker>true</EnableMemoryTracker>-->
+	<EnableMemoryTracker>true</EnableMemoryTracker>
   </PropertyGroup>
   
   <ItemGroup>
@@ -33,16 +33,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <!-- Disable multi-threaded test run -->
-    <None Update="xunit.runner.json">
+    <!--<None Update="xunit.runner.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="TestSSL.cs" />
-    <!--<Compile Remove="TestCipher.cs" />
-    <Compile Remove="TestKey.cs" />
-    <Compile Remove="TestX509Certificate.cs" />-->
+    </None>-->
   </ItemGroup>
 
 </Project>

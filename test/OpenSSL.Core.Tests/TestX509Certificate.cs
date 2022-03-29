@@ -35,6 +35,7 @@ using OpenSSL.Core.ASN1;
 using OpenSSL.Core.Keys;
 using OpenSSL.Core.X509;
 using OpenSSL.Core.Collections;
+using OpenSSL.Core.Error;
 
 namespace OpenSSL.Core.Tests
 {
@@ -238,6 +239,7 @@ namespace OpenSSL.Core.Tests
 			using (RSAKey key = new RSAKey(1024))
             {
                 key.GenerateKey();
+
                 using (var cert = new X509Certificate(key, "localhost", "localhost", start, end))
                 {
                     Assert.True(cert.VerifyPrivateKey(key));
@@ -245,7 +247,7 @@ namespace OpenSSL.Core.Tests
                     using (DSAKey other = new DSAKey(32))
                     {
                         other.GenerateKey();
-                        Assert.False(cert.VerifyPrivateKey(other));
+                        Assert.Throws<OpenSslException>(() => cert.VerifyPrivateKey(other));
                     }
                 }
             }
@@ -268,15 +270,14 @@ namespace OpenSSL.Core.Tests
                     using (RSAKey other = new RSAKey(1024))
                     {
                         other.GenerateKey();
-                        Assert.False(cert.VerifyPublicKey(other));
+                        Assert.Throws<OpenSslException>(() => cert.VerifyPublicKey(other));
                     }
                 }
             }
 
 		}
 
-        //TODO: verify signatures
-		[Fact]
+        [Fact]
 		public void CanCreateSignedRequest()
 		{
 			var start = DateTime.Now;
@@ -290,21 +291,104 @@ namespace OpenSSL.Core.Tests
                 end,
                 out X509Certificate caCert);
 
-            using (caCert)
+            //verify if correct CA
+            caCert.VerifyPrivateKey(ca.Key);
+            caCert.VerifyPublicKey((IPublicKey)caCert.PublicKey);
+
+            using(ca)
             {
-                using (X509CertificateRequest req = new X509CertificateRequest(caCert.PublicKey, "localhost", "root"))
+                using (caCert)
                 {
-                    Assert.Equal("localhost", req.OrganizationUnit);
-                    Assert.Equal("root", req.Common);
-
-                    using (X509Certificate cert = ca.ProcessRequest(req, start, end, DigestType.SHA256))
+                    using (RSAKey key = new RSAKey(1024))
                     {
-                        Assert.True(cert.VerifyPrivateKey(caCert.PublicKey));
-                        Assert.True(cert.VerifyPublicKey((IPublicKey)cert.PublicKey));
+                        key.GenerateKey();
 
-                        Assert.Equal(1, cert.SerialNumber);
-                        Assert.Equal("root", cert.Common);
-                        Assert.Equal("localhost", cert.OrganizationUnit);
+                        using (X509CertificateRequest req = new X509CertificateRequest(key, "localhost", "root"))
+                        {
+                            //sign the request with itself
+                            req.Sign(key, DigestType.SHA256);
+
+                            Assert.Equal("localhost", req.OrganizationUnit);
+                            Assert.Equal("root", req.Common);
+
+                            //verify if signing succeeded
+                            req.VerifyPrivateKey(key);
+                            req.VerifyPublicKey((IPublicKey)req.PublicKey);
+
+                            using (X509Certificate cert = ca.ProcessRequest(req, start, end))
+                            {
+                                //TODO: add custom extensions before sign
+                                //sign new certificate with CA
+                                ca.Sign(cert, DigestType.SHA256);
+
+                                Assert.Equal(1, cert.SerialNumber);
+                                Assert.Equal("root", cert.Common);
+                                Assert.Equal("localhost", cert.OrganizationUnit);
+
+                                Assert.True(cert.VerifyPrivateKey(key));
+                                Assert.True(cert.VerifyPublicKey((IPublicKey)caCert.PublicKey));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void CanVerifyCertificateFromStore()
+        {
+            var start = DateTime.Now;
+            var end = start + TimeSpan.FromMinutes(10);
+
+            X509CertificateAuthority ca = X509CertificateAuthority.CreateX509CertificateAuthority
+            (
+                1024,
+                "root",
+                "root",
+                start,
+                end,
+                out X509Certificate caCert
+            );
+
+            //verify if correct CA
+            caCert.VerifyPrivateKey(ca.Key);
+            caCert.VerifyPublicKey((IPublicKey)caCert.PublicKey);
+
+            using (ca)
+            {
+                using(RSAKey key = new RSAKey(1024))
+                {
+                    key.GenerateKey();
+
+                    using (X509CertificateRequest req = new X509CertificateRequest(key, "localhost", "root"))
+                    {
+                        //sign the request with itself
+                        req.Sign(key, DigestType.SHA256);
+
+                        Assert.Equal("localhost", req.OrganizationUnit);
+                        Assert.Equal("root", req.Common);
+
+                        //verify if signing succeeded
+                        req.VerifyPrivateKey(key);
+                        req.VerifyPublicKey((IPublicKey)req.PublicKey);
+
+                        using (X509Certificate cert = ca.ProcessRequest(req, start, end))
+                        {
+                            //sign new certificate with CA
+                            ca.Sign(cert, DigestType.SHA256);
+
+                            Assert.Equal(1, cert.SerialNumber);
+                            Assert.Equal("root", cert.Common);
+                            Assert.Equal("localhost", cert.OrganizationUnit);
+
+                            Assert.True(cert.VerifyPrivateKey(key));
+                            Assert.True(cert.VerifyPublicKey((IPublicKey)caCert.PublicKey));
+
+                            using (X509Store store = new X509Store(new X509Certificate[] { caCert }))
+                            {
+                                Assert.True(store.Verify(cert, out VerifyResult verifyResult));
+                            }
+                        }
                     }
                 }
             }
@@ -326,7 +410,9 @@ namespace OpenSSL.Core.Tests
                 using (X509Certificate cert = new X509Certificate(key, "root", "root", start, end))
                 {
                     foreach (var tuple in extList)
+                    {
                         cert.AddX509Extension(tuple.Item1, tuple.Item2);
+                    }
 
                     Assert.NotEmpty(cert);
 
@@ -352,7 +438,9 @@ namespace OpenSSL.Core.Tests
             using (X509Store caStore = new X509Store(caFile))
             {
                 using (OpenSslReadOnlyCollection<X509Certificate> caCerts = caStore.GetCertificates())
+                {
                     Assert.NotEmpty(caCerts);
+                }
             }
         }
 
@@ -370,7 +458,9 @@ namespace OpenSSL.Core.Tests
                 using (X509Store caStore = new X509Store(reader.Certificates))
                 {
                     using (OpenSslReadOnlyCollection<X509Certificate> caCerts = caStore.GetCertificates())
+                    {
                         Assert.NotEmpty(caCerts);
+                    }
                 }
             }
         }

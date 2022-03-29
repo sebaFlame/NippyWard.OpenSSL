@@ -131,11 +131,15 @@ namespace OpenSSL.Core.X509
         {
             using (SafeX509StoreContextHandle ctx = CryptoWrapper.X509_STORE_CTX_new())
             {
-                CryptoWrapper.X509_STORE_CTX_init(
+                CryptoWrapper.X509_STORE_CTX_init
+                (
                     ctx, 
                     this.StoreWrapper.Handle, 
                     cert.X509Wrapper.Handle, 
-                    extraChain is null ? null : (SafeStackHandle<SafeX509CertificateHandle>)extraChain.InternalEnumerable.Handle);
+                    extraChain is null 
+                        ? SafeStackHandle<SafeX509CertificateHandle>.Zero
+                        : (SafeStackHandle<SafeX509CertificateHandle>)extraChain.InternalEnumerable.Handle
+                );
                 try
                 {
                     return CryptoWrapper.X509_verify_cert(ctx) == 1;

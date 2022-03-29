@@ -33,7 +33,7 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Buffers;
 
 using Xunit;
 using Xunit.Abstractions;
@@ -43,702 +43,976 @@ using OpenSSL.Core.Keys;
 using OpenSSL.Core.ASN1;
 using OpenSSL.Core.SSL;
 using OpenSSL.Core.Collections;
-using OpenSSL.Core.SSL.Pipelines;
 
 namespace OpenSSL.Core.Tests
 {
-    public class TestSSL : TestBase
+    public class TestSSL : TestBase, IClassFixture<SslTestContext>
     {
-        private SslTestContext ctx;
-        static byte[] clientMessage = Encoding.ASCII.GetBytes("This is a message from the client");
-        static byte[] serverMessage = Encoding.ASCII.GetBytes("This is a message from the server");
+        private SslTestContext _sslTestContext;
+        private static byte[] _ClientMessage = Encoding.ASCII.GetBytes("This is a message from the client");
+        private static byte[] _ServerMessage = Encoding.ASCII.GetBytes("This is a message from the server");
 
-        public TestSSL(ITestOutputHelper outputHelper)
+        private X509Certificate ServerCertificate => this._sslTestContext.ServerCertificate;
+        private PrivateKey ServerKey => this.ServerCertificate.PublicKey;
+
+        private X509Certificate ClientCertificate => this._sslTestContext.ClientCertificate;
+        private PrivateKey ClientKey => this.ClientCertificate.PublicKey;
+
+        private X509Certificate CACertificate => this._sslTestContext.CACertificate;
+
+        private const int _BufferSize = 16383;
+        private byte[] _serverReadBuffer;
+        private byte[] _serverWriteBuffer;
+        private byte[] _clientReadBuffer;
+        private byte[] _clientWriteBuffer;
+
+        public TestSSL(ITestOutputHelper outputHelper, SslTestContext sslTestContext)
             : base(outputHelper)
         {
-            this.ctx = new SslTestContext();
+            this._sslTestContext = sslTestContext;
+
+            this._serverReadBuffer = ArrayPool<byte>.Shared.Rent(_BufferSize);
+            this._serverWriteBuffer = ArrayPool<byte>.Shared.Rent(_BufferSize);
+            this._clientReadBuffer = ArrayPool<byte>.Shared.Rent(_BufferSize);
+            this._clientWriteBuffer = ArrayPool<byte>.Shared.Rent(_BufferSize);
         }
 
         protected override void Dispose(bool disposing)
         {
-            this.ctx?.Dispose();
+            ArrayPool<byte>.Shared.Return(this._serverReadBuffer);
+            ArrayPool<byte>.Shared.Return(this._serverWriteBuffer);
+            ArrayPool<byte>.Shared.Return(this._clientReadBuffer);
+            ArrayPool<byte>.Shared.Return(this._clientWriteBuffer);
         }
 
-        private static SocketServerImplementation CreateServer(PipeOptions pipeOptions = null)
+        private void DoSynchronousHandshake
+        (
+            Ssl serverContext,
+            Ssl clientContext
+        )
         {
-            IPEndPoint serverEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
-            SocketServerImplementation serverListener = new SocketServerImplementation();
-            serverListener.Listen(serverEndPoint, sendOptions: pipeOptions, receiveOptions: pipeOptions);
+            SslState clientState, serverState;
+            int clientRead, serverRead, clientWritten, serverWritten;
 
-            return serverListener;
+            //make sure you ALWAYS read both
+            while (!clientContext.DoHandshake(out clientState)
+                    | !serverContext.DoHandshake(out serverState))
+            {
+                if(clientState == SslState.WANTWRITE)
+                {
+                    //get the client buffer
+                    clientContext.WritePending(this._clientWriteBuffer, out clientWritten);
+
+                    //and write it to the server
+                    Array.Copy(this._clientWriteBuffer, 0, this._serverReadBuffer, 0, clientWritten);
+                    serverContext.ReadPending
+                    (
+                        new ReadOnlySpan<byte>(this._serverReadBuffer, 0, clientWritten),
+                        out serverRead
+                    );
+
+                    //verify write was complete
+                    Assert.Equal(clientWritten, serverRead);
+                }
+
+                if (serverState == SslState.WANTWRITE)
+                {
+                    //get the server buffer
+                    serverContext.WritePending(this._serverWriteBuffer, out serverWritten);
+
+                    //and write it to the client
+                    Array.Copy(this._serverWriteBuffer, 0, this._clientReadBuffer, 0, serverWritten);
+                    clientContext.ReadPending
+                    (
+                        new ReadOnlySpan<byte>(this._clientReadBuffer, 0, serverWritten),
+                        out clientRead
+                    );
+
+                    //verify write was complete
+                    Assert.Equal(serverWritten, clientRead);
+                }
+            }
         }
 
-        private static Task<SocketConnection> CreateClient(SocketServerImplementation serverListener, PipeOptions pipeOptions = null)
+        private void DoSynchronousShutdown
+        (
+            Ssl clientContext,
+            Ssl serverContext
+        )
         {
-            IPEndPoint clientEndPoint = new IPEndPoint(IPAddress.Loopback, ((IPEndPoint)serverListener.Listener.LocalEndPoint).Port);
-            return SocketConnection.ConnectAsync(clientEndPoint, name: "client", pipeOptions: pipeOptions);
+            SslState clientState, serverState;
+            int clientRead, serverRead, clientWritten, serverWritten;
+
+            //make sure you ALWAYS read both
+            while (!clientContext.DoShutdown(out clientState)
+                    & !serverContext.DoShutdown(out serverState))
+            {
+                if (clientState == SslState.WANTWRITE)
+                {
+                    //get the client buffer
+                    clientContext.WritePending(this._clientWriteBuffer, out clientWritten);
+
+                    //and write it to the server
+                    Array.Copy(this._clientWriteBuffer, 0, this._serverReadBuffer, 0, clientWritten);
+                    serverContext.ReadPending
+                    (
+                        new ReadOnlySpan<byte>(this._serverReadBuffer, 0, clientWritten),
+                        out serverRead
+                    );
+
+                    //verify write was complete
+                    Assert.Equal(clientWritten, serverRead);
+                }
+
+                if (serverState == SslState.WANTWRITE)
+                {
+                    //get the server buffer
+                    serverContext.WritePending(this._serverWriteBuffer, out serverWritten);
+
+                    //and write it to the client
+                    Array.Copy(this._serverWriteBuffer, 0, this._clientReadBuffer, 0, serverWritten);
+                    clientContext.ReadPending
+                    (
+                        new ReadOnlySpan<byte>(this._clientReadBuffer, 0, serverWritten),
+                        out clientRead
+                    );
+
+                    //verify write was complete
+                    Assert.Equal(serverWritten, clientRead);
+                }
+            }
         }
 
-        private static async Task VerifyRead(SocketConnection client, SocketConnection server, byte[] message)
+        [Theory]
+        [SslProtocolData(SslProtocol.Tls12)]
+        [SslProtocolData(SslProtocol.Tls13)]
+        public void TestHandshake(SslProtocol sslProtocol)
         {
-            ReadResult readResult;
+            //create server
+            Ssl serverContext = Ssl.CreateServerSsl
+            (
+                sslProtocol: sslProtocol,
+                certificate: this.ServerCertificate,
+                privateKey: this.ServerKey
+            );
 
-            ValueTask<FlushResult> flushResult = client.Output.WriteAsync(message);
-            if (!flushResult.IsCompleted)
-                await flushResult.ConfigureAwait(false);
+            Assert.True(serverContext.IsServer);
 
-            ValueTask<ReadResult> clientResult = server.Input.ReadAsync();
-            if (!clientResult.IsCompleted)
-                readResult = await clientResult.ConfigureAwait(false);
+            //create client
+            Ssl clientContext = Ssl.CreateClientSsl
+            (
+                sslProtocol: sslProtocol
+            );
+
+            Assert.False(clientContext.IsServer);
+
+            //variables to store actions
+            SslState serverState, clientState;
+            int clientRead, serverRead, clientWritten, serverWritten;
+
+            //initialize server handshake
+            Assert.False(serverContext.DoHandshake(out serverState));
+            Assert.Equal(SslState.WANTREAD, serverState);
+
+            //initialize client handshake
+            Assert.False(clientContext.DoHandshake(out clientState));
+            Assert.Equal(SslState.WANTWRITE, clientState);
+
+            //get the client buffer
+            clientContext.WritePending(this._clientWriteBuffer, out clientWritten);
+
+            //and write it to the server
+            Array.Copy(this._clientWriteBuffer, 0, this._serverReadBuffer, 0, clientWritten);
+            serverContext.ReadPending
+            (
+                new ReadOnlySpan<byte>(this._serverReadBuffer, 0, clientWritten),
+                out serverRead
+            );
+
+            //verify write was complete
+            Assert.Equal(clientWritten, serverRead);
+
+            //continue server handshake
+            Assert.False(serverContext.DoHandshake(out serverState));
+            Assert.Equal(SslState.WANTWRITE, serverState);
+
+            //continue client handshake
+            Assert.False(clientContext.DoHandshake(out clientState));
+            Assert.Equal(SslState.WANTREAD, clientState);
+
+            //get the server buffer
+            serverContext.WritePending(this._serverWriteBuffer, out serverWritten);
+
+            //and write it to the client
+            Array.Copy(this._serverWriteBuffer, 0, this._clientReadBuffer, 0, serverWritten);
+            clientContext.ReadPending
+            (
+                new ReadOnlySpan<byte>(this._clientReadBuffer, 0, serverWritten),
+                out clientRead
+            );
+
+            //verify write was complete
+            Assert.Equal(serverWritten, clientRead);
+
+            //continue server handshake
+            Assert.False(serverContext.DoHandshake(out serverState));
+            Assert.Equal(SslState.WANTREAD, serverState);
+
+            //continue client handshake
+            Assert.False(clientContext.DoHandshake(out clientState));
+            Assert.Equal(SslState.WANTWRITE, clientState);
+
+            //get the client buffer
+            clientContext.WritePending(this._clientWriteBuffer, out clientWritten);
+
+            //and write it to the server
+            Array.Copy(this._clientWriteBuffer, 0, this._serverReadBuffer, 0, clientWritten);
+            serverContext.ReadPending
+            (
+                new ReadOnlySpan<byte>(this._serverReadBuffer, 0, clientWritten),
+                out serverRead
+            );
+            //verify write was complete
+            Assert.Equal(clientWritten, serverRead);
+
+            //continue the handshake
+            Assert.False(serverContext.DoHandshake(out serverState));
+            Assert.Equal(SslState.WANTWRITE, serverState);
+
+            //TODO: last write not mandatory?
+            if(sslProtocol != SslProtocol.Tls13)
+            {
+                Assert.False(clientContext.DoHandshake(out clientState));
+                Assert.Equal(SslState.WANTREAD, clientState);
+            }
+
+            //get the server buffer
+            serverContext.WritePending(this._serverWriteBuffer, out serverWritten);
+
+            //and write it to the client
+            Array.Copy(this._serverWriteBuffer, 0, this._clientReadBuffer, 0, serverWritten);
+            clientContext.ReadPending
+            (
+                new ReadOnlySpan<byte>(this._clientReadBuffer, 0, serverWritten),
+                out clientRead
+            );
+
+            //verify write was complete
+            Assert.Equal(serverWritten, clientRead);
+
+            //finish handshake
+            Assert.True(serverContext.DoHandshake(out serverState));
+            Assert.True(clientContext.DoHandshake(out clientState));
+
+            Assert.Equal(SslState.NONE, serverState);
+            Assert.Equal(SslState.NONE, clientState);
+
+            clientContext.Dispose();
+            serverContext.Dispose();
+        }
+
+        [Theory]
+        [SslProtocolData(SslProtocol.Tls12)]
+        [SslProtocolData(SslProtocol.Tls13)]
+        public void TestShutDown(SslProtocol sslProtocol)
+        {
+            //create server
+            Ssl serverContext = Ssl.CreateServerSsl
+            (
+                sslProtocol: sslProtocol,
+                certificate: this.ServerCertificate,
+                privateKey: this.ServerKey
+            );
+            Assert.True(serverContext.IsServer);
+
+            //create client
+            Ssl clientContext = Ssl.CreateClientSsl
+            (
+                sslProtocol: sslProtocol
+            );
+            Assert.False(clientContext.IsServer);
+
+            this.DoSynchronousHandshake(serverContext, clientContext);
+
+            //variables to store actions
+            SslState serverState, clientState;
+            int clientRead, serverRead, clientWritten, serverWritten;
+
+            //continue server handshake
+            Assert.False(serverContext.DoShutdown(out serverState));
+            Assert.Equal(SslState.WANTWRITE, serverState);
+
+            //continue client handshake
+            Assert.False(clientContext.DoShutdown(out clientState));
+            Assert.Equal(SslState.WANTWRITE, clientState);
+
+            //get the server buffer
+            serverContext.WritePending(this._serverWriteBuffer, out serverWritten);
+
+            //and write it to the client
+            Array.Copy(this._serverWriteBuffer, 0, this._clientReadBuffer, 0, serverWritten);
+            clientContext.ReadPending
+            (
+                new ReadOnlySpan<byte>(this._clientReadBuffer, 0, serverWritten),
+                out clientRead
+            );
+
+            //verify write was complete
+            Assert.Equal(serverWritten, clientRead);
+
+            //get the client buffer
+            clientContext.WritePending(this._clientWriteBuffer, out clientWritten);
+
+            //and write it to the server
+            Array.Copy(this._clientWriteBuffer, 0, this._serverReadBuffer, 0, clientWritten);
+            serverContext.ReadPending
+            (
+                new ReadOnlySpan<byte>(this._serverReadBuffer, 0, clientWritten),
+                out serverRead
+            );
+            //verify write was complete
+            Assert.Equal(clientWritten, serverRead);
+
+            //finish shutdown
+            Assert.True(serverContext.DoShutdown(out serverState));
+            Assert.True(clientContext.DoShutdown(out clientState));
+
+            serverContext.Dispose();
+            clientContext.Dispose();
+        }
+
+        [Theory]
+        [SslProtocolData(SslProtocol.Tls12)]
+        [SslProtocolData(SslProtocol.Tls13)]
+        public void TestSslData(SslProtocol sslProtocol)
+        {
+            //create server
+            Ssl serverContext = Ssl.CreateServerSsl
+            (
+                sslProtocol: sslProtocol,
+                certificate: this.ServerCertificate,
+                privateKey: this.ServerKey
+            );
+            Assert.True(serverContext.IsServer);
+
+            //create client
+            Ssl clientContext = Ssl.CreateClientSsl
+            (
+                sslProtocol: sslProtocol
+            );
+            Assert.False(clientContext.IsServer);
+
+            this.DoSynchronousHandshake(serverContext, clientContext);
+
+            SslState clientState, serverState;
+            int totalRead, totalWritten;
+
+            //send data from server
+            serverState = serverContext.WriteSsl
+            (
+                _ServerMessage,
+                this._serverWriteBuffer,
+                out totalRead,
+                out totalWritten
+            );
+
+            Assert.Equal(_ServerMessage.Length, totalRead);
+
+            //verify no further action needs to be taken
+            Assert.Equal(SslState.NONE, serverState);
+
+            //Read data on client
+            Array.Copy(this._serverWriteBuffer, 0, this._clientReadBuffer, 0, totalWritten);
+            clientState = clientContext.ReadSsl
+            (
+                new ReadOnlySpan<byte>(this._clientReadBuffer, 0, totalWritten),
+                this._clientWriteBuffer,
+                out totalRead,
+                out totalWritten
+            );
+
+            //verify no further action needs to be taken
+            Assert.Equal(SslState.NONE, clientState);
+
+            //verify read data
+            Assert.True
+            (
+                new ReadOnlySpan<byte>(_ServerMessage)
+                    .SequenceEqual(new ReadOnlySpan<byte>(this._clientWriteBuffer, 0, totalWritten))
+            );
+
+            //send data from client
+            clientState = clientContext.WriteSsl
+            (
+                _ClientMessage,
+                this._clientWriteBuffer,
+                out totalRead,
+                out totalWritten
+            );
+
+            //verify no further action needs to be taken
+            Assert.Equal(SslState.NONE, clientState);
+
+            Assert.Equal(_ClientMessage.Length, totalRead);
+
+            //read data on server
+            Array.Copy(this._clientWriteBuffer, 0, this._serverReadBuffer, 0, totalWritten);
+            serverState = serverContext.ReadSsl
+            (
+                new ReadOnlySpan<byte>(this._serverReadBuffer, 0, totalWritten),
+                this._serverWriteBuffer,
+                out totalRead,
+                out totalWritten
+            );
+
+            //verify no further action needs to be taken
+            Assert.Equal(SslState.NONE, serverState);
+
+            //verify read data
+            Assert.True
+            (
+                new ReadOnlySpan<byte>(_ClientMessage)
+                    .SequenceEqual(new ReadOnlySpan<byte>(this._serverWriteBuffer, 0, totalWritten))
+            );
+
+            this.DoSynchronousShutdown(serverContext, clientContext);
+
+            serverContext.Dispose();
+            clientContext.Dispose();
+        }
+
+        [Theory]
+        [SslProtocolData(SslProtocol.Tls12)]
+        [SslProtocolData(SslProtocol.Tls13)]
+        public void TestServerRenegotiate(SslProtocol sslProtocol)
+        {
+            //create server
+            Ssl serverContext = Ssl.CreateServerSsl
+            (
+                sslProtocol: sslProtocol,
+                certificate: this.ServerCertificate,
+                privateKey: this.ServerKey
+            );
+            Assert.True(serverContext.IsServer);
+
+            //create client
+            Ssl clientContext = Ssl.CreateClientSsl
+            (
+                sslProtocol: sslProtocol
+            );
+            Assert.False(clientContext.IsServer);
+
+            this.DoSynchronousHandshake(serverContext, clientContext);
+
+            this.Renegotiate(serverContext, clientContext, sslProtocol);
+
+            this.DoSynchronousShutdown(serverContext, clientContext);
+
+            serverContext.Dispose();
+            clientContext.Dispose();
+        }
+
+        [Theory]
+        [SslProtocolData(SslProtocol.Tls12)]
+        [SslProtocolData(SslProtocol.Tls13)]
+        public void TestClientRenegotiate(SslProtocol sslProtocol)
+        {
+            //create server
+            Ssl serverContext = Ssl.CreateServerSsl
+            (
+                sslProtocol: sslProtocol,
+                certificate: this.ServerCertificate,
+                privateKey: this.ServerKey
+            );
+            Assert.True(serverContext.IsServer);
+
+            //create client
+            Ssl clientContext = Ssl.CreateClientSsl
+            (
+                sslProtocol: sslProtocol
+            );
+            Assert.False(clientContext.IsServer);
+
+            this.DoSynchronousHandshake(serverContext, clientContext);
+
+            this.Renegotiate(clientContext, serverContext, sslProtocol);
+
+            this.DoSynchronousShutdown(serverContext, clientContext);
+
+            serverContext.Dispose();
+            clientContext.Dispose();
+        }
+
+        //the tests using this function are mostly used to test the
+        //coherence between ReadSsl/WriteSsl and SslState.WANTREAD/SslState.WANTWRITE
+        private void Renegotiate
+        (
+            Ssl client1,
+            Ssl client2,
+            SslProtocol sslProtocol
+        )
+        {
+            SslState client1State, client2State;
+            int client2Read, client1Read, client2Written, client1Written;
+
+            //force new handshake with a writable buffer
+            client1.Renegotiate(this._serverWriteBuffer, out client1Written);
+
+            //and write it to the client
+            //do a regular (!) read on the client (this is after initial handshake)
+            Array.Copy(this._serverWriteBuffer, 0, this._clientReadBuffer, 0, client1Written);
+            client2State = client2.ReadSsl
+            (
+                new ReadOnlySpan<byte>(this._clientReadBuffer, 0, client1Written),
+                this._clientWriteBuffer,
+                out client2Read,
+                out client2Written
+            );
+
+            //verify next action
+            Assert.Equal(SslState.WANTWRITE, client2State);
+
+            //verify write was complete
+            Assert.Equal(client1Written, client2Read);
+            //and nothing got decrypted
+            Assert.Equal(0, client2Written);
+
+            //get the renegotiation buffer form the client
+            client2.WritePending
+            (
+                this._clientWriteBuffer,
+                out client2Written
+            );
+
+            Assert.NotEqual(0, client2Written);
+
+            //send the buffer back to the server
+            Array.Copy(this._clientWriteBuffer, 0, this._serverReadBuffer, 0, client2Written);
+            client1State = client1.ReadSsl
+            (
+                new ReadOnlySpan<byte>(this._serverReadBuffer, 0, client2Written),
+                this._serverWriteBuffer,
+                out client1Read,
+                out client1Written
+            );
+
+            if (sslProtocol != SslProtocol.Tls13)
+            {
+                //verify next action
+                Assert.Equal(SslState.WANTWRITE, client1State);
+
+                //verify write was complete
+                Assert.Equal(client2Written, client1Read);
+                //and nothing got decrypted
+                Assert.Equal(0, client1Written);
+
+                //get the renegotiation buffer form the server
+                client1.WritePending
+                (
+                    this._serverWriteBuffer,
+                    out client1Written
+                );
+
+                Assert.NotEqual(0, client1Written);
+
+                //send the buffer back to the client
+                Array.Copy(this._serverWriteBuffer, 0, this._clientReadBuffer, 0, client1Written);
+                client2State = client2.ReadSsl
+                (
+                    new ReadOnlySpan<byte>(this._clientReadBuffer, 0, client1Written),
+                    this._clientWriteBuffer,
+                    out client2Read,
+                    out client2Written
+                );
+
+                if(!client2.IsServer)
+                {
+                    //verify no further action is needed
+                    Assert.Equal(SslState.WANTWRITE, client2State);
+
+                    //verify write was complete
+                    Assert.Equal(client1Written, client2Read);
+                    //and nothing got decrypted
+                    Assert.Equal(0, client2Written);
+
+                    //get the renegotiation buffer form the client
+                    client2.WritePending
+                    (
+                        this._clientWriteBuffer,
+                        out client2Written
+                    );
+
+                    Assert.NotEqual(0, client2Written);
+
+                    //send the buffer back to the server
+                    Array.Copy(this._clientWriteBuffer, 0, this._serverReadBuffer, 0, client2Written);
+                    client1State = client1.ReadSsl
+                    (
+                        new ReadOnlySpan<byte>(this._serverReadBuffer, 0, client2Written),
+                        this._serverWriteBuffer,
+                        out client1Read,
+                        out client1Written
+                    );
+
+                    //verify next action
+                    Assert.Equal(SslState.NONE, client1State);
+
+                    //verify write was complete
+                    Assert.Equal(client2Written, client1Read);
+                    //and nothing got decrypted
+                    Assert.Equal(0, client1Written);
+                }
+                else
+                {
+                    //verify no further action is needed
+                    Assert.Equal(SslState.NONE, client2State);
+
+                    //verify write was complete
+                    Assert.Equal(client1Written, client2Read);
+                    //and nothing got decrypted
+                    Assert.Equal(0, client2Written);
+                }
+            }
+            //no further action needed
             else
-                readResult = clientResult.Result;
-
-            Assert.True(readResult.Buffer.IsSingleSegment);
-            Assert.True(readResult.Buffer.First.Span.SequenceEqual(message));
-            server.Input.AdvanceTo(readResult.Buffer.End);
-        }
-
-        private static async Task DisposeConnections(SocketConnection client, ClientWrapper server, SocketServerImplementation serverListener)
-        {
-            await Task.WhenAll(Task.Factory.StartNew(client.Dispose), Task.Factory.StartNew(server.Dispose));
-            serverListener.Dispose();
-        }
-
-        private static void VerifyEncryptionEnabled(SocketConnection client, SslProtocol protocol, X509Certificate remoteCertificate = null)
-        {
-            Assert.NotEmpty(client.Cipher);
-            Assert.True(client.Protocol == protocol);
-            if (!(remoteCertificate is null))
-                Assert.Equal(remoteCertificate, client.RemoteCertificate);
-        }
-
-        [Fact]
-        public async Task TestConnectionBasic()
-        {
-            //create server
-            SocketServerImplementation serverListener = CreateServer();
-
-            //connect to server
-            SocketConnection client = await CreateClient(serverListener);
-
-            //get client from server
-            ClientWrapper server = serverListener.GetNextClient();
-
-            //verify reads
-            await VerifyRead(client, server.Client, clientMessage);
-            await VerifyRead(server.Client, client, serverMessage);
-
-            //dispose client/server client
-            await DisposeConnections(client, server, serverListener);
-        }
-
-        [Theory]
-        [SslProtocolData(SslProtocol.Tls12)]
-        [SslProtocolData(SslProtocol.Tls13)]
-        public async Task TestSSLConnectionBasic(SslProtocol protocol)
-        {
-            //create server
-            SocketServerImplementation serverListener = CreateServer();
-
-            //connect to server
-            SocketConnection client = await CreateClient(serverListener);
-
-            //get client from server
-            ClientWrapper server = serverListener.GetNextClient();
-
-            //enable encryption
-            await Task.WhenAll(client.AuthenticateAsClientAsync(protocol), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
-
-            //verify TLS enabled
-            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client, protocol);
-
-            //verify reads
-            await VerifyRead(client, server.Client, clientMessage);
-            await VerifyRead(server.Client, client, serverMessage);
-
-            //dispose client/server client
-            await DisposeConnections(client, server, serverListener);
-        }
-
-        [Theory]
-        [SslProtocolData(SslProtocol.Tls12)]
-        [SslProtocolData(SslProtocol.Tls13)]
-        public async Task TestSSLConnectionThreadedRead(SslProtocol protocol)
-        {
-            //create server
-            SocketServerImplementation serverListener = CreateServer();
-
-            //connect to server
-            SocketConnection client = await CreateClient(serverListener);
-
-            //get client from server
-            ClientWrapper server = serverListener.GetNextClient();
-
-            CancellationTokenSource readCancel = new CancellationTokenSource();
-            TaskCompletionSource<byte[]> readCorrectServerMessage = new TaskCompletionSource<byte[]>();
-            TaskCompletionSource<byte[]> readCorrectClientMessage = new TaskCompletionSource<byte[]>();
-            byte[] clientResult, serverResult;
-
-            Task clientReadTask = Task.Run(async () =>
             {
-                ValueTask<ReadResult> readResultTask;
-                ReadResult currentReadResult;
-                byte[] buf;
-                do
-                {
-                    readResultTask = default;
-                    try
-                    {
-                        readResultTask = client.Input.ReadAsync(readCancel.Token);
-                        if (!readResultTask.IsCompleted)
-                            currentReadResult = await readResultTask.ConfigureAwait(false);
-                        else
-                            currentReadResult = readResultTask.Result;
-                    }
-                    catch (Exception)
-                    {
-                        if (readCancel.IsCancellationRequested)
-                            break;
-                        throw;
-                    }
+                //verify not further action is needed
+                Assert.Equal(SslState.NONE, client1State);
 
-                    buf = currentReadResult.Buffer.First.ToArray();
-                    client.Input.AdvanceTo(currentReadResult.Buffer.End);
-                    readCorrectServerMessage.SetResult(buf);
-                } while ((!readCancel.IsCancellationRequested));
-            });
-
-            Task serverReadTask = Task.Run(async () =>
-            {
-                ValueTask<ReadResult> readResultTask;
-                ReadResult currentReadResult;
-                byte[] buf;
-                do
-                {
-                    readResultTask = default;
-                    try
-                    {
-                        readResultTask = server.Client.Input.ReadAsync(readCancel.Token);
-                        if (!readResultTask.IsCompleted)
-                            currentReadResult = await readResultTask.ConfigureAwait(false);
-                        else
-                            currentReadResult = readResultTask.Result;
-                    }
-                    catch (Exception)
-                    {
-                        if(readCancel.IsCancellationRequested)
-                            break;
-                        throw;
-                    }
-
-                    buf = currentReadResult.Buffer.First.ToArray();
-                    server.Client.Input.AdvanceTo(currentReadResult.Buffer.End);
-                    readCorrectClientMessage.SetResult(buf);
-                } while ((!readCancel.IsCancellationRequested));
-            });
-
-            //unencrypted write from server to client
-            await server.Client.Output.WriteAsync(serverMessage);
-            clientResult = await readCorrectServerMessage.Task;
-            Assert.True(clientResult.SequenceEqual(serverMessage));
-
-            //TODO: can not reverse, client path too (?) synchronous
-            Task serverAuthenticate = server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey);
-            Task clientAuthenticate = client.AuthenticateAsClientAsync(protocol);
-
-            //enable encryption
-            await Task.WhenAll(clientAuthenticate, serverAuthenticate);
-
-            //check if encryption enabled
-            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client, protocol);
-
-            //encrypted write from client to server
-            await client.Output.WriteAsync(clientMessage);
-            serverResult = await readCorrectClientMessage.Task;
-            Assert.True(serverResult.SequenceEqual(clientMessage));
-
-            readCancel.Cancel();
-            await Task.WhenAll(clientReadTask, serverReadTask);
-
-            //dispose client/server client
-            await DisposeConnections(client, server, serverListener);
+                //verify write was complete
+                Assert.Equal(client2Written, client1Read);
+                //and nothing got decrypted
+                Assert.Equal(0, client1Written);
+            }
         }
 
         [Theory]
         [SslProtocolData(SslProtocol.Tls12)]
         [SslProtocolData(SslProtocol.Tls13)]
-        public async Task TestSSLConnectionSession(SslProtocol protocol)
+        public void TestSessionReuse(SslProtocol sslProtocol)
         {
             //create server
-            SocketServerImplementation serverListener = CreateServer();
+            Ssl serverContext = Ssl.CreateServerSsl
+            (
+                sslProtocol: sslProtocol,
+                certificate: this.ServerCertificate,
+                privateKey: this.ServerKey
+            );
+            Assert.True(serverContext.IsServer);
 
-            //connect to server
-            SocketConnection client = await CreateClient(serverListener);
+            //create client
+            Ssl clientContext = Ssl.CreateClientSsl
+            (
+                sslProtocol: sslProtocol
+            );
+            Assert.False(clientContext.IsServer);
 
-            //get client from server
-            ClientWrapper server = serverListener.GetNextClient();
+            this.DoSynchronousHandshake(serverContext, clientContext);
 
-            //enable encryption
-            await Task.WhenAll(client.AuthenticateAsClientAsync(protocol), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
+            if (sslProtocol == SslProtocol.Tls13)
+            {
+                //force session generation (needed by TLS1.3)
+                //session only gets generated by the next data write
+                SslState clientState, serverState;
+                int totalRead, totalWritten;
 
-            //verify if encryption is enabled
-            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client, protocol);
+                //send data from server
+                serverState = serverContext.WriteSsl
+                (
+                    _ServerMessage,
+                    this._serverWriteBuffer,
+                    out totalRead,
+                    out totalWritten
+                );
 
-            //verify reads
-            await VerifyRead(client, server.Client, clientMessage);
-            await VerifyRead(server.Client, client, serverMessage);
+                Assert.Equal(_ServerMessage.Length, totalRead);
 
-            //shutdown client socket
-            client.Socket.Shutdown(SocketShutdown.Receive);
-            client.Socket.Shutdown(SocketShutdown.Send);
-            //shutdown server socket
-            server.Client.Socket.Shutdown(SocketShutdown.Receive);
-            server.Client.Socket.Shutdown(SocketShutdown.Send);
+                //verify no further action needs to be taken
+                Assert.Equal(SslState.NONE, serverState);
 
-            //reset client connection and dispose server
-            await Task.WhenAll(client.Reset(), Task.Run(server.Dispose));
+                //Read data on client
+                Array.Copy(this._serverWriteBuffer, 0, this._clientReadBuffer, 0, totalWritten);
+                clientState = clientContext.ReadSsl
+                (
+                    new ReadOnlySpan<byte>(this._clientReadBuffer, 0, totalWritten),
+                    this._clientWriteBuffer,
+                    out totalRead,
+                    out totalWritten
+                );
+            }
 
-            //reconnect client
-            await client.ConnectAsync(serverListener.Listener.LocalEndPoint);
+            //save session
+            SslSession previousSession = clientContext.Session;
+            //create new server context using old ssl context
+            Ssl newServerContext = Ssl.CreateServerSsl
+            (
+                serverContext.SslContext
+            );
+            Assert.True(newServerContext.IsServer);
 
-            //get new server client
-            server = serverListener.GetNextClient();
+            this.DoSynchronousShutdown(serverContext, clientContext);
 
-            //re-authenticate client/server with session reuse
-            await Task.WhenAll(client.AuthenticateAsClientAsync(protocol), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
+            serverContext.Dispose();
+            clientContext.Dispose();
 
-            //verify if encryption is enabled
-            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client, protocol);
+            //create client
+            Ssl newClientContext = Ssl.CreateClientSsl
+            (
+                sslProtocol: sslProtocol,
+                previousSession: previousSession
+            );
+            Assert.False(clientContext.IsServer);
 
-            //check for session reuse
-            Assert.True(client.SessionReused);
+            this.DoSynchronousHandshake(newServerContext, newClientContext);
 
-            //verify reads
-            await VerifyRead(client, server.Client, clientMessage);
-            await VerifyRead(server.Client, client, serverMessage);
+            Assert.True(newClientContext.IsSessionReused);
 
-            //dispose client/server client
-            await DisposeConnections(client, server, serverListener);
+            this.DoSynchronousShutdown(newServerContext, newClientContext);
+
+            newServerContext.Dispose();
+            newClientContext.Dispose();
         }
 
         [Theory]
         [SslProtocolData(SslProtocol.Tls12)]
         [SslProtocolData(SslProtocol.Tls13)]
-        public async Task TestSSLVerificationCallback(SslProtocol protocol)
+        public void TestCretificateValidation(SslProtocol sslProtocol)
         {
             bool validationCalled = false;
 
-            RemoteCertificateValidationHandler validate = new RemoteCertificateValidationHandler(
-                (bool preVerifySucceeded, X509Certificate cert, IReadOnlyCollection<X509Certificate> certList) =>
+            bool RemoteCertificateValidation(bool preVerifySucceeded, X509Certificate cert, IReadOnlyCollection<X509Certificate> certList)
             {
-                Assert.Equal(cert, this.ctx.ServerCertificate);
+                Assert.Equal(cert, this._sslTestContext.ServerCertificate);
                 validationCalled = true;
                 return true;
-            });
+            };
 
             //create server
-            SocketServerImplementation serverListener = CreateServer();
-
-            //connect to server
-            SocketConnection client = await CreateClient(serverListener);
-
-            //get client from server
-            ClientWrapper server = serverListener.GetNextClient();
-
-            //enable encryption
-            await Task.WhenAll(
-                client.AuthenticateAsClientAsync(validate, protocol), 
-                server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey)
+            Ssl serverContext = Ssl.CreateServerSsl
+            (
+                sslProtocol: sslProtocol,
+                certificate: this.ServerCertificate,
+                privateKey: this.ServerKey
             );
+            Assert.True(serverContext.IsServer);
 
-            //verify if encryption is enabled
-            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client, protocol);
+            //create client
+            Ssl clientContext = Ssl.CreateClientSsl
+            (
+                sslProtocol: sslProtocol,
+                remoteCertificateValidationHandler: new RemoteCertificateValidationHandler(RemoteCertificateValidation)
+            );
+            Assert.False(clientContext.IsServer);
 
-            //verify if validation callback was called
+            this.DoSynchronousHandshake(serverContext, clientContext);
+
             Assert.True(validationCalled);
 
-            //verify reads
-            await VerifyRead(client, server.Client, clientMessage);
-            await VerifyRead(server.Client, client, serverMessage);
+            this.DoSynchronousShutdown(serverContext, clientContext);
 
-            //dispose client/server client
-            await DisposeConnections(client, server, serverListener);
+            serverContext.Dispose();
+            clientContext.Dispose();
         }
 
         [Theory]
         [SslProtocolData(SslProtocol.Tls12)]
         [SslProtocolData(SslProtocol.Tls13)]
-        public async Task TestSSLVerification(SslProtocol protocol)
+        public void TestCAValidation(SslProtocol sslProtocol)
         {
-            //create server
-            SocketServerImplementation serverListener = CreateServer();
+            bool validationCalled = false;
 
-            //connect to server
-            SocketConnection client = await CreateClient(serverListener);
+            bool RemoteCertificateValidation(bool preVerifySucceeded, X509Certificate cert, IReadOnlyCollection<X509Certificate> certList)
+            {
+                Assert.Contains(this._sslTestContext.CACertificate, certList);
+                Assert.True(preVerifySucceeded);
+                validationCalled = true;
+                return true;
+            };
 
-            //get client from server
-            ClientWrapper server = serverListener.GetNextClient();
-
-            //create CA chain to to verify server certificate
-            OpenSslList<X509Certificate> caChain = new OpenSslList<X509Certificate>();
-            caChain.Add(this.ctx.CACertificate);
-
-            //enable encryption
-            await Task.WhenAll(
-                client.AuthenticateAsClientAsync(caChain, protocol),
-                server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey)
+            //Create a store containing valid CA
+            X509Store clientStore = new X509Store
+            (
+                new X509Certificate[]
+                {
+                    this._sslTestContext.CACertificate
+                }
             );
 
-            //verify if encryption is enabled
-            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client, protocol);
+            Assert.True(clientStore.Verify(this.ServerCertificate, out VerifyResult verifyResult));
 
-            //verify reads
-            await VerifyRead(client, server.Client, clientMessage);
-            await VerifyRead(server.Client, client, serverMessage);
+            //create server
+            Ssl serverContext = Ssl.CreateServerSsl
+            (
+                sslProtocol: sslProtocol,
+                certificate: this.ServerCertificate,
+                privateKey: this.ServerKey
+            );
+            Assert.True(serverContext.IsServer);
 
-            //dispose client/server client
-            await DisposeConnections(client, server, serverListener);
+            //create client
+            Ssl clientContext = Ssl.CreateClientSsl
+            (
+                sslProtocol: sslProtocol,
+                certificateStore: clientStore,
+                //not mandatory! used to assert tests
+                remoteCertificateValidationHandler: new RemoteCertificateValidationHandler(RemoteCertificateValidation)
+            );
+            Assert.False(clientContext.IsServer);
+
+            this.DoSynchronousHandshake(serverContext, clientContext);
+
+            Assert.True(validationCalled);
+
+            this.DoSynchronousShutdown(serverContext, clientContext);
+
+            serverContext.Dispose();
+            clientContext.Dispose();
+
+            clientStore.Dispose();
         }
 
         [Theory]
         [SslProtocolData(SslProtocol.Tls12)]
         [SslProtocolData(SslProtocol.Tls13)]
-        public async Task TestSSLClientCertificateCallback(SslProtocol protocol)
+        public void TestClientCertificateCallback(SslProtocol sslProtocol)
         {
             bool clientCallbackCalled = false;
 
-            ClientCertificateCallbackHandler clientCertCallback = new ClientCertificateCallbackHandler(
-                (IReadOnlyCollection<X509Name> validCA,
-                    out X509Certificate clientCertificate,
-                    out PrivateKey clientPrivateKey) =>
+            //used to select a client certificate
+            bool ClientCertificateCallbackHandler
+            (
+                IReadOnlyCollection<X509Name> validCA,
+                out X509Certificate clientCertificate,
+                out PrivateKey clientPrivateKey
+            )
+            {
+                Assert.NotEmpty(validCA);
+
+                using (X509Name clientValidName = validCA.First())
                 {
-                    Assert.NotEmpty(validCA);
+                    Assert.NotNull(clientValidName);
+                    Assert.Equal("Root", clientValidName.Common);
+                }
 
-                    using (X509Name clientValidName = validCA.First())
-                    {
-                        Assert.NotNull(clientValidName);
-                        Assert.Equal("Root", clientValidName.Common);
-                    }
+                clientCertificate = this._sslTestContext.ClientCertificate;
+                clientPrivateKey = this._sslTestContext.ClientKey;
 
-                    clientCertificate = this.ctx.ClientCertificate;
-                    clientPrivateKey = this.ctx.ClientKey;
+                return (clientCallbackCalled = true);
+            }
 
-                    return (clientCallbackCalled = true);
-                });
+            bool validationCalled = false;
+
+            //used to validate the client certificate
+            bool RemoteCertificateValidation(bool preVerifySucceeded, X509Certificate cert, IReadOnlyCollection<X509Certificate> certList)
+            {
+                Assert.Contains(this._sslTestContext.CACertificate, certList);
+                Assert.True(preVerifySucceeded);
+                validationCalled = true;
+                return true;
+            };
+
+            //initialize server store
+            X509Store serverStore = new X509Store
+            (
+                new X509Certificate[]
+                {
+                    this._sslTestContext.CACertificate
+                }
+            );
+
+            Assert.True(serverStore.Verify(this.ClientCertificate, out VerifyResult verifyResult));
 
             //create server
-            SocketServerImplementation serverListener = CreateServer();
+            Ssl serverContext = Ssl.CreateServerSsl
+            (
+                sslProtocol: sslProtocol,
+                certificate: this.ServerCertificate,
+                privateKey: this.ServerKey,
+                certificateStore: serverStore,
+                //not mandatory! used to assert tests
+                remoteCertificateValidationHandler: new RemoteCertificateValidationHandler(RemoteCertificateValidation)
+            );
+            Assert.True(serverContext.IsServer);
 
-            //connect to server
-            SocketConnection client = await CreateClient(serverListener);
+            //create client
+            Ssl clientContext = Ssl.CreateClientSsl
+            (
+                sslProtocol: sslProtocol,
+                clientCertificateCallbackHandler: new ClientCertificateCallbackHandler(ClientCertificateCallbackHandler)
+            );
+            Assert.False(clientContext.IsServer);
 
-            //get client from server
-            ClientWrapper server = serverListener.GetNextClient();
+            this.DoSynchronousHandshake(serverContext, clientContext);
 
-            //create CA chain to to verify client certificate
-            OpenSslList<X509Certificate> caChain = new OpenSslList<X509Certificate>();
-            caChain.Add(this.ctx.CACertificate);
-
-            //enable encryption
-            await Task.WhenAll(
-                client.AuthenticateAsClientAsync(clientCertCallback, protocol), 
-                server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey, caChain));
-
-            //verify if encryption is enabled
-            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client, protocol, this.ctx.ClientCertificate);
-
-            //verify if client certificate callback was called
             Assert.True(clientCallbackCalled);
+            Assert.True(validationCalled);
 
-            //verify reads
-            await VerifyRead(client, server.Client, clientMessage);
-            await VerifyRead(server.Client, client, serverMessage);
+            this.DoSynchronousShutdown(serverContext, clientContext);
 
-            //dispose client/server client
-            await DisposeConnections(client, server, serverListener);
+            serverContext.Dispose();
+            clientContext.Dispose();
+
+            serverStore.Dispose();
         }
 
         [Theory]
         [SslProtocolData(SslProtocol.Tls12)]
         [SslProtocolData(SslProtocol.Tls13)]
-        public async Task TestSSLClientCertificate(SslProtocol protocol)
+        public void TestClientCertificate(SslProtocol sslProtocol)
         {
-            //create server
-            SocketServerImplementation serverListener = CreateServer();
+            bool validationCalled = false;
 
-            //connect to server
-            SocketConnection client = await CreateClient(serverListener);
-
-            //get client from server
-            ClientWrapper server = serverListener.GetNextClient();
-
-            //create CA chain to to verify client certificate
-            OpenSslList<X509Certificate> caChain = new OpenSslList<X509Certificate>();
-            caChain.Add(this.ctx.CACertificate);
-
-            //enable encryption
-            await Task.WhenAll(
-                client.AuthenticateAsClientAsync(this.ctx.ClientCertificate, this.ctx.ClientKey, protocol),
-                server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey, caChain));
-
-            //verify if encryption is enabled
-            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client, protocol, this.ctx.ClientCertificate);
-
-            //verify reads
-            await VerifyRead(client, server.Client, clientMessage);
-            await VerifyRead(server.Client, client, serverMessage);
-
-            //dispose client/server client
-            await DisposeConnections(client, server, serverListener);
-        }
-
-        [Fact]
-        public async Task TestConnectionBigData()
-        {
-            int bufferSize = 1024 * 1024 * 4;
-            PipeOptions pipeOptions = new PipeOptions(pauseWriterThreshold: ((bufferSize) + 2048)); // buffersize + 1 mininmal segment
-
-            //create server
-            SocketServerImplementation serverListener = CreateServer(pipeOptions);
-
-            //connect to server
-            SocketConnection client = await CreateClient(serverListener, pipeOptions);
-
-            //get client from server
-            ClientWrapper server = serverListener.GetNextClient();
-
-            ValueTask<FlushResult> flushResult;
-            ValueTask<ReadResult> clientResult;
-            ReadResult readResult;
-            long read = 0;
-            int position, currentInput = 0;
-            Memory<byte> buffer;
-
-            while (read < 1024 * 1024 * 1024)
+            //used to validate the client certificate
+            bool RemoteCertificateValidation(bool preVerifySucceeded, X509Certificate cert, IReadOnlyCollection<X509Certificate> certList)
             {
-                buffer = server.Client.Output.GetMemory(bufferSize);
-                Interop.Random.PseudoBytes(buffer.Span);
-                server.Client.Output.Advance(buffer.Length);
+                Assert.Contains(this._sslTestContext.CACertificate, certList);
+                Assert.True(preVerifySucceeded);
+                validationCalled = true;
+                return true;
+            };
 
-                flushResult = server.Client.Output.FlushAsync();
-                if (!flushResult.IsCompleted)
-                    await flushResult.ConfigureAwait(false);
-
-                currentInput = 0;
-                while (currentInput < buffer.Length)
+            //initialize server store for client certificate validation
+            X509Store serverStore = new X509Store
+            (
+                new X509Certificate[]
                 {
-                    clientResult = client.Input.ReadAsync();
-                    if (!clientResult.IsCompleted)
-                        readResult = await clientResult.ConfigureAwait(false);
-                    else
-                        readResult = clientResult.Result;
-
-                    position = 0;
-                    foreach (ReadOnlyMemory<byte> buf in readResult.Buffer)
-                    {
-                        Assert.True(buf.Span.SequenceEqual(buffer.Span.Slice(currentInput + position, buf.Length)));
-                        position += buf.Length;
-                    }
-
-                    read += readResult.Buffer.Length;
-                    currentInput += (int)readResult.Buffer.Length;
-                    client.Input.AdvanceTo(readResult.Buffer.End);
+                    this._sslTestContext.CACertificate
                 }
-            }
+            );
 
-            await DisposeConnections(client, server, serverListener);
-        }
-
-        [Theory]
-        [SslProtocolData(SslProtocol.Tls12)]
-        [SslProtocolData(SslProtocol.Tls13)]
-        public async Task TestSSLConnectionBigData(SslProtocol protocol)
-        {
-            int bufferSize = 1024 * 1024 * 4;
-            PipeOptions pipeOptions = new PipeOptions(pauseWriterThreshold: ((bufferSize) + 2048)); // buffersize + 1 mininmal segment
+            Assert.True(serverStore.Verify(this.ClientCertificate, out VerifyResult verifyResult));
 
             //create server
-            SocketServerImplementation serverListener = CreateServer(pipeOptions);
+            Ssl serverContext = Ssl.CreateServerSsl
+            (
+                sslProtocol: sslProtocol,
+                certificate: this.ServerCertificate,
+                privateKey: this.ServerKey,
+                certificateStore: serverStore,
+                //not mandatory! used to assert tests
+                remoteCertificateValidationHandler: new RemoteCertificateValidationHandler(RemoteCertificateValidation)
+            );
+            Assert.True(serverContext.IsServer);
 
-            //connect to server
-            SocketConnection client = await CreateClient(serverListener, pipeOptions);
+            //create client with client certificate
+            Ssl clientContext = Ssl.CreateClientSsl
+            (
+                sslProtocol: sslProtocol,
+                certificate: this.ClientCertificate,
+                privateKey: this.ClientKey
+            );
+            Assert.False(clientContext.IsServer);
 
-            //get client from server
-            ClientWrapper server = serverListener.GetNextClient();
+            this.DoSynchronousHandshake(serverContext, clientContext);
 
-            //enable encryption
-            await Task.WhenAll(client.AuthenticateAsClientAsync(protocol), server.Client.AuthenticateAsServerAsync(this.ctx.ServerCertificate, this.ctx.ServerKey));
+            Assert.True(validationCalled);
 
-            //verify TLS enabled
-            VerifyEncryptionEnabled(client, protocol, this.ctx.ServerCertificate);
-            VerifyEncryptionEnabled(server.Client, protocol);
+            this.DoSynchronousShutdown(serverContext, clientContext);
 
-            ValueTask<FlushResult> flushResultTask;
-            ValueTask<ReadResult> readResultTask;
-            ReadResult readResult;
-            FlushResult flushResult;
-            long read = 0;
-            int position, currentInput = 0;
-            Memory<byte> buffer;
+            serverContext.Dispose();
+            clientContext.Dispose();
 
-            while (read < 1024 * 1024 * 1024)
-            {
-                buffer = server.Client.Output.GetMemory(bufferSize);
-                Interop.Random.PseudoBytes(buffer.Span);
-                server.Client.Output.Advance(buffer.Length);
-
-                flushResultTask = server.Client.Output.FlushAsync();
-                if (!flushResultTask.IsCompleted)
-                    flushResult = await flushResultTask.ConfigureAwait(false);
-
-                currentInput = 0;
-                while (currentInput < buffer.Length)
-                {
-                    readResultTask = client.Input.ReadAsync();
-                    if (!readResultTask.IsCompleted)
-                        readResult = await readResultTask.ConfigureAwait(false);
-                    else
-                        readResult = readResultTask.Result;
-
-                    position = 0;
-                    foreach (ReadOnlyMemory<byte> buf in readResult.Buffer)
-                    {
-                        Assert.True(buf.Span.SequenceEqual(buffer.Span.Slice(currentInput + position, buf.Length)));
-                        position += buf.Length;
-                    }
-
-                    read += readResult.Buffer.Length;
-                    currentInput += (int)readResult.Buffer.Length;
-                    client.Input.AdvanceTo(readResult.Buffer.End);
-                }
-            }
-
-            await DisposeConnections(client, server, serverListener);
-        }
-    }
-
-    internal class SslTestContext : IDisposable
-    {
-        private X509Certificate caCertificate;
-        public X509Certificate CACertificate => this.caCertificate;
-        public PrivateKey CAKey => this.caCertificate.PublicKey;
-
-        public X509Certificate ServerCertificate { get; private set; }
-        public PrivateKey ServerKey => this.ServerCertificate.PublicKey;
-
-        public X509Certificate ClientCertificate { get; private set; }
-        public PrivateKey ClientKey => this.ClientCertificate.PublicKey;
-
-        internal SslTestContext()
-        {
-            X509CertificateAuthority ca = X509CertificateAuthority.CreateX509CertificateAuthority(
-                1024,
-                "Root",
-                "Root",
-                DateTime.Now,
-                DateTime.Now + TimeSpan.FromDays(365),
-                out this.caCertificate);
-
-            this.ServerCertificate = CreateCertificate(ca, "server");
-            this.ClientCertificate = CreateCertificate(ca, "client");
-        }
-
-        private X509Certificate CreateCertificate(X509CertificateAuthority ca, string name)
-        {
-            DateTime start = DateTime.Now;
-            DateTime end = start + TimeSpan.FromDays(365);
-            X509Certificate cert;
-
-            using (RSAKey rsaKey = new RSAKey(1024))
-            {
-                rsaKey.GenerateKey();
-                using (X509CertificateRequest req = new X509CertificateRequest(rsaKey, name, name))
-                    cert = ca.ProcessRequest(req, start, end, DigestType.SHA256);
-            }
-
-            return cert;
-        }
-
-        #region IDisposable implementation
-
-        public void Dispose()
-        {
-            this.ServerCertificate.Dispose();
-            this.ClientCertificate.Dispose();
-            this.CACertificate.Dispose();
-        }
-
-        #endregion
-    }
-
-    internal class ClientWrapper : IDisposable
-    {
-        internal SocketConnection Client { get; private set; }
-        internal TaskCompletionSource<bool> End { get; private set; }
-
-        internal ClientWrapper(SocketConnection client)
-        {
-            this.Client = client;
-            this.End = new TaskCompletionSource<bool>();
-        }
-
-        public void Dispose()
-        {
-            this.End.SetResult(true);
-        }
-    }
-
-    internal class SocketServerImplementation : SocketServer
-    {
-        private ConcurrentQueue<ClientWrapper> clientQueue;
-        private AutoResetEvent signal;
-
-        internal SocketServerImplementation()
-            : base()
-        {
-            this.clientQueue = new ConcurrentQueue<ClientWrapper>();
-            this.signal = new AutoResetEvent(false);
-        }
-
-        public ClientWrapper GetNextClient()
-        {
-            this.signal.WaitOne();
-
-            if (!this.clientQueue.TryDequeue(out ClientWrapper client))
-                throw new ArgumentNullException("Client not found");
-
-            try
-            {
-                return client;
-            }
-            finally
-            {
-                this.signal.Reset();
-            }
-        }
-
-        protected override Task OnClientConnectedAsync(in ClientConnection client)
-        {
-            ClientWrapper clientWrapper = new ClientWrapper(client.SocketConnection);
-
-            this.clientQueue.Enqueue(clientWrapper);
-            this.signal.Set();
-
-            return clientWrapper.End.Task;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            this.signal.Dispose();
-            base.Dispose(disposing);
+            serverStore.Dispose();
         }
     }
 }

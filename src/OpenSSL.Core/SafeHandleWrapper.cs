@@ -19,8 +19,7 @@ namespace OpenSSL.Core
 
         public void Dispose()
         {
-            if (!(this.Handle is null) && !this.Handle.IsInvalid)
-                this.Handle.Dispose();
+            this.Handle.Dispose();
         }
     }
 }

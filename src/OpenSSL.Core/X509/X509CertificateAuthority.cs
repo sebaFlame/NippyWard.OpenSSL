@@ -42,7 +42,7 @@ namespace OpenSSL.Core.X509
 	/// Duties include processing incoming X509 requests and responding
 	/// with signed X509 certificates, signed by this CA's private key.
 	/// </summary>
-	public class X509CertificateAuthority : OpenSslBase
+	public class X509CertificateAuthority : OpenSslBase, IDisposable
     {
         private X509Certificate caCert;
         private PrivateKey caKey;
@@ -76,20 +76,33 @@ namespace OpenSSL.Core.X509
             DigestType signHash = null,
             ISequenceNumber serialGenerator = null)
         {
-            using (RSAKey rsaKey = new RSAKey(keyBits))
-            {
-                rsaKey.GenerateKey();
+            RSAKey rsaKey = new RSAKey(keyBits);
+            rsaKey.GenerateKey();
 
-                caCert = new X509Certificate(rsaKey, OU, CN, notBefore, notAfter);
+            caCert = new X509Certificate(rsaKey, OU, CN, notBefore, notAfter);
 
-                caCert.AddExtension(caCert, null, X509ExtensionType.BasicConstraints, "CA:TRUE");
-                caCert.AddExtension(caCert, null, X509ExtensionType.SubjectKeyIdentifier, "hash");
-                caCert.AddExtension(caCert, null, X509ExtensionType.AuthorityKeyIdentifier, "keyid:always");
+            //set issuer as subject (self signed)
+            SafeX509NameHandle x509Name = CryptoWrapper.X509_get_subject_name(caCert.X509Wrapper.Handle);
+            CryptoWrapper.X509_set_issuer_name(caCert.X509Wrapper.Handle, x509Name);
 
-                caCert.SelfSign(rsaKey, signHash ?? DigestType.SHA256);
-            }
+            caCert.AddExtension(caCert, null, X509ExtensionType.SubjectKeyIdentifier, "hash");
 
-            return new X509CertificateAuthority(caCert, caCert.PublicKey, serialGenerator ?? new SimpleSerialNumber());
+            caCert.AddExtension(caCert, null, X509ExtensionType.BasicConstraints, "CA:true");
+            //caCert.AddExtension(caCert, null, X509ExtensionType.BasicConstraints, "critical");
+            //caCert.AddExtension(caCert, null, X509ExtensionType.BasicConstraints, "pathlen:0");
+
+            caCert.AddExtension(caCert, null, X509ExtensionType.AuthorityKeyIdentifier, "keyid:always");
+            //caCert.AddExtension(caCert, null, X509ExtensionType.AuthorityKeyIdentifier, "issuer");
+
+            //caCert.AddExtension(caCert, null, X509ExtensionType.KeyUsage, "critical");
+            caCert.AddExtension(caCert, null, X509ExtensionType.KeyUsage, "digitalSignature");
+            caCert.AddExtension(caCert, null, X509ExtensionType.KeyUsage, "cRLSign");
+            caCert.AddExtension(caCert, null, X509ExtensionType.KeyUsage, "keyCertSign");
+
+            //sign certificate
+            caCert.Sign(rsaKey, signHash ?? DigestType.SHA256);
+
+            return new X509CertificateAuthority(caCert, rsaKey, serialGenerator ?? new SimpleSerialNumber());
         }
 
         /// <summary>
@@ -102,7 +115,9 @@ namespace OpenSSL.Core.X509
             : base()
 		{
 			if (!caCert.VerifyPrivateKey(caKey))
-				throw new Exception("The specified CA Private Key does match the specified CA Certificate");
+            {
+                throw new Exception("The specified CA Private Key does not match the specified CA Certificate");
+            }
 
             this.caCert = caCert;
 			this.caKey = caKey;
@@ -113,48 +128,98 @@ namespace OpenSSL.Core.X509
 
 		#region Methods
 
-		public X509Certificate ProcessRequest(
+		public X509Certificate ProcessRequest
+        (
             X509CertificateRequest request,
 			DateTime startTime,
-			DateTime endTime,
-			DigestType digestType)
+			DateTime endTime
+        )
 		{
+            SafeX509NameHandle x509Name;
+            SafeKeyHandle requestKey;
+
+            //get the key from the request
+            requestKey = CryptoWrapper.X509_REQ_get0_pubkey(request.X509RequestWrapper.Handle);
+
+            //and verify with the request
+            CryptoWrapper.X509_REQ_verify(request.X509RequestWrapper.Handle, requestKey);
+
             //convert and sign
             //do not use X509_REQ_to_X509 as it uses MD5 to sign
             SafeX509CertificateHandle certHandle = CryptoWrapper.X509_new();
 
-            //set the correct subjects
-            SafeX509NameHandle x509Name = CryptoWrapper.X509_REQ_get_subject_name(request.X509RequestWrapper.Handle);
+            //create managed wrapper
+            X509Certificate cert = new X509Certificate(certHandle);
+
+            //assign correct serial number
+            cert.SerialNumber = this.serial.Next();
 
             //set the correct issuer
+            x509Name = CryptoWrapper.X509_get_subject_name(this.caCert.X509Wrapper.Handle);
             CryptoWrapper.X509_set_issuer_name(certHandle, x509Name);
 
             //set the correct subject
+            x509Name = CryptoWrapper.X509_REQ_get_subject_name(request.X509RequestWrapper.Handle);
             CryptoWrapper.X509_set_subject_name(certHandle, x509Name);
-
-            //set the public key
-            CryptoWrapper.X509_set_pubkey(certHandle, request.PublicKey.KeyWrapper.Handle);
-
-            //create managed wrapper
-            X509Certificate cert = new X509Certificate(certHandle);
 
             //set correct properties
             cert.NotBefore = startTime;
             cert.NotAfter = endTime;
             cert.Version = request.Version;
 
-            //assign correct serial number
-            cert.SerialNumber = this.serial.Next();
+            //set the public key
+            requestKey = CryptoWrapper.X509_REQ_get0_pubkey(request.X509RequestWrapper.Handle);
+            CryptoWrapper.X509_set_pubkey(certHandle, requestKey);
 
             cert.AddExtension(this.caCert, request, X509ExtensionType.SubjectKeyIdentifier, "hash");
             cert.AddExtension(this.caCert, request, X509ExtensionType.AuthorityKeyIdentifier, "keyid:always");
 
-            //sign the request with the CA key
-            cert.Sign(this.caKey, digestType);
-
             return cert;
 		}
 
+        public void Sign(X509Certificate certificate, DigestType digestType = null)
+        {
+            //get the key from the certificate
+            SafeKeyHandle certKey = CryptoWrapper.X509_get0_pubkey(certificate.X509Wrapper.Handle);
+            SafeKeyHandle caKey = this.caKey.KeyWrapper.Handle;
+
+            if (CryptoWrapper.EVP_PKEY_missing_parameters(certKey) == 1
+                && CryptoWrapper.EVP_PKEY_missing_parameters(caKey) == 0)
+            {
+                CryptoWrapper.EVP_PKEY_copy_parameters(certKey, caKey);
+            }
+
+            //sign the request with the CA key
+            //certificate.Sign(this.caKey, digestType ?? DigestType.SHA256);
+            this.Sign(certificate.X509Wrapper.Handle, digestType ?? DigestType.SHA256);
+        }
+
+        private void Sign(SafeX509CertificateHandle certHandle, DigestType digestType)
+        {
+            using(SafeMessageDigestContextHandle ctx = CryptoWrapper.EVP_MD_CTX_new())
+            {
+                using (SafeMessageDigestHandle md = CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr))
+                {
+                    CryptoWrapper.EVP_DigestSignInit
+                    (
+                        ctx,
+                        out SafeKeyContextHandle pctx,
+                        md,
+                        SafeEngineHandle.Zero,
+                        this.caKey.KeyWrapper.Handle
+                    );
+
+                    CryptoWrapper.X509_sign_ctx(certHandle, ctx);
+                }
+            }
+        }
+
 		#endregion
+
+        public void Dispose()
+        {
+            this.caKey?.Dispose();
+            this.caCert?.Dispose();
+        }
 	}
 }
