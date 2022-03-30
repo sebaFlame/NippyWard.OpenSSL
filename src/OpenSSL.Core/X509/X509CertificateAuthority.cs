@@ -44,6 +44,8 @@ namespace OpenSSL.Core.X509
 	/// </summary>
 	public class X509CertificateAuthority : OpenSslBase, IDisposable
     {
+        private const string _DefaultCAKeyUsage = "critical,cRLSign,keyCertSign";
+
         private X509Certificate caCert;
         private PrivateKey caKey;
         private ISequenceNumber serial;
@@ -74,7 +76,8 @@ namespace OpenSSL.Core.X509
             DateTime notAfter,
             out X509Certificate caCert,
             DigestType signHash = null,
-            ISequenceNumber serialGenerator = null)
+            ISequenceNumber serialGenerator = null,
+            string keyUsage = _DefaultCAKeyUsage)
         {
             RSAKey rsaKey = new RSAKey(keyBits);
             rsaKey.GenerateKey();
@@ -85,19 +88,15 @@ namespace OpenSSL.Core.X509
             SafeX509NameHandle x509Name = CryptoWrapper.X509_get_subject_name(caCert.X509Wrapper.Handle);
             CryptoWrapper.X509_set_issuer_name(caCert.X509Wrapper.Handle, x509Name);
 
+            //subject hash (issuer also subject)
             caCert.AddExtension(caCert, null, X509ExtensionType.SubjectKeyIdentifier, "hash");
 
-            caCert.AddExtension(caCert, null, X509ExtensionType.BasicConstraints, "CA:true");
-            //caCert.AddExtension(caCert, null, X509ExtensionType.BasicConstraints, "critical");
-            //caCert.AddExtension(caCert, null, X509ExtensionType.BasicConstraints, "pathlen:0");
+            //is a CA
+            caCert.AddExtension(caCert, null, X509ExtensionType.BasicConstraints, "critical,CA:true");
 
-            caCert.AddExtension(caCert, null, X509ExtensionType.AuthorityKeyIdentifier, "keyid:always");
-            //caCert.AddExtension(caCert, null, X509ExtensionType.AuthorityKeyIdentifier, "issuer");
-
-            //caCert.AddExtension(caCert, null, X509ExtensionType.KeyUsage, "critical");
-            caCert.AddExtension(caCert, null, X509ExtensionType.KeyUsage, "digitalSignature");
-            caCert.AddExtension(caCert, null, X509ExtensionType.KeyUsage, "cRLSign");
-            caCert.AddExtension(caCert, null, X509ExtensionType.KeyUsage, "keyCertSign");
+            //can sign CLR & certificates
+            //all usages should be in a single extension, hence the single argument
+            caCert.AddExtension(caCert, null, X509ExtensionType.KeyUsage, keyUsage);
 
             //sign certificate
             caCert.Sign(rsaKey, signHash ?? DigestType.SHA256);
@@ -171,7 +170,10 @@ namespace OpenSSL.Core.X509
             requestKey = CryptoWrapper.X509_REQ_get0_pubkey(request.X509RequestWrapper.Handle);
             CryptoWrapper.X509_set_pubkey(certHandle, requestKey);
 
+            //subject hash
             cert.AddExtension(this.caCert, request, X509ExtensionType.SubjectKeyIdentifier, "hash");
+
+            //issuer hash
             cert.AddExtension(this.caCert, request, X509ExtensionType.AuthorityKeyIdentifier, "keyid:always");
 
             return cert;

@@ -569,13 +569,19 @@ namespace OpenSSL.Core.Tests
                 out client2Written
             );
 
-            //verify next action
-            Assert.Equal(SslState.WANTWRITE, client2State);
-
             //verify write was complete
             Assert.Equal(client1Written, client2Read);
             //and nothing got decrypted
             Assert.Equal(0, client2Written);
+
+            //renegotiation finished
+            if (client2State == SslState.NONE)
+            {
+                return;
+            }
+
+            //verify next action
+            Assert.Equal(SslState.WANTWRITE, client2State);
 
             //get the renegotiation buffer form the client
             client2.WritePending
@@ -596,94 +602,79 @@ namespace OpenSSL.Core.Tests
                 out client1Written
             );
 
-            if (sslProtocol != SslProtocol.Tls13)
+            //verify write was complete
+            Assert.Equal(client2Written, client1Read);
+            //and nothing got decrypted
+            Assert.Equal(0, client1Written);
+
+            //renegotiation finished
+            if (client1State == SslState.NONE)
             {
-                //verify next action
-                Assert.Equal(SslState.WANTWRITE, client1State);
-
-                //verify write was complete
-                Assert.Equal(client2Written, client1Read);
-                //and nothing got decrypted
-                Assert.Equal(0, client1Written);
-
-                //get the renegotiation buffer form the server
-                client1.WritePending
-                (
-                    this._serverWriteBuffer,
-                    out client1Written
-                );
-
-                Assert.NotEqual(0, client1Written);
-
-                //send the buffer back to the client
-                Array.Copy(this._serverWriteBuffer, 0, this._clientReadBuffer, 0, client1Written);
-                client2State = client2.ReadSsl
-                (
-                    new ReadOnlySpan<byte>(this._clientReadBuffer, 0, client1Written),
-                    this._clientWriteBuffer,
-                    out client2Read,
-                    out client2Written
-                );
-
-                if(!client2.IsServer)
-                {
-                    //verify no further action is needed
-                    Assert.Equal(SslState.WANTWRITE, client2State);
-
-                    //verify write was complete
-                    Assert.Equal(client1Written, client2Read);
-                    //and nothing got decrypted
-                    Assert.Equal(0, client2Written);
-
-                    //get the renegotiation buffer form the client
-                    client2.WritePending
-                    (
-                        this._clientWriteBuffer,
-                        out client2Written
-                    );
-
-                    Assert.NotEqual(0, client2Written);
-
-                    //send the buffer back to the server
-                    Array.Copy(this._clientWriteBuffer, 0, this._serverReadBuffer, 0, client2Written);
-                    client1State = client1.ReadSsl
-                    (
-                        new ReadOnlySpan<byte>(this._serverReadBuffer, 0, client2Written),
-                        this._serverWriteBuffer,
-                        out client1Read,
-                        out client1Written
-                    );
-
-                    //verify next action
-                    Assert.Equal(SslState.NONE, client1State);
-
-                    //verify write was complete
-                    Assert.Equal(client2Written, client1Read);
-                    //and nothing got decrypted
-                    Assert.Equal(0, client1Written);
-                }
-                else
-                {
-                    //verify no further action is needed
-                    Assert.Equal(SslState.NONE, client2State);
-
-                    //verify write was complete
-                    Assert.Equal(client1Written, client2Read);
-                    //and nothing got decrypted
-                    Assert.Equal(0, client2Written);
-                }
+                return;
             }
-            //no further action needed
-            else
+
+            //verify next action
+            Assert.Equal(SslState.WANTWRITE, client1State);
+
+            //get the renegotiation buffer form the server
+            client1.WritePending
+            (
+                this._serverWriteBuffer,
+                out client1Written
+            );
+
+            Assert.NotEqual(0, client1Written);
+
+            //send the buffer back to the client
+            Array.Copy(this._serverWriteBuffer, 0, this._clientReadBuffer, 0, client1Written);
+            client2State = client2.ReadSsl
+            (
+                new ReadOnlySpan<byte>(this._clientReadBuffer, 0, client1Written),
+                this._clientWriteBuffer,
+                out client2Read,
+                out client2Written
+            );
+
+            //verify write was complete
+            Assert.Equal(client1Written, client2Read);
+            //and nothing got decrypted
+            Assert.Equal(0, client2Written);
+
+            //renegotiation finished
+            if (client2State == SslState.NONE)
             {
-                //verify not further action is needed
-                Assert.Equal(SslState.NONE, client1State);
-
-                //verify write was complete
-                Assert.Equal(client2Written, client1Read);
-                //and nothing got decrypted
-                Assert.Equal(0, client1Written);
+                return;
             }
+
+            //verify no further action is needed
+            Assert.Equal(SslState.WANTWRITE, client2State);
+
+            //get the renegotiation buffer form the client
+            client2.WritePending
+            (
+                this._clientWriteBuffer,
+                out client2Written
+            );
+
+            Assert.NotEqual(0, client2Written);
+
+            //send the buffer back to the server
+            Array.Copy(this._clientWriteBuffer, 0, this._serverReadBuffer, 0, client2Written);
+            client1State = client1.ReadSsl
+            (
+                new ReadOnlySpan<byte>(this._serverReadBuffer, 0, client2Written),
+                this._serverWriteBuffer,
+                out client1Read,
+                out client1Written
+            );
+
+            //verify next action
+            Assert.Equal(SslState.NONE, client1State);
+
+            //verify write was complete
+            Assert.Equal(client2Written, client1Read);
+            //and nothing got decrypted
+            Assert.Equal(0, client1Written);
         }
 
         [Theory]

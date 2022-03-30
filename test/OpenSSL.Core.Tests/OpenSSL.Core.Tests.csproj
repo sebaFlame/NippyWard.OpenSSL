@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(RuntimeIdentifier)' == '' OR $([System.String]::Copy('$(RuntimeIdentifier)').ToLower().Contains('win'))">
-    <PackageReference Include="runtime.win.OpenSSL" Version="1.1.1-c" />
+    <PackageReference Include="runtime.win.OpenSSL" Version="1.1.1-n" />
   </ItemGroup>
 
   <PropertyGroup>
