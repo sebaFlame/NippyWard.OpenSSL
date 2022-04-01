@@ -17,36 +17,8 @@ namespace OpenSSL.Core.Generator
         private const string _PtrReturnValueLocalName = "ptrRet";
         private const string _GetHandleMethodName = "DangerousGetHandle";
         private const string _CreateStackableItemMethodName = "CreateStackableItem";
-        private const string _SafeStackHandleName = "SafeStackHandle";
         private const string _StackWrapperClassName = "StackWrapper";
         private static string[] _StackableConstraints = new string[] { "SafeBaseHandle", "IStackable" };
-
-        private static bool IsStackableTypeParameter
-        (
-            TypeSyntax genericTypeParameter,
-            SemanticModel semanticModel
-         )
-        {
-            ISymbol symbol;
-            SymbolInfo symbolInfo = semanticModel.GetSymbolInfo(genericTypeParameter);
-
-            if ((symbol = symbolInfo.Symbol) is null)
-            {
-                return false;
-            }
-
-            if (symbol.Kind != SymbolKind.TypeParameter)
-            {
-                return false;
-            }
-
-            ITypeParameterSymbol typeSymbol = (ITypeParameterSymbol)symbol;
-
-            return _StackableConstraints.All
-            (
-                x => typeSymbol.ConstraintTypes.Any(y => y.Name.Equals(x))
-            );
-        }
 
         private static InvocationExpressionSyntax GenerateStackableFactoryInvocation
         (

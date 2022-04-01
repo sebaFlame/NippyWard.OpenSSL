@@ -22,14 +22,10 @@ namespace OpenSSL.Core.Generator
         private static SourceText GenerateSafeHandleFactory
         (
             InterfaceDeclarationSyntax factoryWrapper,
-            ICollection<ClassDeclarationSyntax> abstractSafeBaseHandlesSyntax,
+            ICollection<string> fullSafeHandleTypeNames,
             params string[] usings
         )
         {
-            ClassDeclarationSyntax[] supportedSafeHandles = abstractSafeBaseHandlesSyntax
-                .Where(x => !string.Equals(x.Identifier.WithoutTrivia().ToString(), _StackHandleIgnoreName))
-                .ToArray();
-
             ClassDeclarationSyntax classDeclaration
                 = SyntaxFactory.ClassDeclaration
                 (
@@ -52,7 +48,7 @@ namespace OpenSSL.Core.Generator
                     GenerateFactoryMethods
                     (
                         factoryWrapper,
-                        supportedSafeHandles
+                        fullSafeHandleTypeNames
                     ).ToArray()
                 )
                 .NormalizeWhitespace();
@@ -101,7 +97,7 @@ namespace OpenSSL.Core.Generator
         private static IEnumerable<MethodDeclarationSyntax> GenerateFactoryMethods
         (
             InterfaceDeclarationSyntax factoryWrapper,
-            IEnumerable<ClassDeclarationSyntax> abstractSafeBaseHandles
+            IEnumerable<string> fullSafeHandleTypeNames
         )
         {
             string methodName;
@@ -110,11 +106,11 @@ namespace OpenSSL.Core.Generator
                 methodName = method.Identifier.WithoutTrivia().ToString();
                 if (methodName.Contains("TakeOwnership"))
                 {
-                    yield return GenerateTakOwnershipFactoryMethod(method, abstractSafeBaseHandles);
+                    yield return GenerateTakOwnershipFactoryMethod(method, fullSafeHandleTypeNames);
                 }
                 else if (methodName.Contains("Wrapper"))
                 {
-                    yield return GenerateWrapperFactoryMethod(method, abstractSafeBaseHandles);
+                    yield return GenerateWrapperFactoryMethod(method, fullSafeHandleTypeNames);
                 }
             }
         }
@@ -122,13 +118,13 @@ namespace OpenSSL.Core.Generator
         private static MethodDeclarationSyntax GenerateTakOwnershipFactoryMethod
         (
             MethodDeclarationSyntax originalMethod,
-            IEnumerable<ClassDeclarationSyntax> abstractSafeBaseHandles
+            IEnumerable<string> fullSafeHandleTypeNames
         )
         {
             return GenerateFactoryMethod
             (
                 originalMethod,
-                abstractSafeBaseHandles,
+                fullSafeHandleTypeNames,
                 _TakeOwnershipHandleSuffix
             );
         }
@@ -136,13 +132,13 @@ namespace OpenSSL.Core.Generator
         private static MethodDeclarationSyntax GenerateWrapperFactoryMethod
         (
             MethodDeclarationSyntax originalMethod,
-            IEnumerable<ClassDeclarationSyntax> abstractSafeBaseHandles
+            IEnumerable<string> fullSafeHandleTypeNames
         )
         {
             return GenerateFactoryMethod
             (
                 originalMethod,
-                abstractSafeBaseHandles,
+                fullSafeHandleTypeNames,
                 _WrapperHandleSuffix
             );
         }
@@ -150,7 +146,7 @@ namespace OpenSSL.Core.Generator
         private static MethodDeclarationSyntax GenerateFactoryMethod
         (
             MethodDeclarationSyntax interfaceMethod,
-            IEnumerable<ClassDeclarationSyntax> abstractSafeBaseHandles,
+            IEnumerable<string> fullSafeHandleTypeNames,
             string suffix
         )
         {
@@ -170,7 +166,7 @@ namespace OpenSSL.Core.Generator
                 GenerateFactoryBlock
                 (
                     interfaceMethod.TypeParameterList.Parameters.First(),
-                    abstractSafeBaseHandles,
+                    fullSafeHandleTypeNames,
                     suffix
                 ),
                 null
@@ -181,7 +177,7 @@ namespace OpenSSL.Core.Generator
         private static BlockSyntax GenerateFactoryBlock
         (
             TypeParameterSyntax genericParameter,
-            IEnumerable<ClassDeclarationSyntax> abstractSafeBaseHandles,
+            IEnumerable<string> fullSafeHandleTypeNames,
             string suffix
         )
         {
@@ -205,7 +201,7 @@ namespace OpenSSL.Core.Generator
                     GenerateFactorySwitchSections
                     (
                         genericParameter,
-                        abstractSafeBaseHandles,
+                        fullSafeHandleTypeNames,
                         suffix
                     )
                     .ToArray()
@@ -254,11 +250,11 @@ namespace OpenSSL.Core.Generator
         private static IEnumerable<SwitchSectionSyntax> GenerateFactorySwitchSections
         (
             TypeParameterSyntax genericParameter,
-            IEnumerable<ClassDeclarationSyntax> abstractSafeBaseHandles,
+            IEnumerable<string> fullSafeHandleTypeNames,
             string suffix
         )
         {
-            foreach(ClassDeclarationSyntax abstractType in abstractSafeBaseHandles)
+            foreach(string abstractType in fullSafeHandleTypeNames)
             {
                 yield return GenerateFactorySwitchSection(genericParameter, abstractType, suffix);
             }
@@ -267,18 +263,11 @@ namespace OpenSSL.Core.Generator
         private static SwitchSectionSyntax GenerateFactorySwitchSection
         (
             TypeParameterSyntax genericParameter,
-            ClassDeclarationSyntax abstractType,
+            string fullSafeHandleTypeName,
             string suffix
         )
         {
-            string abstractTypeName = abstractType.Identifier.WithoutTrivia().ToString();
-
-            string fullName = string.Concat
-            (
-                FindParentNamespace(abstractType).Name.WithoutTrivia().ToString(),
-                ".",
-                abstractTypeName
-            );
+            string className = fullSafeHandleTypeName.Split('.').Last();
 
             return SyntaxFactory.SwitchSection
             (
@@ -291,7 +280,7 @@ namespace OpenSSL.Core.Generator
                             SyntaxFactory.LiteralExpression
                             (
                                 SyntaxKind.StringLiteralExpression,
-                                SyntaxFactory.Literal(fullName)
+                                SyntaxFactory.Literal(fullSafeHandleTypeName)
                             )
                         )
                     }
@@ -307,7 +296,7 @@ namespace OpenSSL.Core.Generator
                                 SyntaxKind.AsExpression,
                                 SyntaxFactory.ObjectCreationExpression
                                 (
-                                    SyntaxFactory.IdentifierName(string.Concat(abstractTypeName, suffix))
+                                    SyntaxFactory.IdentifierName(string.Concat(className, suffix))
                                 )
                                 .WithArgumentList
                                 (

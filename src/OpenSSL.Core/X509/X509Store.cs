@@ -133,10 +133,10 @@ namespace OpenSSL.Core.X509
             {
                 CryptoWrapper.X509_STORE_CTX_init
                 (
-                    ctx, 
-                    this.StoreWrapper.Handle, 
-                    cert.X509Wrapper.Handle, 
-                    extraChain is null 
+                    ctx,
+                    this.StoreWrapper.Handle,
+                    cert.X509Wrapper.Handle,
+                    extraChain is null
                         ? SafeStackHandle<SafeX509CertificateHandle>.Zero
                         : (SafeStackHandle<SafeX509CertificateHandle>)extraChain.InternalEnumerable.Handle
                 );

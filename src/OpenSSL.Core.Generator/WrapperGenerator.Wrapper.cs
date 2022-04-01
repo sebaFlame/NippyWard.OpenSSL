@@ -19,8 +19,7 @@ namespace OpenSSL.Core.Generator
             string className,
             string nativeLibrary,
             InterfaceDeclarationSyntax wrapperInterface,
-            SemanticModel semanticModel,
-            ISet<string> abstractSafeBaseHandles,
+            ICollection<SafeHandleModel> safeHandles,
             params string[] usings
         )
         {
@@ -46,8 +45,7 @@ namespace OpenSSL.Core.Generator
                     GenerateMethods
                     (
                         wrapperInterface,
-                        semanticModel,
-                        abstractSafeBaseHandles,
+                        safeHandles,
                         nativeLibrary
                     ).ToArray()
                 )
@@ -102,8 +100,7 @@ namespace OpenSSL.Core.Generator
         private static IEnumerable<MethodDeclarationSyntax> GenerateMethods
         (
             InterfaceDeclarationSyntax wrapperInterface,
-            SemanticModel semanticModel,
-            ISet<string> abstractSafeBaseHandles,
+            ICollection<SafeHandleModel> safeHandles,
             string nativeLibrary
         )
         {
@@ -113,16 +110,14 @@ namespace OpenSSL.Core.Generator
                 yield return GenerateNativeMethod
                 (
                     method,
-                    semanticModel,
-                    abstractSafeBaseHandles,
+                    safeHandles,
                     nativeLibrary,
                     out nativeMethodName
                 );
                 yield return GenerateImplementationMethod
                 (
                     method,
-                    semanticModel,
-                    abstractSafeBaseHandles,
+                    safeHandles,
                     nativeMethodName
                 );
             }
@@ -131,8 +126,7 @@ namespace OpenSSL.Core.Generator
         private static MethodDeclarationSyntax GenerateNativeMethod
         (
             MethodDeclarationSyntax interfaceMethod,
-            SemanticModel semanticModel,
-            ISet<string> abstractSafeBaseHandles,
+            ICollection<SafeHandleModel> safeHandles,
             string nativeLibrary,
             out string nativeMethodName
         )
@@ -198,10 +192,10 @@ namespace OpenSSL.Core.Generator
                 ),
                 CreateConcreteSafeHandleType
                 (
+                    interfaceMethod,
                     interfaceMethod.ReturnType,
-                    semanticModel,
                     interfaceMethod.AttributeLists,
-                    abstractSafeBaseHandles,
+                    safeHandles,
                     true
                 )
                 .WithoutTrivia(),
@@ -218,23 +212,22 @@ namespace OpenSSL.Core.Generator
                             (
                                 GenerateAttributesWithoutGeneratorAttributes
                                 (
-                                    x.AttributeLists,
-                                    semanticModel
+                                    x.AttributeLists
                                 ),
                                 x.Modifiers,
                                 x.Modifiers.Any(y => y.WithoutTrivia().ValueText.Equals("out"))
-                                    || ContainsGenericTypeParameter(x.Type, semanticModel, out _)
+                                    || ContainsGenericTypeParameter(x.Type, interfaceMethod.TypeParameterList, out _)
                                     ? CreateConcreteSafeHandleType
                                     (
+                                        interfaceMethod,
                                         x.Type,
-                                        semanticModel,
                                         x.AttributeLists,
-                                        abstractSafeBaseHandles,
+                                        safeHandles,
                                         true
                                     )
                                     .WithoutTrivia()
                                     : x.Type.WithoutTrivia(),
-                                ContainsGenericTypeParameter(x.Type, semanticModel, out _)
+                                ContainsGenericTypeParameter(x.Type, interfaceMethod.TypeParameterList, out _)
                                     ? SyntaxFactory.Identifier
                                     (
                                         string.Concat(_PtrNamePrefix, x.Identifier.WithoutTrivia())
@@ -256,8 +249,7 @@ namespace OpenSSL.Core.Generator
         private static MethodDeclarationSyntax GenerateImplementationMethod
         (
             MethodDeclarationSyntax interfaceMethod,
-            SemanticModel semanticModel,
-            ISet<string> abstractSafeBaseHandles,
+            ICollection<SafeHandleModel> safeHandles,
             string nativeMethodName
         )
         {
@@ -282,8 +274,7 @@ namespace OpenSSL.Core.Generator
                             (
                                 GenerateAttributesWithoutGeneratorAttributes
                                 (
-                                    x.AttributeLists,
-                                    semanticModel
+                                    x.AttributeLists
                                 ),
                                 x.Modifiers,
                                 x.Type.WithoutTrivia(),
@@ -297,8 +288,7 @@ namespace OpenSSL.Core.Generator
                 GenerateBlockSyntax
                 (
                     interfaceMethod,
-                    semanticModel,
-                    abstractSafeBaseHandles,
+                    safeHandles,
                     nativeMethodName
                 ),
                 null
@@ -309,8 +299,7 @@ namespace OpenSSL.Core.Generator
         private static BlockSyntax GenerateBlockSyntax
         (
             MethodDeclarationSyntax interfaceMethod,
-            SemanticModel semanticModel,
-            ISet<string> abstractSafeBaseHandles,
+            ICollection<SafeHandleModel> safeHandles,
             string nativeMethodName
         )
         {
@@ -324,8 +313,7 @@ namespace OpenSSL.Core.Generator
             InvocationExpressionSyntax invocation = GenerateNativeInvocationMethod
             (
                 interfaceMethod,
-                semanticModel,
-                abstractSafeBaseHandles,
+                safeHandles,
                 nativeMethodName
             );
 
@@ -334,7 +322,7 @@ namespace OpenSSL.Core.Generator
             foreach (ParameterSyntax parameter in interfaceMethod.ParameterList.Parameters.Where
             (
                 x => !x.Modifiers.Any(x => x.WithoutTrivia().ValueText.Equals("out"))
-                    && ContainsGenericTypeParameter(x.Type, semanticModel, out _)
+                    && ContainsGenericTypeParameter(x.Type, interfaceMethod.TypeParameterList, out _)
             ))
             {
                 blockSyntax = blockSyntax.AddStatements
@@ -380,10 +368,10 @@ namespace OpenSSL.Core.Generator
                 //create the concrete return type
                 concreteReturnType = CreateConcreteSafeHandleType
                 (
+                    interfaceMethod,
                     interfaceMethod.ReturnType,
-                    semanticModel,
                     methodAttributes,
-                    abstractSafeBaseHandles,
+                    safeHandles,
                     true
                 )
                 .WithoutTrivia();
@@ -440,12 +428,12 @@ namespace OpenSSL.Core.Generator
             //check if a return type should be constructed
             if (AssignConcreteTypeFromPointer
             (
+                interfaceMethod,
                 interfaceMethod.ReturnType,
                 SyntaxFactory.Identifier(_ReturnValueLocalName),
                 SyntaxFactory.Identifier(_PtrReturnValueLocalName),
-                semanticModel,
                 methodAttributes,
-                abstractSafeBaseHandles,
+                safeHandles,
                 interfaceMethod,
                 out localDeclarationStatementSyntax
             ))
@@ -461,17 +449,17 @@ namespace OpenSSL.Core.Generator
             foreach (ParameterSyntax parameter in interfaceMethod.ParameterList.Parameters.Where
             (
                 x => x.Modifiers.Any(y => y.WithoutTrivia().ValueText.Equals("out"))
-                        && ContainsGenericTypeParameter(x.Type, semanticModel, out _)
+                        && ContainsGenericTypeParameter(x.Type, interfaceMethod.TypeParameterList, out _)
             ))
             {
                 if (AssignConcreteTypeFromPointer
                 (
+                    interfaceMethod,
                     parameter.Type,
-                    SyntaxFactory.Identifier(GenerateOutArgumentName(parameter, semanticModel, false)),
-                    SyntaxFactory.Identifier(GenerateOutArgumentName(parameter, semanticModel, true)),
-                    semanticModel,
+                    SyntaxFactory.Identifier(GenerateOutArgumentName(interfaceMethod, parameter, false)),
+                    SyntaxFactory.Identifier(GenerateOutArgumentName(interfaceMethod, parameter, true)),
                     methodAttributes,
-                    abstractSafeBaseHandles,
+                    safeHandles,
                     interfaceMethod,
                     out localDeclarationStatementSyntax
                 ))
@@ -490,9 +478,10 @@ namespace OpenSSL.Core.Generator
                 if (concreteReturnType is not null
                     && HasSupportedVerificationType
                     (
+                        interfaceMethod,
                         interfaceMethod.ReturnType,
                         SyntaxFactory.IdentifierName(_ReturnValueLocalName),
-                        semanticModel,
+                        safeHandles,
                         out verificationExpression
                     ))
                 {
@@ -512,15 +501,16 @@ namespace OpenSSL.Core.Generator
             (
                 x => x.Modifiers.Any(y => y.WithoutTrivia().ValueText.Equals("out"))
                     && !x.AttributeLists.Any(x => x.Attributes.Any(y => string.Equals(y.Name.ToString(), _DontVerifyTypeName)))
-                    && (IsSafeHandle(x.Type, semanticModel)
-                        || ContainsGenericTypeParameter(x.Type, semanticModel, out _))
+                    && (IsSafeHandle(x.Type, safeHandles)
+                        || ContainsGenericTypeParameter(x.Type, interfaceMethod.TypeParameterList, out _))
             ))
             {
                 if (!HasSupportedVerificationType
                 (
+                    interfaceMethod,
                     parameter.Type,
-                    SyntaxFactory.IdentifierName(GenerateOutArgumentName(parameter, semanticModel, false)),
-                    semanticModel,
+                    SyntaxFactory.IdentifierName(GenerateOutArgumentName(interfaceMethod, parameter, false)),
+                    safeHandles,
                     out verificationExpression
                 ))
                 {
@@ -544,7 +534,7 @@ namespace OpenSSL.Core.Generator
                 foreach (ParameterSyntax parameter in interfaceMethod.ParameterList.Parameters.Where
                 (
                     x => x.Modifiers.Any(x => x.WithoutTrivia().ValueText.Equals("out"))
-                        && abstractSafeBaseHandles.Contains(GetSafeHandleTypeNameWithoutGenericTypeList(x.Type))
+                        && safeHandles.Any(y => y.IsAbsract && y.Name.Equals(GetSafeHandleTypeNameWithoutGenericTypeList(x.Type)))
                 ))
                 {
                     blockSyntax = blockSyntax.AddStatements
@@ -555,7 +545,7 @@ namespace OpenSSL.Core.Generator
                             (
                                 SyntaxKind.SimpleAssignmentExpression,
                                 SyntaxFactory.IdentifierName(parameter.Identifier.WithoutTrivia()),
-                                SyntaxFactory.IdentifierName(GenerateOutArgumentName(parameter, semanticModel, false))
+                                SyntaxFactory.IdentifierName(GenerateOutArgumentName(interfaceMethod, parameter, false))
                             )
                         )
                     )
@@ -587,8 +577,7 @@ namespace OpenSSL.Core.Generator
         private static InvocationExpressionSyntax GenerateNativeInvocationMethod
         (
             MethodDeclarationSyntax interfaceMethod,
-            SemanticModel semanticModel,
-            ISet<string> abstractSafeBaseHandles,
+            ICollection<SafeHandleModel> safeHandles,
             string nativeMethodName
         )
             => SyntaxFactory.InvocationExpression
@@ -601,12 +590,12 @@ namespace OpenSSL.Core.Generator
                         interfaceMethod.ParameterList.Parameters.Select
                         (
                             x => x.Modifiers.Any(x => x.WithoutTrivia().ValueText.Equals("out"))
-                                ? GenerateOutArgument(x, semanticModel, abstractSafeBaseHandles)
+                                ? GenerateOutArgument(interfaceMethod, x, safeHandles)
                                 : SyntaxFactory.Argument
                                 (
                                     null,
                                     x.Modifiers.FirstOrDefault(),
-                                    ContainsGenericTypeParameter(x.Type, semanticModel, out _)
+                                    ContainsGenericTypeParameter(x.Type, interfaceMethod.TypeParameterList, out _)
                                         ? SyntaxFactory.IdentifierName
                                         (
                                             string.Concat(_PtrNamePrefix, x.Identifier.WithoutTrivia())
@@ -620,16 +609,16 @@ namespace OpenSSL.Core.Generator
 
         private static ArgumentSyntax GenerateOutArgument
         (
+            MethodDeclarationSyntax interfaceMethod,
             ParameterSyntax parameterSyntax,
-            SemanticModel semanticModel,
-            ISet<string> abstractSafeBaseHandles
+            ICollection<SafeHandleModel> safeHandles
         )
         {
             string name = GetSafeHandleTypeNameWithoutGenericTypeList(parameterSyntax.Type);
 
             //parameter contains an abstract safe handle type
             //declare a local
-            if (abstractSafeBaseHandles.Contains(name))
+            if (safeHandles.Any(x => x.IsAbsract && x.Name.Equals(name)))
             {
                 //else declare a new local for the concrete type
                 return SyntaxFactory.Argument
@@ -640,15 +629,15 @@ namespace OpenSSL.Core.Generator
                     (
                         CreateConcreteSafeHandleType
                         (
+                            interfaceMethod,
                             parameterSyntax.Type,
-                            semanticModel,
                             parameterSyntax.AttributeLists,
-                            abstractSafeBaseHandles,
+                            safeHandles,
                             true
                         ).WithoutTrivia(),
                         SyntaxFactory.SingleVariableDesignation
                         (
-                            SyntaxFactory.Identifier(GenerateOutArgumentName(parameterSyntax, semanticModel, true))
+                            SyntaxFactory.Identifier(GenerateOutArgumentName(interfaceMethod, parameterSyntax, true))
                         )
                     )
                 );
@@ -668,8 +657,8 @@ namespace OpenSSL.Core.Generator
 
         private static string GenerateOutArgumentName
         (
+            MethodDeclarationSyntax method,
             ParameterSyntax parameterSyntax,
-            SemanticModel semanticModel,
             bool isNativeCall
         )
         {
@@ -679,7 +668,7 @@ namespace OpenSSL.Core.Generator
             //or a generic type parameter
             //return pointer out name
             if(isNativeCall
-                && ContainsGenericTypeParameter(parameterSyntax.Type, semanticModel, out _))
+                && ContainsGenericTypeParameter(parameterSyntax.Type, method.TypeParameterList, out _))
             {
                 return string.Concat
                 (
@@ -701,12 +690,12 @@ namespace OpenSSL.Core.Generator
 
         private static bool AssignConcreteTypeFromPointer
         (
+            MethodDeclarationSyntax method,
             TypeSyntax typeSyntax,
             SyntaxToken localName,
             SyntaxToken ptrLocalName,
-            SemanticModel semanticModel,
             SyntaxList<AttributeListSyntax> symbolAttributes,
-            ISet<string> abstractSafeBaseHandles,
+            ICollection<SafeHandleModel> safeHandles,
             MethodDeclarationSyntax interfaceMethod,
             out LocalDeclarationStatementSyntax localDeclaration
         )
@@ -715,18 +704,13 @@ namespace OpenSSL.Core.Generator
             if (ContainsGenericTypeParameter
             (
                 typeSyntax,
-                semanticModel,
+                method.TypeParameterList,
                 out bool isTypeParameter
             ))
             {
                 //it's a generic type parameter, call the factory
                 if (isTypeParameter)
                 {
-                    if(!IsStackableTypeParameter(typeSyntax, semanticModel))
-                    {
-                        throw new NotSupportedException($"{typeSyntax.ToString()} not supported");
-                    }
-
                     localDeclaration =  SyntaxFactory.LocalDeclarationStatement
                     (
                         SyntaxFactory.VariableDeclaration
@@ -761,10 +745,10 @@ namespace OpenSSL.Core.Generator
                 {
                     TypeSyntax concreteReturnType = CreateConcreteSafeHandleType
                     (
+                        method,
                         typeSyntax,
-                        semanticModel,
                         symbolAttributes,
-                        abstractSafeBaseHandles,
+                        safeHandles,
                         false
                     ).WithoutTrivia();
 

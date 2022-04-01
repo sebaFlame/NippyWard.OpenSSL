@@ -19,7 +19,7 @@ namespace OpenSSL.Core.Generator
 
         private static SourceText GenerateSafeHandleInstances
         (
-            ICollection<ClassDeclarationSyntax> abstractSafeBaseHandles,
+            ICollection<string> abstractSafeHandleTypes,
             params string[] usings
         )
         {
@@ -52,7 +52,7 @@ namespace OpenSSL.Core.Generator
                         SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(_ConcreteNamespaceName))
                             .AddMembers
                             (
-                                GenerateConcreteSafeHandleTypes(abstractSafeBaseHandles).ToArray()
+                                GenerateConcreteSafeHandleTypes(abstractSafeHandleTypes).ToArray()
                             )
                     )
                     .NormalizeWhitespace(),
@@ -66,42 +66,42 @@ namespace OpenSSL.Core.Generator
 
         private static IEnumerable<ClassDeclarationSyntax> GenerateConcreteSafeHandleTypes
         (
-            IEnumerable<ClassDeclarationSyntax> originalSafeHandles
+            IEnumerable<string> abstractSafeHandleTypes
         )
         {
-            foreach(ClassDeclarationSyntax originalSafeHandle in originalSafeHandles)
+            foreach(string abstractSafeHandleType in abstractSafeHandleTypes)
             {
-                yield return GenerateTakeOwnershipSafeHandleType(originalSafeHandle);
-                yield return GenerateWrapperHandleType(originalSafeHandle);
+                yield return GenerateTakeOwnershipSafeHandleType(abstractSafeHandleType);
+                yield return GenerateWrapperHandleType(abstractSafeHandleType);
             }
         }
 
         private static ClassDeclarationSyntax GenerateTakeOwnershipSafeHandleType
         ( 
-            ClassDeclarationSyntax originalSafeHandle
+            string abstractSafeHandleType
         )
         {
-            return GenerateConcreteSafeHandleType(originalSafeHandle, _TakeOwnershipHandleSuffix, true);
+            return GenerateConcreteSafeHandleType(abstractSafeHandleType, _TakeOwnershipHandleSuffix, true);
         }
 
         private static ClassDeclarationSyntax GenerateWrapperHandleType
         (
-            ClassDeclarationSyntax originalSafeHandle
+            string abstractSafeHandleType
         )
         {
-            return GenerateConcreteSafeHandleType(originalSafeHandle, _WrapperHandleSuffix, false);
+            return GenerateConcreteSafeHandleType(abstractSafeHandleType, _WrapperHandleSuffix, false);
         }
 
         private static ClassDeclarationSyntax GenerateConcreteSafeHandleType
         (
-            ClassDeclarationSyntax originalSafeHandle,
+            string abstractSafeHandleType,
             string suffix,
             bool takeOwnership
         )
         {
-            string className = string.Concat(originalSafeHandle.Identifier.WithoutTrivia().ToString(), suffix);
+            string className = string.Concat(abstractSafeHandleType, suffix);
 
-            ClassDeclarationSyntax classDeclarationSyntax = SyntaxFactory.ClassDeclaration
+            return SyntaxFactory.ClassDeclaration
             (
                 SyntaxFactory.Identifier(className)
             )
@@ -109,58 +109,15 @@ namespace OpenSSL.Core.Generator
             (
                 SyntaxFactory.Token(SyntaxKind.InternalKeyword)
             )
-
-            .NormalizeWhitespace();
-
-            //if the type is generic, copy over all generic elements
-            if(originalSafeHandle.TypeParameterList is not null)
-            {
-                classDeclarationSyntax = classDeclarationSyntax
-                .AddBaseListTypes
+            .NormalizeWhitespace()
+            .AddBaseListTypes
+            (
+                SyntaxFactory.SimpleBaseType
                 (
-                    SyntaxFactory.SimpleBaseType
-                    (
-                        SyntaxFactory.GenericName
-                        (
-                            SyntaxFactory.Identifier(originalSafeHandle.Identifier.WithoutTrivia().ToString()),
-                            SyntaxFactory.TypeArgumentList
-                            (
-                                SyntaxFactory.SeparatedList<TypeSyntax>
-                                (
-                                    originalSafeHandle.TypeParameterList.Parameters
-                                        .Select(x => SyntaxFactory.IdentifierName(x.WithoutTrivia().Identifier))
-                                        .ToArray()
-                                )
-                            )
-                        )
-                    )
+                    SyntaxFactory.ParseTypeName(abstractSafeHandleType)
                 )
-                .AddTypeParameterListParameters
-                (
-                    originalSafeHandle.TypeParameterList.Parameters
-                        .Select(x => x.WithoutTrivia())
-                        .ToArray()
-                )
-                .AddConstraintClauses
-                (
-                    originalSafeHandle.ConstraintClauses
-                        .Select(x => x.WithoutTrivia())
-                        .ToArray()
-                );
-            }
-            else
-            {
-                classDeclarationSyntax = classDeclarationSyntax
-                .AddBaseListTypes
-                (
-                    SyntaxFactory.SimpleBaseType
-                    (
-                        SyntaxFactory.ParseTypeName(originalSafeHandle.Identifier.WithoutTrivia().ToString())
-                    )
-                );
-            }
-
-            classDeclarationSyntax = classDeclarationSyntax
+            )
+            .NormalizeWhitespace()
             .AddMembers
             (
                 GenerateDefaultConstructor(className, takeOwnership)
@@ -169,8 +126,6 @@ namespace OpenSSL.Core.Generator
                     .NormalizeWhitespace()
             )
             .NormalizeWhitespace();
-
-            return classDeclarationSyntax;
         }
 
         private static ConstructorDeclarationSyntax GenerateDefaultConstructor
