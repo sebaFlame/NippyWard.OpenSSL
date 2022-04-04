@@ -9,11 +9,6 @@
 	<!--<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>-->
   </PropertyGroup>
 
-  <PropertyGroup>
-    <EnableMemoryTracker Condition="'$(EnableMemoryTracker)' == '' AND '$(Configuration)' == 'Debug'">false</EnableMemoryTracker>
-    <DefineConstants Condition="'$(EnableMemoryTracker)' == 'true'">$(DefineConstants);ENABLE_MEMORYTRACKER</DefineConstants>
-  </PropertyGroup>
-
 	<!-- Source Generator -->
 	<ItemGroup>
 		<ProjectReference Include="..\OpenSSL.Core.Generator\OpenSSL.Core.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />

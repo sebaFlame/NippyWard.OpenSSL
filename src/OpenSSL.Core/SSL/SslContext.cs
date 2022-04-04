@@ -327,7 +327,7 @@ namespace OpenSSL.Core.SSL
             }
 
             //assign the session
-            this._sessionHandle = Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeSslSessionHandle>(sessPtr);
+            this._sessionHandle = Native.SafeHandleFactory.CreateTakeOwnershipSafeHandle<SafeSslSessionHandle>(sessPtr);
 
             //return 1 so that the session will not get freed again
             return 1;

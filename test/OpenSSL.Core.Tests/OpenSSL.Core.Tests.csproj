@@ -5,8 +5,8 @@
     <DebugType>portable</DebugType>
     <OutputType>Exe</OutputType>
     <AssemblyName>OpenSSL.Core.Tests</AssemblyName>
-    <LangVersion>7.3</LangVersion>
-	<EnableMemoryTracker>true</EnableMemoryTracker>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
   
   <ItemGroup>
@@ -17,25 +17,24 @@
     <PackageReference Include="runtime.win.OpenSSL" Version="1.1.1-n" />
   </ItemGroup>
 
-  <PropertyGroup>
-    <EnableMemoryTracker Condition="'$(EnableMemoryTracker)' == '' AND '$(Configuration)' == 'Debug'">false</EnableMemoryTracker>
-    <DefineConstants Condition="'$(EnableMemoryTracker)' == 'true'">$(DefineConstants);ENABLE_MEMORYTRACKER</DefineConstants>
-  </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1" />
     <PackageReference Include="xunit" Version="2.4.1" />
+    <PackageReference Include="System.IO.Pipelines" Version="6.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="certs/*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <!-- Disable multi-threaded test run -->
-    <!--<None Update="xunit.runner.json">
+  </ItemGroup>
+
+  <!-- Disable multi-threaded test run -->
+  <ItemGroup Condition="'$(EnableMemoryTracker)' == 'true'">
+    <None Update="xunit.runner.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>-->
+    </None>
   </ItemGroup>
 
 </Project>
