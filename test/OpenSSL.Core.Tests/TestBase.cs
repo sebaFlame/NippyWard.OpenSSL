@@ -63,14 +63,15 @@ namespace OpenSSL.Core.Tests
             }
             Assert.Empty(errors);
 
+#if ENABLE_MEMORYTRACKER
             //de-allocate per thread allocations for the current thread
+            //ensure no async code gets run!!!
             Native.CryptoWrapper.OPENSSL_thread_stop();
 
-#if ENABLE_MEMORYTRACKER
             List<MemoryProblem> lstMemoryProblem = MemoryTracker.Finish();
             foreach (var mem in lstMemoryProblem.ToList())
             {
-                this.OutputHelper.WriteLine("MEMORY: {0}", mem);
+                //this.OutputHelper.WriteLine("MEMORY: {0}", mem);
 
                 //per thread allocations (these get deallocated when the threads exit on windows)
                 if (mem.File.Contains(@"err.c"))
@@ -78,12 +79,13 @@ namespace OpenSSL.Core.Tests
                     lstMemoryProblem.Remove(mem);
                 }
 
+                //per thread allocations (these get deallocated when the threads exit on windows)
                 if (mem.File.Contains(@"init.c"))
                 {
                     lstMemoryProblem.Remove(mem);
                 }
 
-                //memory leak on linux!!!
+                //memory leak on linux (in RSAKey ctor RSA_generate_key_ex)!!!
                 if (mem.File.Contains(@"evp_enc.c")
                     && mem.Line == 129)
                 {

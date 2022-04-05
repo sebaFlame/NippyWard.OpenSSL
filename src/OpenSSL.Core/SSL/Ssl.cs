@@ -233,34 +233,11 @@ namespace OpenSSL.Core.SSL
             SslContext previousServerContext
         )
         {
-            SafeSslContextHandle sslHandle = null;
-            Ssl ssl = null;
-
-            try
-            {
-                bool success = true;
-
-                //add a reference on the safehandle
-                previousServerContext._sslContextHandle.DangerousAddRef(ref success);
-
-                //do not add on the native reference
-                //gets an extra reference during SSL_new
-
-                ssl = new Ssl
-                (
-                    true,
-                    previousServerContext
-                );
-
-                return ssl;
-            }
-            catch (Exception)
-            {
-                sslHandle?.Dispose();
-                ssl?.Dispose();
-
-                throw;
-            }
+            return new Ssl
+            (
+                true,
+                previousServerContext
+            );
         }
 
         private Ssl
@@ -270,6 +247,10 @@ namespace OpenSSL.Core.SSL
             SslSession previousSession = null
         )
         {
+            //add a (managed) reference, so the object can be reused
+            bool success = true;
+            sslContext._sslContextHandle.DangerousAddRef(ref success);
+
             SafeBioHandle readHandle = null, writeHandle = null;
             SafeSslHandle sslHandle = null;
             try
@@ -1234,7 +1215,7 @@ namespace OpenSSL.Core.SSL
 
             try
             {
-                this._sslContext?.Dispose();
+                this._sslContext?._sslContextHandle.DangerousRelease();
             }
             catch(Exception)
             { }

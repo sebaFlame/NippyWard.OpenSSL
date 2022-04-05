@@ -113,7 +113,6 @@ namespace OpenSSL.Core.X509
             {
                 if (!((certificate = CryptoWrapper.X509_OBJECT_get0_X509(obj)) is null))
                 {
-                    certificate.AddReference();
                     safeCertHandle.Add(certificate);
                 }
             }

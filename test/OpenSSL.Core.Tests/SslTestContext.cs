@@ -73,7 +73,7 @@ namespace OpenSSL.Core.Tests
         public void Dispose()
         {
             this._serverCertificate.Dispose();
-            this._clientCertificate.Dispose();
+            this._serverKey.Dispose();
 
             this._clientCertificate.Dispose();
             this._clientKey.Dispose();

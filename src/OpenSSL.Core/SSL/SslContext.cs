@@ -132,6 +132,14 @@ namespace OpenSSL.Core.SSL
             this._isServer = isServer;
         }
 
+        //disposal only possible through finalizer (!!!)
+        //there is no way to know when the safehandle has been used
+        //multiple times
+        ~SslContext()
+        {
+            this.Dispose(false);
+        }
+
         /// <summary>
         /// 
         /// </summary>
@@ -381,10 +389,12 @@ namespace OpenSSL.Core.SSL
         }
         #endregion
 
-        /// <summary>
-        /// Disposal can be called multiple times!
-        /// </summary>
         public void Dispose()
+        {
+            this.Dispose(true);
+        }
+
+        public void Dispose(bool isDisposing)
         {
             try
             {
@@ -403,6 +413,13 @@ namespace OpenSSL.Core.SSL
             }
             catch (Exception)
             { }
+
+            if(isDisposing)
+            {
+                return;
+            }
+
+            GC.SuppressFinalize(this);
         }
     }
 }
