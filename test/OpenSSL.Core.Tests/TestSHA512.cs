@@ -164,7 +164,7 @@ namespace OpenSSL.Core.Tests
                 {
                     len = (1000000 - i) < alen ? 1000000 - i : alen;
                     tmp = new byte[len];
-                    Buffer.BlockCopy(msg, 0, tmp, 0, len);
+                    System.Buffer.BlockCopy(msg, 0, tmp, 0, len);
                     ctx.Update(tmp);
                 }
                 ctx.Finalize(out Span<byte> digestSpan);

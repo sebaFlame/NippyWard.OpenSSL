@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Buffers;
+using System.Runtime.InteropServices;
 
 using System.IO.Pipelines;
 
@@ -428,7 +429,7 @@ namespace OpenSSL.Core.SSL
             }
 
             //write encrypted data to the BIO
-            totalRead = CryptoWrapper.BIO_write(this._readHandle, readableBuffer.GetPinnableReference(), readableBuffer.Length);
+            totalRead = CryptoWrapper.BIO_write(this._readHandle, in MemoryMarshal.GetReference<byte>(readableBuffer), readableBuffer.Length);
 
             if (totalRead < 0)
             {
@@ -468,7 +469,7 @@ namespace OpenSSL.Core.SSL
             }
 
             //write encrypted data to the BIO
-            int written = CryptoWrapper.BIO_write(this._readHandle, span.GetPinnableReference(), span.Length);
+            int written = CryptoWrapper.BIO_write(this._readHandle, in MemoryMarshal.GetReference<byte>(span), span.Length);
 
             if(written < 0)
             {
@@ -520,11 +521,16 @@ namespace OpenSSL.Core.SSL
             //first write the complete (multi segment) (encrypted) buffer
             foreach(ReadOnlyMemory<byte> memory in sequence)
             {
+                if(memory.IsEmpty)
+                {
+                    continue;
+                }
+
                 //get the span
                 span = memory.Span;
 
                 //write encrypted data to the BIO
-                written = CryptoWrapper.BIO_write(this._readHandle, span.GetPinnableReference(), span.Length);
+                written = CryptoWrapper.BIO_write(this._readHandle, in MemoryMarshal.GetReference<byte>(span), span.Length);
 
                 if(written < 0)
                 {
@@ -563,7 +569,7 @@ namespace OpenSSL.Core.SSL
             }
 
             //and write decrypted data to the buffer
-            read = SSLWrapper.SSL_read(this._sslHandle, ref writeableBuffer.GetPinnableReference(), writeableBuffer.Length);
+            read = SSLWrapper.SSL_read(this._sslHandle, ref MemoryMarshal.GetReference<byte>(writeableBuffer), writeableBuffer.Length);
 
             if ((sslState = this.VerifyError(read)) > 0)
             {
@@ -590,28 +596,34 @@ namespace OpenSSL.Core.SSL
             int read = 0, pending = 0;
             SslState sslState;
             Span<byte> writeBuffer;
+            Span<byte> empty = Span<byte>.Empty;
 
             //check if any more data is pending to be read
-            while ((pending = SSLWrapper.SSL_pending(this._sslHandle)) > 0)
+            while((pending = (int)CryptoWrapper.BIO_ctrl_pending(this._readHandle)) > 0)
             {
-                //get a buffer from the IBufferWriter
-                writeBuffer = bufferWriter.GetSpan(pending);
+                //get a buffer from the IBufferWriter (of unkown length - use 16384 as default)
+                pending = Native.SSL3_RT_MAX_PLAIN_LENGTH;
 
-                //and write decrypted data to the buffer received from IBufferWriter
-                read = SSLWrapper.SSL_read(this._sslHandle, ref writeBuffer.GetPinnableReference(), writeBuffer.Length);
-
-                if ((sslState = this.VerifyError(read)) > 0)
+                do
                 {
-                    if (sslState == SslState.WANTREAD)
+                    writeBuffer = bufferWriter.GetSpan(pending);
+
+                    //and write decrypted data to the buffer received from IBufferWriter
+                    read = SSLWrapper.SSL_read(this._sslHandle, ref MemoryMarshal.GetReference<byte>(writeBuffer), writeBuffer.Length);
+
+                    if ((sslState = this.VerifyError(read)) > 0)
                     {
-                        return SslState.NONE;
+                        if (sslState == SslState.WANTREAD)
+                        {
+                            return SslState.NONE;
+                        }
+
+                        return sslState;
                     }
 
-                    return sslState;
-                }
-
-                //advance buffer writer with the amount read
-                bufferWriter.Advance(read);
+                    //advance buffer writer with the amount read
+                    bufferWriter.Advance(read);
+                } while ((pending = SSLWrapper.SSL_pending(this._sslHandle)) > 0);
             }
 
             return SslState.NONE;
@@ -646,7 +658,7 @@ namespace OpenSSL.Core.SSL
             SslState sslState;
 
             //write unencrypted data into ssl
-            int written = SSLWrapper.SSL_write(this._sslHandle, readableBuffer.GetPinnableReference(), readableBuffer.Length);
+            int written = SSLWrapper.SSL_write(this._sslHandle, MemoryMarshal.GetReference<byte>(readableBuffer), readableBuffer.Length);
 
             if ((sslState = this.VerifyError(written)) > 0)
             {
@@ -696,7 +708,7 @@ namespace OpenSSL.Core.SSL
             SslState sslState;
 
             //write unencrypted data into ssl
-            int written = SSLWrapper.SSL_write(this._sslHandle, span.GetPinnableReference(), span.Length);
+            int written = SSLWrapper.SSL_write(this._sslHandle, in MemoryMarshal.GetReference<byte>(span), span.Length);
 
             if ((sslState = this.VerifyError(written)) > 0)
             {
@@ -754,11 +766,16 @@ namespace OpenSSL.Core.SSL
             //first write the complete (multi segment) (unencrypted) buffer
             foreach (ReadOnlyMemory<byte> memory in sequence)
             {
+                if(memory.IsEmpty)
+                {
+                    continue;
+                }
+
                 //get the span
                 span = memory.Span;
 
                 //write encrypted data to the BIO
-                written = SSLWrapper.SSL_write(this._sslHandle, span.GetPinnableReference(), span.Length);
+                written = SSLWrapper.SSL_write(this._sslHandle, in MemoryMarshal.GetReference<byte>(span), span.Length);
 
                 if((sslState = this.VerifyError(written)) > 0)
                 {
@@ -809,7 +826,7 @@ namespace OpenSSL.Core.SSL
             }
 
             //and write encrypted data to the buffer received from IBufferWriter
-            written = CryptoWrapper.BIO_read(this._writeHandle, ref writableBuffer.GetPinnableReference(), writableBuffer.Length);
+            written = CryptoWrapper.BIO_read(this._writeHandle, ref MemoryMarshal.GetReference<byte>(writableBuffer), writableBuffer.Length);
 
             if (written < 0)
             {
@@ -830,7 +847,7 @@ namespace OpenSSL.Core.SSL
                 Span<byte> writeBuffer = bufferWriter.GetSpan(pending);
 
                 //and write encrypted data to the buffer received from IBufferWriter
-                written = CryptoWrapper.BIO_read(this._writeHandle, ref writeBuffer.GetPinnableReference(), writeBuffer.Length);
+                written = CryptoWrapper.BIO_read(this._writeHandle, ref MemoryMarshal.GetReference<byte>(writeBuffer), writeBuffer.Length);
 
                 if (written < 0)
                 {
@@ -939,7 +956,7 @@ namespace OpenSSL.Core.SSL
             }
 
             //read what needs to be sent to the other party
-            read = CryptoWrapper.BIO_read(this._writeHandle, ref writeBuffer.GetPinnableReference(), writeBuffer.Length);
+            read = CryptoWrapper.BIO_read(this._writeHandle, ref MemoryMarshal.GetReference<byte>(writeBuffer), writeBuffer.Length);
 
             if (read < 0)
             {
@@ -971,7 +988,7 @@ namespace OpenSSL.Core.SSL
                 writeBuffer = bufferWriter.GetSpan(pending);
 
                 //read what needs to be sent to the other party
-                read = CryptoWrapper.BIO_read(this._writeHandle, ref writeBuffer.GetPinnableReference(), writeBuffer.Length);
+                read = CryptoWrapper.BIO_read(this._writeHandle, ref MemoryMarshal.GetReference<byte>(writeBuffer), writeBuffer.Length);
 
                 if (read < 0)
                 {
@@ -982,7 +999,7 @@ namespace OpenSSL.Core.SSL
                 totalRead += read;
             }
 
-            return true;
+            return pending == 0;
         }
 
         /// <summary>
@@ -1014,7 +1031,7 @@ namespace OpenSSL.Core.SSL
                 return;
             }
 
-            written = CryptoWrapper.BIO_write(this._readHandle, readableBuffer.GetPinnableReference(), readableBuffer.Length);
+            written = CryptoWrapper.BIO_write(this._readHandle, in MemoryMarshal.GetReference<byte>(readableBuffer), readableBuffer.Length);
 
             if (written < 0)
             {
@@ -1058,7 +1075,7 @@ namespace OpenSSL.Core.SSL
             if (sequence.IsSingleSegment)
             {
                 span = sequence.FirstSpan;
-                written = CryptoWrapper.BIO_write(this._readHandle, span.GetPinnableReference(), span.Length);
+                written = CryptoWrapper.BIO_write(this._readHandle, in MemoryMarshal.GetReference<byte>(span), span.Length);
 
                 if (written < 0)
                 {
@@ -1086,7 +1103,7 @@ namespace OpenSSL.Core.SSL
                 memory = memoryEnumerator.Current;
 
                 //write the next memory into the ssl buffer
-                written = CryptoWrapper.BIO_write(this._readHandle, memory.Span.GetPinnableReference(), memory.Length);
+                written = CryptoWrapper.BIO_write(this._readHandle, in MemoryMarshal.GetReference<byte>(memory.Span), memory.Length);
 
                 if (written < 0)
                 {
@@ -1130,6 +1147,33 @@ namespace OpenSSL.Core.SSL
             this.WritePending(writeBuffer, out totalWritten);
         }
 
+        public void Renegotiate
+        (
+            IBufferWriter<byte> bufferWriter
+        )
+        {
+            ThrowInvalidOperationException_HandshakeNotCompleted(this._handshakeCompleted);
+
+            int versionNumber = SSLWrapper.SSL_version(this._sslHandle);
+            SslVersion version = (SslVersion)versionNumber;
+
+            if (version == SslVersion.TLS1_3_VERSION)
+            {
+                SSLWrapper.SSL_key_update(this._sslHandle, 1);
+            }
+            else
+            {
+                SSLWrapper.SSL_renegotiate_abbreviated(this._sslHandle);
+            }
+
+            if (this.DoHandshake(out _))
+            {
+                throw new InvalidOperationException("Handshake should not have completed");
+            }
+
+            this.WritePending(bufferWriter);
+        }
+
         //helper functions for testing
 #if DEBUG
         public SslState CheckState
@@ -1137,7 +1181,7 @@ namespace OpenSSL.Core.SSL
             Span<byte> writeBuffer
         )
         {
-            int read = SSLWrapper.SSL_peek(this._sslHandle, ref writeBuffer.GetPinnableReference(), writeBuffer.Length);
+            int read = SSLWrapper.SSL_peek(this._sslHandle, ref MemoryMarshal.GetReference<byte>(writeBuffer), writeBuffer.Length);
             return this.VerifyError(read);
         }
 

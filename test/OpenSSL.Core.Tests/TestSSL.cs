@@ -25,12 +25,7 @@
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
-using System.Collections.Concurrent;
 using System.Text;
-using System.Threading;
-using System.Net;
-using System.Net.Sockets;
-using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
 using System.Buffers;
@@ -40,13 +35,11 @@ using Xunit.Abstractions;
 
 using OpenSSL.Core.X509;
 using OpenSSL.Core.Keys;
-using OpenSSL.Core.ASN1;
 using OpenSSL.Core.SSL;
-using OpenSSL.Core.Collections;
 
 namespace OpenSSL.Core.Tests
 {
-    public class TestSSL : TestBase, IClassFixture<SslTestContext>
+    public class TestSSL : TestBase
     {
         private SslTestContext _sslTestContext;
         private static byte[] _ClientMessage = Encoding.ASCII.GetBytes("This is a message from the client");
@@ -66,10 +59,10 @@ namespace OpenSSL.Core.Tests
         private byte[] _clientReadBuffer;
         private byte[] _clientWriteBuffer;
 
-        public TestSSL(ITestOutputHelper outputHelper, SslTestContext sslTestContext)
+        public TestSSL(ITestOutputHelper outputHelper)
             : base(outputHelper)
         {
-            this._sslTestContext = sslTestContext;
+            this._sslTestContext = new SslTestContext();
 
             this._serverReadBuffer = ArrayPool<byte>.Shared.Rent(_BufferSize);
             this._serverWriteBuffer = ArrayPool<byte>.Shared.Rent(_BufferSize);
@@ -83,6 +76,8 @@ namespace OpenSSL.Core.Tests
             ArrayPool<byte>.Shared.Return(this._serverWriteBuffer);
             ArrayPool<byte>.Shared.Return(this._clientReadBuffer);
             ArrayPool<byte>.Shared.Return(this._clientWriteBuffer);
+
+            this._sslTestContext.Dispose();
         }
 
         private void DoSynchronousHandshake
@@ -504,7 +499,7 @@ namespace OpenSSL.Core.Tests
 
             this.DoSynchronousHandshake(serverContext, clientContext);
 
-            this.Renegotiate(serverContext, clientContext, sslProtocol);
+            this.Renegotiate(serverContext, clientContext);
 
             this.DoSynchronousShutdown(serverContext, clientContext);
 
@@ -535,7 +530,7 @@ namespace OpenSSL.Core.Tests
 
             this.DoSynchronousHandshake(serverContext, clientContext);
 
-            this.Renegotiate(clientContext, serverContext, sslProtocol);
+            this.Renegotiate(clientContext, serverContext);
 
             this.DoSynchronousShutdown(serverContext, clientContext);
 
@@ -548,8 +543,7 @@ namespace OpenSSL.Core.Tests
         private void Renegotiate
         (
             Ssl client1,
-            Ssl client2,
-            SslProtocol sslProtocol
+            Ssl client2
         )
         {
             SslState client1State, client2State;

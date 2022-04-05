@@ -163,6 +163,7 @@ namespace OpenSSL.Core.Interop
         #region Constants
 
         public const int SSL2_MAX_RECORD_LENGTH_3_BYTE_HEADER = 16383;
+        public const int SSL3_RT_MAX_PLAIN_LENGTH = 16384;
 
         public const int OBJ_NAME_TYPE_UNDEF = 0x00;
         public const int OBJ_NAME_TYPE_MD_METH = 0x01;

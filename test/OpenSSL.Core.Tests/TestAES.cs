@@ -49,8 +49,8 @@ namespace OpenSSL.Core.Tests
 			byte[] input = Convert.FromBase64String(base64);
 			byte[] salt = new byte[PKCS5_SALT_LEN];
 			byte[] msg = new byte[input.Length - magic.Length - PKCS5_SALT_LEN];
-			Buffer.BlockCopy(input, magic.Length, salt, 0, salt.Length);
-			Buffer.BlockCopy(input, magic.Length + PKCS5_SALT_LEN, msg, 0, msg.Length);
+			System.Buffer.BlockCopy(input, magic.Length, salt, 0, salt.Length);
+            System.Buffer.BlockCopy(input, magic.Length + PKCS5_SALT_LEN, msg, 0, msg.Length);
             byte[] password = Encoding.ASCII.GetBytes("example");
             string text;
 
@@ -69,8 +69,8 @@ namespace OpenSSL.Core.Tests
                 int finalDecryptedLength = cc.Finalize(ref outputSpan);
 
                 decrypted = new byte[decryptedLength + finalDecryptedLength];
-                Buffer.BlockCopy(tempBuf, 0, decrypted, 0, decryptedLength);
-                Buffer.BlockCopy(finalBuf, 0, decrypted, decryptedLength, finalDecryptedLength);
+                System.Buffer.BlockCopy(tempBuf, 0, decrypted, 0, decryptedLength);
+                System.Buffer.BlockCopy(finalBuf, 0, decrypted, decryptedLength, finalDecryptedLength);
             }
 
             text = Encoding.ASCII.GetString(decrypted, 0, decrypted.Length);

@@ -194,6 +194,8 @@ namespace OpenSSL.Core.Interop.Wrappers
         int SSL_pending(SafeSslHandle ssl);
         [return: DontVerifyType]
         int SSL_peek(SafeSslHandle ssl, ref byte buf, int len);
+        //void SSL_set_read_ahead(SSL *s, int yes);
+        void SSL_set_read_ahead(SafeSslHandle ssl, int yes);
 
         //int SSL_renegotiate(SSL *s);
         int SSL_renegotiate(SafeSslHandle ssl);
