@@ -17,11 +17,11 @@ namespace OpenSSL.Core.Tests
 	public class TestCipher : TestBase
 	{
         private static List<object[]> lstCiphers;
-        public static IEnumerable<object[]> GetCiphers() => lstCiphers;
+        public static IEnumerable<object[]> GetCiphers() => lstCiphers ?? (lstCiphers = ConstructCipherList());
 
-        static TestCipher()
+        private static List<object[]> ConstructCipherList()
         {
-            lstCiphers = new List<object[]>();
+            List<object[]> lstCiphers = new List<object[]>();
             Type type = typeof(CipherType);
             FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Static);
             IEnumerable<FieldInfo> currentFields = fields.Where(x => x.Name != "NONE").Where(x => x.Name != "DES_EDE3_CFB1");
@@ -34,7 +34,11 @@ namespace OpenSSL.Core.Tests
                     .Where(x => x.Name != "Idea_CBC");
 
             foreach (FieldInfo field in currentFields)
+            {
                 lstCiphers.Add(new object[] { field.GetValue(null) });
+            }
+
+            return lstCiphers;
         }
 
         public TestCipher(ITestOutputHelper outputHelper)
@@ -77,8 +81,8 @@ namespace OpenSSL.Core.Tests
                 finalEncryptedLength = cipherEncryption.Finalize(ref outputSpan);
 
                 encrypted = new byte[encryptedLength + finalEncryptedLength];
-                Buffer.BlockCopy(tempBuf, 0, encrypted, 0, encryptedLength);
-                Buffer.BlockCopy(finalBuf, 0, encrypted, encryptedLength, finalEncryptedLength);
+                System.Buffer.BlockCopy(tempBuf, 0, encrypted, 0, encryptedLength);
+                System.Buffer.BlockCopy(finalBuf, 0, encrypted, encryptedLength, finalEncryptedLength);
             }
 
             byte[] decrypted;
@@ -97,8 +101,8 @@ namespace OpenSSL.Core.Tests
                 finalDecryptedLength = cipherDecryption.Finalize(ref outputSpan);
 
                 decrypted = new byte[decryptedLength + finalDecryptedLength];
-                Buffer.BlockCopy(tempBuf, 0, decrypted, 0, decryptedLength);
-                Buffer.BlockCopy(finalBuf, 0, decrypted, decryptedLength, finalDecryptedLength);
+                System.Buffer.BlockCopy(tempBuf, 0, decrypted, 0, decryptedLength);
+                System.Buffer.BlockCopy(finalBuf, 0, decrypted, decryptedLength, finalDecryptedLength);
             }
 
             string outputMsg = Encoding.ASCII.GetString(decrypted, 0, decryptedLength + finalDecryptedLength);
@@ -132,8 +136,8 @@ namespace OpenSSL.Core.Tests
                 finalEncryptedLength = cipherEncryption.Finalize(ref outputSpan);
 
                 encrypted = new byte[encryptedLength + finalEncryptedLength];
-                Buffer.BlockCopy(tempBuf, 0, encrypted, 0, encryptedLength);
-                Buffer.BlockCopy(finalBuf, 0, encrypted, encryptedLength, finalEncryptedLength);
+                System.Buffer.BlockCopy(tempBuf, 0, encrypted, 0, encryptedLength);
+                System.Buffer.BlockCopy(finalBuf, 0, encrypted, encryptedLength, finalEncryptedLength);
             }
 
             byte[] decrypted;
@@ -152,8 +156,8 @@ namespace OpenSSL.Core.Tests
                 finalDecryptedLength = cipherDecryption.Finalize(ref outputSpan);
 
                 decrypted = new byte[decryptedLength + finalDecryptedLength];
-                Buffer.BlockCopy(tempBuf, 0, decrypted, 0, decryptedLength);
-                Buffer.BlockCopy(finalBuf, 0, decrypted, decryptedLength, finalDecryptedLength);
+                System.Buffer.BlockCopy(tempBuf, 0, decrypted, 0, decryptedLength);
+                System.Buffer.BlockCopy(finalBuf, 0, decrypted, decryptedLength, finalDecryptedLength);
             }
 
             string outputMsg = Encoding.ASCII.GetString(decrypted);
@@ -163,10 +167,11 @@ namespace OpenSSL.Core.Tests
         [Fact]
         public void TestSealOpen()
 		{
+            int keyCount = 10;
             CipherType cipherType = CipherType.AES_128_CBC;
 
-            RSAKey[] keys = new RSAKey[10];
-            for (int i = 0; i < 10; i++)
+            RSAKey[] keys = new RSAKey[keyCount];
+            for (int i = 0; i < keyCount; i++)
             {
                 keys[i] = new RSAKey(1024);
                 keys[i].GenerateKey();
@@ -193,8 +198,8 @@ namespace OpenSSL.Core.Tests
                 finalEncryptedLength = envelopeSeal.Finalize(ref outputSpan);
 
                 encrypted = new byte[encryptedLength + finalEncryptedLength];
-                Buffer.BlockCopy(tempBuf, 0, encrypted, 0, encryptedLength);
-                Buffer.BlockCopy(finalBuf, 0, encrypted, encryptedLength, finalEncryptedLength);
+                System.Buffer.BlockCopy(tempBuf, 0, encrypted, 0, encryptedLength);
+                System.Buffer.BlockCopy(finalBuf, 0, encrypted, encryptedLength, finalEncryptedLength);
 
                 encryptionKeys = envelopeSeal.EncryptionKeys;
                 iv = envelopeSeal.IV;
@@ -220,8 +225,8 @@ namespace OpenSSL.Core.Tests
                     finalDecryptedLength = envelopeOpen.Finalize(ref outputSpan);
 
                     decrypted = new byte[decryptedLength + finalDecryptedLength];
-                    Buffer.BlockCopy(tempBuf, 0, decrypted, 0, decryptedLength);
-                    Buffer.BlockCopy(finalBuf, 0, decrypted, decryptedLength, finalDecryptedLength);
+                    System.Buffer.BlockCopy(tempBuf, 0, decrypted, 0, decryptedLength);
+                    System.Buffer.BlockCopy(finalBuf, 0, decrypted, decryptedLength, finalDecryptedLength);
                 }
 
                 outputMsg = Encoding.ASCII.GetString(decrypted);
@@ -229,7 +234,9 @@ namespace OpenSSL.Core.Tests
             }
 
             foreach (PrivateKey key in keys)
+            {
                 key.Dispose();
+            }
         }
 	}
 }
