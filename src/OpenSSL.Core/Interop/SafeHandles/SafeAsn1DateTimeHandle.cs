@@ -62,7 +62,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
             {
                 CryptoWrapper.ASN1_TIME_print(bio, this);
 
-                uint bioLength = CryptoWrapper.BIO_ctrl_pending(bio);
+                ulong bioLength = CryptoWrapper.BIO_ctrl_pending(bio);
                 int bioLengthInt = (int)bioLength;
                 unsafe
                 {

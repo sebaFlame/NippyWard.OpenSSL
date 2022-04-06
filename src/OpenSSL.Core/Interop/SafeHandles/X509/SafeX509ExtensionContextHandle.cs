@@ -20,7 +20,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
                     byte* b = stackalloc byte[bufLength + 1];
                     Encoding.ASCII.GetEncoder().GetBytes(c, span.Length, b, bufLength, true);
                     Span<byte> buf = new Span<byte>(b, bufLength + 1);
-                    this.SetHandle(CryptoWrapper.CRYPTO_malloc(Marshal.SizeOf<X509V3_CTX>(), buf.GetPinnableReference(), 0));
+                    this.SetHandle(CryptoWrapper.CRYPTO_malloc((ulong)Marshal.SizeOf<X509V3_CTX>(), buf.GetPinnableReference(), 0));
                 }
             }
         }

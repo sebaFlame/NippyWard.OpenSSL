@@ -186,7 +186,7 @@ namespace OpenSSL.Core.Interop
 			return problems;
 		}
 
-		static IntPtr malloc(uint num, IntPtr file, int line)
+		static IntPtr malloc(ulong num, IntPtr file, int line)
 		{
 			lock (_memory)
 			{
@@ -195,7 +195,7 @@ namespace OpenSSL.Core.Interop
                     file = Native.PtrToStringAnsi(file, false),
                     line = line,
                     stack = new StackTrace(true),
-                    bytes = num,
+                    bytes = (uint)num,
                     ptr = Marshal.AllocHGlobal((int)num),
                     count = _tracking ? 0 : 1
 				};
@@ -226,7 +226,7 @@ namespace OpenSSL.Core.Interop
 			}
 		}
 
-		static IntPtr realloc(IntPtr addr, uint num, IntPtr file, int line)
+		static IntPtr realloc(IntPtr addr, ulong num, IntPtr file, int line)
 		{
 			lock (_memory)
 			{
@@ -238,7 +238,7 @@ namespace OpenSSL.Core.Interop
 					stack = new StackTrace(true),
 					file = Native.PtrToStringAnsi(file, false),
 					line = line,
-					bytes = num,
+					bytes = (uint)num,
 					ptr = Marshal.ReAllocHGlobal(addr, (IntPtr)num),
                     count = _tracking ? 0 : 1
                 };

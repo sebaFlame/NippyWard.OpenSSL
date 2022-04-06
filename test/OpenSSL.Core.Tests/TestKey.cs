@@ -22,6 +22,10 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+using System;
+using System.Buffers;
+using System.Runtime.InteropServices;
+using System.Collections.Generic;
 
 using Xunit;
 using Xunit.Abstractions;
@@ -31,13 +35,62 @@ using OpenSSL.Core.Keys;
 
 namespace OpenSSL.Core.Tests
 {
-    //TODO: add encryption/decryption
 	public class TestKey : TestBase
 	{
+        public static readonly IEnumerable<object[]> _EncryptionData = new List<object[]>
+        {
+            new object[] { "abc" },
+            new object[] { "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq" },
+        };
+
         public TestKey(ITestOutputHelper outputHelper)
             : base(outputHelper) { }
 
         protected override void Dispose(bool disposing) { }
+
+        private static void EncryptDecrypt(Key key, string str)
+        {
+            ulong encryptedLength, decryptedLength;
+            ReadOnlySpan<byte> unencrypted;
+            Span<byte> encrypted, decrypted;
+            byte[] encBuf, decBuf;
+            KeyContext keyContext;
+
+            unencrypted = MemoryMarshal.AsBytes(str.AsSpan());
+
+            using (keyContext = key.CreateEncryptionContext())
+            {
+                //get size of encrypted buffer
+                encryptedLength = key.EncryptedLength(in keyContext, unencrypted);
+                Assert.NotEqual((uint)0, encryptedLength);
+
+                //create buffer to store encrypted
+                encBuf = new byte[encryptedLength];
+                encrypted = new Span<byte>(encBuf);
+
+                //encrypt buffer
+                key.Encrypt(in keyContext, unencrypted, encrypted, out encryptedLength);
+                encrypted = encrypted.Slice(0, (int)encryptedLength);
+            }
+
+            using (keyContext = key.CreateDecryptionContext())
+            {
+                //get size of decrypted buffer
+                decryptedLength = key.DecryptedLength(in keyContext, encrypted);
+                Assert.NotEqual((uint)0, encryptedLength);
+
+                //create buffer to store decrypted
+                decBuf = new byte[decryptedLength];
+                decrypted = new Span<byte>(decBuf);
+
+                //decrypt buffer
+                key.Decrypt(in keyContext, encrypted, decrypted, out decryptedLength);
+                Assert.Equal(unencrypted.Length, (int)decryptedLength);
+                decrypted = decrypted.Slice(0, (int)decryptedLength);
+            }
+
+            Assert.True(unencrypted.SequenceEqual(decrypted));
+        }
 
         [Fact]
 		public void CanCompareRSA()
@@ -58,6 +111,19 @@ namespace OpenSSL.Core.Tests
 			}
 		}
 
+        //only one supported bye EVP_PKEY_encrypt_init (???)
+        [Theory]
+        [MemberData(nameof(_EncryptionData))]
+        public void TestRSAEncryptDecrypt(string str)
+        {
+            using (RSAKey key = new RSAKey(1024))
+            {
+                key.GenerateKey();
+
+                EncryptDecrypt(key, str);
+            }
+        }
+
 		[Fact]
 		public void CanCompareDSA()
 		{
@@ -77,7 +143,7 @@ namespace OpenSSL.Core.Tests
             }
 		}
 
-		[Fact]
+        [Fact]
 		public void CanCompareDH()
 		{
             using (DHKey lhs = new DHKey(32, 2))
@@ -96,7 +162,7 @@ namespace OpenSSL.Core.Tests
             }
 		}
 
-		[Fact]
+        [Fact]
 		public void CanCompareEC()
 		{
 			using (ECKey lhs = new ECKey(ECCurveType.prime256v1))
@@ -115,5 +181,5 @@ namespace OpenSSL.Core.Tests
                 }
             }
 		}
-	}
+    }
 }

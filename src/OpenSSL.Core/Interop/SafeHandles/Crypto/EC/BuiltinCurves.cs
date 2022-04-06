@@ -62,8 +62,8 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
         /// <returns></returns>
         private void Get()
 		{
-            int count = Native.CryptoWrapper.EC_get_builtin_curves(IntPtr.Zero, 0);
-            IntPtr ptr = Marshal.AllocHGlobal(Marshal.SizeOf<EC_builtin_curve>() * count);
+            ulong count = Native.CryptoWrapper.EC_get_builtin_curves(IntPtr.Zero, 0);
+            IntPtr ptr = Marshal.AllocHGlobal(Marshal.SizeOf<EC_builtin_curve>() * (int)count);
             curves = new List<ECCurveType>();
 
             try
@@ -71,7 +71,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
                 Native.CryptoWrapper.EC_get_builtin_curves(ptr, count);
                 var pItem = ptr;
 
-                for (int i = 0; i < count; i++)
+                for (int i = 0; i < (int)count; i++)
                 {
                     var raw = Marshal.PtrToStructure<EC_builtin_curve>(pItem);
                     curves.Add(new ECCurveType(Marshal.ReadInt32(pItem)));

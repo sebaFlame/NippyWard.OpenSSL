@@ -26,9 +26,6 @@ namespace OpenSSL.Core.Keys
         internal KeyInternal KeyWrapper { get; private set; }
         internal override ISafeHandleWrapper HandleWrapper => this.KeyWrapper;
 
-        private SafeKeyContextHandle keyContextEncryptHandle;
-        private SafeKeyContextHandle keyContextDecryptHandle;
-
         public abstract KeyType KeyType { get; }
 
         public int Bits => CryptoWrapper.EVP_PKEY_bits(this.KeyWrapper.Handle);
@@ -59,62 +56,100 @@ namespace OpenSSL.Core.Keys
             this.KeyWrapper = this.GenerateKeyInternal();
         }
 
-        private void InitializeEncryptionContext()
+        public KeyContext CreateEncryptionContext()
         {
-            if (!(this.keyContextEncryptHandle is null)) return;
-            this.keyContextEncryptHandle = CryptoWrapper.EVP_PKEY_CTX_new(this.KeyWrapper.Handle, null);
-            CryptoWrapper.EVP_PKEY_encrypt_init(this.keyContextEncryptHandle); //TODO: make it possible to customize this operation after this call
+            SafeKeyContextHandle keyContext = CryptoWrapper.EVP_PKEY_CTX_new(this.KeyWrapper.Handle, SafeEngineHandle.Zero);
+            CryptoWrapper.EVP_PKEY_encrypt_init(keyContext);
+            return new KeyContext(keyContext);
         }
 
-        public uint EncryptedLength(Span<byte> buffer)
+        public ulong EncryptedLength
+        (
+            in KeyContext keyContext,
+            ReadOnlySpan<byte> buffer
+        )
         {
-            this.InitializeEncryptionContext();
-
-            uint encryptedLength = 0;
+            ulong encryptedLength = 0;
 
             //compute output buffer size
-            CryptoWrapper.EVP_PKEY_encrypt(this.keyContextEncryptHandle, IntPtr.Zero, ref encryptedLength, buffer.GetPinnableReference(), (uint)buffer.Length);
+            CryptoWrapper.EVP_PKEY_encrypt
+            (
+                keyContext._keyContextHandle,
+                IntPtr.Zero,
+                ref encryptedLength,
+                in MemoryMarshal.GetReference(buffer),
+                (uint)buffer.Length
+            );
             return encryptedLength;
         }
 
-        public void Encrypt(Span<byte> buffer, Span<byte> encrypted, out uint encryptedLength)
+        public void Encrypt
+        (
+            in KeyContext keyContext,
+            ReadOnlySpan<byte> buffer,
+            Span<byte> encrypted,
+            out ulong encryptedLength
+        )
         {
-            this.InitializeEncryptionContext();
-
-            encryptedLength = (uint)encrypted.Length;
-            ref byte inputRef = ref buffer.GetPinnableReference();
+            encryptedLength = (ulong)encrypted.Length;
 
             //encrypt the buffer
-            CryptoWrapper.EVP_PKEY_encrypt(this.keyContextEncryptHandle, ref encrypted.GetPinnableReference(), ref encryptedLength, inputRef, (uint)buffer.Length);
+            CryptoWrapper.EVP_PKEY_encrypt
+            (
+                keyContext._keyContextHandle,
+                ref MemoryMarshal.GetReference(encrypted),
+                ref encryptedLength,
+                in MemoryMarshal.GetReference(buffer),
+                (uint)buffer.Length
+            );
         }
 
-        private void InitializeDecryptionContext()
+        public KeyContext CreateDecryptionContext()
         {
-            if (!(this.keyContextDecryptHandle is null)) return;
-            this.keyContextDecryptHandle = CryptoWrapper.EVP_PKEY_CTX_new(this.KeyWrapper.Handle, null);
-            CryptoWrapper.EVP_PKEY_decrypt_init(this.keyContextDecryptHandle); //TODO: make it possible to customize this operation after this call
+            SafeKeyContextHandle keyContext = CryptoWrapper.EVP_PKEY_CTX_new(this.KeyWrapper.Handle, SafeEngineHandle.Zero);
+            CryptoWrapper.EVP_PKEY_decrypt_init(keyContext);
+            return new KeyContext(keyContext);
         }
 
-        public uint DecryptedLength(Span<byte> buffer)
+        public ulong DecryptedLength
+        (
+            in KeyContext keyContext,
+            ReadOnlySpan<byte> buffer
+        )
         {
-            this.InitializeDecryptionContext();
-
-            uint decryptedLength = 0;
+            ulong decryptedLength = 0;
 
             //compute output buffer size
-            CryptoWrapper.EVP_PKEY_decrypt(this.keyContextEncryptHandle, IntPtr.Zero, ref decryptedLength, buffer.GetPinnableReference(), (uint)buffer.Length);
+            CryptoWrapper.EVP_PKEY_decrypt
+            (
+                keyContext._keyContextHandle,
+                IntPtr.Zero,
+                ref decryptedLength,
+                in MemoryMarshal.GetReference(buffer),
+                (uint)buffer.Length
+            );
             return decryptedLength;
         }
 
-        public void Decrypt(Span<byte> buffer, Span<byte> decrypted, out uint decryptedLength)
+        public void Decrypt
+        (
+            in KeyContext keyContext,
+            ReadOnlySpan<byte> buffer,
+            Span<byte> decrypted,
+            out ulong decryptedLength
+         )
         {
-            this.InitializeDecryptionContext();
-
             decryptedLength = (uint)decrypted.Length;
-            ref byte inputRef = ref buffer.GetPinnableReference();
 
             //decrypt the buffer
-            CryptoWrapper.EVP_PKEY_decrypt(this.keyContextEncryptHandle, ref decrypted.GetPinnableReference(), ref decryptedLength, inputRef, (uint)buffer.Length);
+            CryptoWrapper.EVP_PKEY_decrypt
+            (
+                keyContext._keyContextHandle,
+                ref MemoryMarshal.GetReference(decrypted),
+                ref decryptedLength,
+                in MemoryMarshal.GetReference(buffer),
+                (uint)buffer.Length
+            );
         }
 
         public bool Equals(Key other)
@@ -143,11 +178,7 @@ namespace OpenSSL.Core.Keys
 
         protected override void Dispose(bool disposing)
         {
-            if (!(this.keyContextEncryptHandle is null) && !this.keyContextEncryptHandle.IsInvalid)
-                this.keyContextEncryptHandle.Dispose();
-
-            if (!(this.keyContextDecryptHandle is null) && !this.keyContextDecryptHandle.IsInvalid)
-                this.keyContextDecryptHandle.Dispose();
+            //NOP
         }
     }
 }
