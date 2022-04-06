@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 
-namespace OpenSSL.Core.Tests.Buffer
+namespace OpenSSL.Core.SSL.Buffer
 {
     internal struct TlsBufferSegmentStack
     {

@@ -1,15 +1,11 @@
 ﻿using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 
-namespace OpenSSL.Core.Tests.Buffer
+namespace OpenSSL.Core.SSL.Buffer
 {
     //loosely based on System.IO.Pipelines.Pipe
-    internal class TlsBuffer : IBufferWriter<byte>
+    public class TlsBuffer : IBufferWriter<byte>
     {
         private MemoryPool<byte> _pool;
         private bool _isDefaultSharedMemoryPool;
@@ -40,14 +36,14 @@ namespace OpenSSL.Core.Tests.Buffer
         private const int _MaxSegmentPoolSize = 256;
         private const int _InitialSegmentPoolSize = 4;
 
-        internal TlsBuffer(MemoryPool<byte> pool)
+        public TlsBuffer(MemoryPool<byte> pool)
         {
             this._pool = pool ?? MemoryPool<byte>.Shared;            
             this._bufferSegmentPool = new TlsBufferSegmentStack(_InitialSegmentPoolSize);
             this._isDefaultSharedMemoryPool = pool == MemoryPool<byte>.Shared;
         }
 
-        internal TlsBuffer()
+        public TlsBuffer()
             : this(MemoryPool<byte>.Shared)
         { }
 

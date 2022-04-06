@@ -11,7 +11,7 @@ using Xunit.Abstractions;
 using OpenSSL.Core.X509;
 using OpenSSL.Core.Keys;
 using OpenSSL.Core.SSL;
-using OpenSSL.Core.Tests.Buffer;
+using OpenSSL.Core.SSL.Buffer;
 
 namespace OpenSSL.Core.Tests
 {

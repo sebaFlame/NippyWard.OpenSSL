@@ -227,7 +227,9 @@ namespace OpenSSL.Core.Tests
             {
                 key.GenerateKey();
                 using (var cert = new X509Certificate(key, "localhost", "localhost", start, end))
+                {
                     cert.SelfSign(key, DigestType.SHA256);
+                }
             }
 		}
 

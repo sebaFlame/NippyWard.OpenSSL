@@ -245,14 +245,14 @@ namespace OpenSSL.Core.X509
         public void SelfSign(PrivateKey privateKey, DigestType digestType)
         {
             if (!this.VerifyPrivateKey(privateKey))
-                throw new InvalidOperationException("Private and public key do not match");
-
-            SafeMessageDigestHandle md;
-            using (md = CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr))
             {
-                CryptoWrapper.X509_sign(this.X509Wrapper.Handle, this.PublicKey.KeyWrapper.Handle, md);
-                //CryptoWrapper.X509_set_issuer_name(this.X509Wrapper.Handle, this.X509Name.X509NameWrapper.Handle);
+                throw new InvalidOperationException("Private and public key do not match");
             }
+
+            SafeX509NameHandle x509Name = CryptoWrapper.X509_get_subject_name(this.X509Wrapper.Handle);
+            CryptoWrapper.X509_set_issuer_name(this.X509Wrapper.Handle, x509Name);
+
+            this.Sign(privateKey, digestType);
         }
 
         internal void SetIssuer(X509Name x509Name)

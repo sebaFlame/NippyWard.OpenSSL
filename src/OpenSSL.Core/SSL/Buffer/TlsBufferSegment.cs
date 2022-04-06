@@ -1,11 +1,8 @@
 ﻿using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Runtime.CompilerServices;
 
-namespace OpenSSL.Core.Tests.Buffer
+namespace OpenSSL.Core.SSL.Buffer
 {
     //base on BufferSegment
     internal class TlsBufferSegment : ReadOnlySequenceSegment<byte>
