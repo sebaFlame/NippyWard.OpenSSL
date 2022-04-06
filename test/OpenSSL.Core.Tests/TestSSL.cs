@@ -379,7 +379,7 @@ namespace OpenSSL.Core.Tests
         [Theory]
         [SslProtocolData(SslProtocol.Tls12)]
         [SslProtocolData(SslProtocol.Tls13)]
-        public void TestSslData(SslProtocol sslProtocol)
+        public void TestData(SslProtocol sslProtocol)
         {
             //create server
             Ssl serverContext = Ssl.CreateServerSsl

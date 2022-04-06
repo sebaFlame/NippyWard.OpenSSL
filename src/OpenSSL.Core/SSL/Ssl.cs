@@ -251,6 +251,13 @@ namespace OpenSSL.Core.SSL
             bool success = true;
             sslContext._sslContextHandle.DangerousAddRef(ref success);
 
+            //DangerousAddRef either throws an exception
+            //or returns success
+            if (!success)
+            {
+                throw new InvalidOperationException("Can not happen???");
+            }
+
             SafeBioHandle readHandle = null, writeHandle = null;
             SafeSslHandle sslHandle = null;
             try

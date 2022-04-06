@@ -24,13 +24,6 @@ namespace OpenSSL.Core.Tests
         private X509Certificate ServerCertificate => this._sslTestContext.ServerCertificate;
         private PrivateKey ServerKey => this.ServerCertificate.PublicKey;
 
-        private X509Certificate ClientCertificate => this._sslTestContext.ClientCertificate;
-        private PrivateKey ClientKey => this.ClientCertificate.PublicKey;
-
-        private X509Certificate CACertificate => this._sslTestContext.CACertificate;
-
-        private const int _DefaultBufferSize = 16383;
-
         private TlsBuffer _serverReadBuffer;
         private TlsBuffer _serverWriteBuffer;
         private TlsBuffer _clientReadBuffer;
@@ -356,7 +349,7 @@ namespace OpenSSL.Core.Tests
         }
 
         [Fact]
-        public void TestSslData()
+        public void TestData()
         {
             //create server
             Ssl serverContext = Ssl.CreateServerSsl
@@ -583,12 +576,13 @@ namespace OpenSSL.Core.Tests
         }
 
         [Fact]
-        public void TestBigData()
+        public void TestRandomData()
         {
-            int bufferSize = 1024 * 1024 * 4;
+            int bufferSize = 1024 * 4;
             long read = 0;
-            byte[] arr = new byte[bufferSize];
-            Span<byte> buffer;
+            byte[] writeArr = new byte[bufferSize];
+            byte[] readArr = new byte[bufferSize];
+            Span<byte> writeSpan, readSpan;
             int size;
             ReadOnlySequence<byte> writeBuffer, readBuffer;
             SequencePosition totalRead;
@@ -619,17 +613,19 @@ namespace OpenSSL.Core.Tests
             );
 
             //send ±1GB of encrypted data from server to client
-            while (read < 1024 * 1024 * 1024)
+            while (read < 1024 * 1024)
             {
                 //minimum 8K (minimum segment size is 4K)
-                size = RandomNumberGenerator.GetInt32(4096 * 2, bufferSize);
+                size = RandomNumberGenerator.GetInt32(0, bufferSize);
 
                 //fill buffer with random data
-                buffer = new Span<byte>(arr, 0, size);
-                Interop.Random.PseudoBytes(buffer);
+                writeSpan = new Span<byte>(writeArr, 0, size);
+
+                //worth about 1/4 CPU time of test method (!!!)
+                Interop.Random.PseudoBytes(writeSpan);
 
                 //create a sequence from the buffer
-                writeBuffer = new ReadOnlySequence<byte>(arr, 0, size);
+                writeBuffer = new ReadOnlySequence<byte>(writeArr, 0, size);
 
                 //write sequence to client
                 serverState = serverContext.WriteSsl(in writeBuffer, this._serverWriteBuffer, out totalRead);
@@ -648,10 +644,12 @@ namespace OpenSSL.Core.Tests
                 this._clientReadBuffer.CreateReadOnlySequence(out readBuffer);
 
                 //verify
+                readBuffer.CopyTo(readArr);
+                readSpan = new Span<byte>(readArr, 0, (int)readBuffer.Length);
+                
                 Assert.True
                 (
-                    new Span<byte>(readBuffer.ToArray())
-                        .SequenceEqual(buffer)
+                    readSpan.SequenceEqual(writeSpan)
                 );
 
                 //increment read size
