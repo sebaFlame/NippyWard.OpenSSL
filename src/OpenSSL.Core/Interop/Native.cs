@@ -162,8 +162,15 @@ namespace OpenSSL.Core.Interop
 
         #region Constants
 
+        public const int SSL3_RT_HEADER_LENGTH = 5;
         public const int SSL2_MAX_RECORD_LENGTH_3_BYTE_HEADER = 16383;
         public const int SSL3_RT_MAX_PLAIN_LENGTH = 16384;
+        public const int SSL3_RT_MAX_MD_SIZE = 64;
+        public const int SSL3_RT_MAX_COMPRESSED_OVERHEAD = 1024;
+        public const int SSL3_RT_MAX_ENCRYPTED_OVERHEAD = 256 + SSL3_RT_MAX_MD_SIZE;
+        public const int SSL3_RT_MAX_COMPRESSED_LENGTH = SSL3_RT_MAX_PLAIN_LENGTH + SSL3_RT_MAX_COMPRESSED_OVERHEAD;
+        public const int SSL3_RT_MAX_ENCRYPTED_LENGTH = SSL3_RT_MAX_ENCRYPTED_OVERHEAD + SSL3_RT_MAX_COMPRESSED_LENGTH;
+        public const int SSL3_RT_MAX_PACKET_SIZE = SSL3_RT_MAX_ENCRYPTED_LENGTH + SSL3_RT_HEADER_LENGTH;
 
         public const int OBJ_NAME_TYPE_UNDEF = 0x00;
         public const int OBJ_NAME_TYPE_MD_METH = 0x01;

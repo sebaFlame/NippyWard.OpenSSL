@@ -184,6 +184,15 @@ namespace OpenSSL.Core.SSL
                 sslContextHandle = SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultClientMethod);
             }
 
+            //enable partial writes to optimize writes
+            SSLWrapper.SSL_CTX_ctrl
+            (
+                sslContextHandle,
+                Native.SSL_CTRL_MODE,
+                (int)SslMode.SSL_MODE_ENABLE_PARTIAL_WRITE,
+                IntPtr.Zero
+            );
+
             //set default SSL options
             SslOptions protocolOptions = SslOptions.SSL_OP_ALL;
 
