@@ -222,43 +222,22 @@ namespace OpenSSL.Core.SSL
 
             if (!(ciphers is null))
             {
-                ISet<string> supportedCiphers = GenerateSupportedCiphers(sslContextHandle);
-
-                try
-                {
-                    foreach (string cipher in ciphers)
-                    {
-                        if (!supportedCiphers.Contains(cipher))
-                        {
-                            throw new InvalidOperationException($"Unknown cipher: {cipher}. Supported are: {string.Join(":", supportedCiphers)}");
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    sslContextHandle.Dispose();
-                    throw;
-                }
-
                 string allowedCiphers = string.Join(":", ciphers);
                 unsafe
                 {
                     ReadOnlySpan<char> chSpan = allowedCiphers.AsSpan();
-                    fixed(char* ch = chSpan)
-                    {
-                        int count = Encoding.ASCII.GetEncoder().GetByteCount(ch, chSpan.Length, false);
-                        byte* b = stackalloc byte[count];
-                        Encoding.ASCII.GetEncoder().GetBytes(ch, chSpan.Length, b, count, true);
-                        ReadOnlySpan<byte> bSpan = new ReadOnlySpan<byte>(b, count);
+                    int count = Encoding.ASCII.GetEncoder().GetByteCount(chSpan, false);
+                    byte* b = stackalloc byte[count + 1];
+                    Span<byte> bSpan = new Span<byte>(b, count + 1);
+                    Encoding.ASCII.GetEncoder().GetBytes(chSpan, bSpan, true);
 
-                        if((sslProtocol & SslProtocol.Tls13) == SslProtocol.Tls13)
-                        {
-                            SSLWrapper.SSL_CTX_set_ciphersuites(sslContextHandle, bSpan.GetPinnableReference());
-                        }
-                        else
-                        {
-                            SSLWrapper.SSL_CTX_set_cipher_list(sslContextHandle, bSpan.GetPinnableReference());
-                        }
+                    if((sslProtocol & SslProtocol.Tls13) == SslProtocol.Tls13)
+                    {
+                        SSLWrapper.SSL_CTX_set_ciphersuites(sslContextHandle, bSpan.GetPinnableReference());
+                    }
+                    else
+                    {
+                        SSLWrapper.SSL_CTX_set_cipher_list(sslContextHandle, bSpan.GetPinnableReference());
                     }
                 }
             }

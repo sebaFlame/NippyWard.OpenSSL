@@ -33,10 +33,16 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	/// <summary>
 	/// Wraps the EVP_MD object
 	/// </summary>
-	internal class SafeMessageDigestHandle : BaseValue, IStackable
+	internal abstract class SafeMessageDigestHandle : BaseValue, IStackable
     {
-        private SafeMessageDigestHandle()
+        //always is read-only
+        internal SafeMessageDigestHandle(bool takeOwnership)
             : base(false) { }
+
+        //always is read-only
+        internal SafeMessageDigestHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, false)
+        { }
 
         /// <summary>
         /// Not implemented, these objects should never be disposed

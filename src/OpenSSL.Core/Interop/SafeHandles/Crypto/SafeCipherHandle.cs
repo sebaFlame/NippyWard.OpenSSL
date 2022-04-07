@@ -36,15 +36,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	/// <summary>
 	/// Wraps the EVP_CIPHER object.
 	/// </summary>
-	internal class SafeCipherHandle : BaseValue, IStackable
+	internal abstract class SafeCipherHandle : BaseValue, IStackable
 	{
-        public SafeCipherHandle()
+        //always is read-only
+        internal SafeCipherHandle(bool takeOwnership)
             : base(false) { }
 
-		/// <summary>
-		/// Not implemented, these objects should never be disposed
-		/// </summary>
-		protected override bool ReleaseHandle()
+        //always is read-only
+        internal SafeCipherHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, false)
+        { }
+
+        /// <summary>
+        /// Not implemented, these objects should never be disposed
+        /// </summary>
+        protected override bool ReleaseHandle()
 		{
             return true;
 		}

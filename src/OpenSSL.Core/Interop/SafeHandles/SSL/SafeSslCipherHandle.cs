@@ -34,15 +34,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
 	/// <summary>
 	/// Wraps a SSL_CIPHER
 	/// </summary>
-	internal class SafeSslCipherHandle : BaseValue, IStackable
+	internal abstract class SafeSslCipherHandle : BaseValue, IStackable
 	{
-        private SafeSslCipherHandle()
+        //always is read-only
+        internal SafeSslCipherHandle(bool takeOwnership)
             : base(false) { }
 
-		/// <summary>
-		/// This method must be implemented in derived classes.
-		/// </summary>
-		protected override bool ReleaseHandle()
+        //always is read-only
+        internal SafeSslCipherHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, false)
+        { }
+
+        /// <summary>
+        /// This method must be implemented in derived classes.
+        /// </summary>
+        protected override bool ReleaseHandle()
 		{
             return true;
 		}

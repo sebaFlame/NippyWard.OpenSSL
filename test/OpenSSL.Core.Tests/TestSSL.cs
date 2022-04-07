@@ -93,7 +93,7 @@ namespace OpenSSL.Core.Tests
             while (!clientContext.DoHandshake(out clientState)
                     | !serverContext.DoHandshake(out serverState))
             {
-                if(clientState == SslState.WANTWRITE)
+                if (clientState == SslState.WANTWRITE)
                 {
                     //get the client buffer
                     clientContext.WritePending(this._clientWriteBuffer, out clientWritten);
@@ -131,8 +131,8 @@ namespace OpenSSL.Core.Tests
 
         private void DoSynchronousShutdown
         (
-            Ssl clientContext,
-            Ssl serverContext
+            Ssl serverContext,
+            Ssl clientContext
         )
         {
             SslState clientState, serverState;
@@ -275,7 +275,7 @@ namespace OpenSSL.Core.Tests
             Assert.Equal(SslState.WANTWRITE, serverState);
 
             //TODO: last write not mandatory?
-            if(sslProtocol != SslProtocol.Tls13)
+            if (sslProtocol != SslProtocol.Tls13)
             {
                 Assert.False(clientContext.DoHandshake(out clientState));
                 Assert.Equal(SslState.WANTREAD, clientState);
@@ -998,6 +998,36 @@ namespace OpenSSL.Core.Tests
             clientContext.Dispose();
 
             serverStore.Dispose();
+        }
+
+        [Theory]
+        [InlineData(SslProtocol.Tls12, "AES128-GCM-SHA256")]
+        [InlineData(SslProtocol.Tls13, "TLS_CHACHA20_POLY1305_SHA256")]
+        public void TsetCustomCipher(SslProtocol sslProtocol, string cipher)
+        {
+            //create server
+            Ssl serverContext = Ssl.CreateServerSsl
+            (
+                sslProtocol: sslProtocol,
+                certificate: this.ServerCertificate,
+                privateKey: this.ServerKey
+            );
+            Assert.True(serverContext.IsServer);
+
+            //create client
+            Ssl clientContext = Ssl.CreateClientSsl
+            (
+                sslProtocol: sslProtocol,
+                ciphers: new string[] { cipher }
+            );
+            Assert.False(clientContext.IsServer);
+
+            this.DoSynchronousHandshake(serverContext, clientContext);
+
+            this.DoSynchronousShutdown(serverContext, clientContext);
+
+            serverContext.Dispose();
+            clientContext.Dispose();
         }
     }
 }
