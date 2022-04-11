@@ -66,6 +66,8 @@ namespace OpenSSL.Core.Interop
         internal readonly static ILibSSLWrapper SSLWrapper;
         internal readonly static IStackWrapper StackWrapper;
         internal readonly static ISafeHandleFactory SafeHandleFactory;
+        internal readonly static OPENSSL_sk_freefunc _FreeShimFunc;
+        internal readonly static OPENSSL_sk_freefunc _FreeMallocFunc;
 
         #region Initialization
 
@@ -113,6 +115,9 @@ namespace OpenSSL.Core.Interop
             {
                 throw new Exception(string.Format("Invalid version of {0}, expecting {1}, got: {2}", DLLNAME, Version.MinimumOpenSslVersion, Version.Library));
             }
+
+            _FreeShimFunc = new OPENSSL_sk_freefunc(FreeShim);
+            _FreeMallocFunc = new OPENSSL_sk_freefunc(Free);
 
 #if ENABLE_MEMORYTRACKER
             MemoryTracker.Init();
@@ -352,6 +357,11 @@ namespace OpenSSL.Core.Interop
             }
         }
 
+        internal static void FreeShim(IntPtr ptr)
+        {
+            //DO NOTHING
+        }
+
         //check if the safehandle is invalid and throws an exception if that's the case
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ExpectNonNull(SafeHandle handle)
@@ -372,19 +382,13 @@ namespace OpenSSL.Core.Interop
             }
         }
 
+        //create a stack item (mostly used for debugging)
         internal static TStackable CreateStackableItem<TStackable>(SafeStackHandle<TStackable> stack, IntPtr ptr)
             where TStackable : SafeBaseHandle, IStackable
         {
-            //if the stack is owned, all items should also be owned!
-            if (stack.TakeOwnership)
-            {
-                return SafeHandleFactory.CreateTakeOwnershipSafeHandle<TStackable>(ptr);
-            }
-            else
-            {
-                return SafeHandleFactory.CreateWrapperSafeHandle<TStackable>(ptr);
-            }
+            return SafeHandleFactory.CreateWrapperSafeHandle<TStackable>(ptr);
         }
+
         #endregion
 
     }

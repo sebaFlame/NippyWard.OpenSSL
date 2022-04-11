@@ -25,7 +25,7 @@
 
 using OpenSSL.Core.Interop;
 using System;
-using System.Runtime.InteropServices;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 {
@@ -34,6 +34,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	/// </summary>
 	internal abstract class SafeHMACContextHandle : BaseValue
 	{
+        public static SafeHMACContextHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeHMACContextHandle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Calls HMAC_CTX_cleanup() and then OPENSSL_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeHMACContextHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.HMAC_CTX_free);
+        }
+
         internal SafeHMACContextHandle(bool takeOwnership)
             : base(takeOwnership)
         { }
@@ -41,16 +56,5 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
         internal SafeHMACContextHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-
-        #region Overrides
-        /// <summary>
-        /// Calls HMAC_CTX_cleanup() and then OPENSSL_free()
-        /// </summary>
-        protected override bool ReleaseHandle()
-        {
-			CryptoWrapper.HMAC_CTX_free(this.handle);
-            return true;
-		}
-        #endregion
 	}
 }

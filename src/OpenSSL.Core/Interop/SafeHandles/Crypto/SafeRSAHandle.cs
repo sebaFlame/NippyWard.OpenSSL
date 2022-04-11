@@ -26,6 +26,7 @@
 using OpenSSL.Core.Interop;
 using System;
 using System.Runtime.InteropServices;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 {
@@ -34,6 +35,18 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	/// </summary>
 	internal abstract class SafeRSAHandle : BaseReference
 	{
+        public static SafeRSAHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeRSAHandle>(IntPtr.Zero);
+
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeRSAHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.RSA_free);
+        }
+
         #region reference count debug
 #if DEBUG
         [StructLayout(LayoutKind.Sequential)]
@@ -89,22 +102,9 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             : base(ptr, takeOwnership)
         { }
 
-        #region IDisposable Members
-
-        protected override bool ReleaseHandle()
-        {
-#if DEBUG
-            int refs = this.References;
-#endif
-            CryptoWrapper.RSA_free(this.handle);
-            return true;
-		}
-
         internal override void AddReference()
         {
             CryptoWrapper.RSA_up_ref(this);
         }
-
-        #endregion
 	}
 }

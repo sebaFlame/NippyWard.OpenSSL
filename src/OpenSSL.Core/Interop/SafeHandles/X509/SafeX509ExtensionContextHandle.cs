@@ -2,14 +2,29 @@
 using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Text;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles.X509
 {
-    internal class SafeX509ExtensionContextHandle : SafeBaseHandle
+    internal abstract class SafeX509ExtensionContextHandle : SafeBaseHandle
     {
-        internal SafeX509ExtensionContextHandle()
-            : base(true)
+        public static SafeX509ExtensionContextHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeX509ExtensionContextHandle>(IntPtr.Zero);
+
+        internal override OPENSSL_sk_freefunc FreeFunc => Native._FreeMallocFunc;
+
+        internal SafeX509ExtensionContextHandle(bool takeOwnership)
+            : base(takeOwnership)
+        { }
+
+        internal SafeX509ExtensionContextHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, takeOwnership)
+        { }
+
+        internal static SafeX509ExtensionContextHandle CreateInstance()
         {
+            IntPtr ptr;
+
             unsafe
             {
                 ReadOnlySpan<char> span = Assembly.GetEntryAssembly().FullName.AsSpan();
@@ -20,15 +35,11 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
                     byte* b = stackalloc byte[bufLength + 1];
                     Encoding.ASCII.GetEncoder().GetBytes(c, span.Length, b, bufLength, true);
                     Span<byte> buf = new Span<byte>(b, bufLength + 1);
-                    this.SetHandle(CryptoWrapper.CRYPTO_malloc((ulong)Marshal.SizeOf<X509V3_CTX>(), buf.GetPinnableReference(), 0));
+                    ptr = CryptoWrapper.CRYPTO_malloc((ulong)Marshal.SizeOf<X509V3_CTX>(), buf.GetPinnableReference(), 0);
                 }
             }
-        }
 
-        protected override bool ReleaseHandle()
-        {
-            Native.Free(this.handle);
-            return true;
+            return Native.SafeHandleFactory.CreateTakeOwnershipSafeHandle<SafeX509ExtensionContextHandle>(ptr);
         }
 
         #region X509V3_CTX

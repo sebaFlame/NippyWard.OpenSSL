@@ -23,7 +23,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.Core.Interop;
+using OpenSSL.Core.Interop.Wrappers;
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -36,6 +36,11 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
 	/// </summary>
 	internal abstract class SafeSslCipherHandle : BaseValue, IStackable
 	{
+        public static SafeSslCipherHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeSslCipherHandle>(IntPtr.Zero);
+
+        internal override OPENSSL_sk_freefunc FreeFunc => Native.FreeShim;
+
         //always is read-only
         internal SafeSslCipherHandle(bool takeOwnership)
             : base(false) { }
@@ -44,13 +49,5 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
         internal SafeSslCipherHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, false)
         { }
-
-        /// <summary>
-        /// This method must be implemented in derived classes.
-        /// </summary>
-        protected override bool ReleaseHandle()
-		{
-            return true;
-		}
     }
 }

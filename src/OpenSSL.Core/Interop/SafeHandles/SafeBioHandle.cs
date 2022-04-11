@@ -24,6 +24,7 @@
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles
 {
@@ -32,6 +33,18 @@ namespace OpenSSL.Core.Interop.SafeHandles
 	/// </summary>
 	internal abstract class SafeBioHandle : BaseReference
 	{
+        public static SafeBioHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeBioHandle>(IntPtr.Zero);
+
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeBioHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(Free);
+        }
+
         internal SafeBioHandle(bool takeOwnership)
             : base(takeOwnership)
         { }
@@ -40,13 +53,13 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(ptr, takeOwnership)
         { }
 
-        #region Overrides
-
-        protected override bool ReleaseHandle()
+        //wrapper function for freeing
+        internal static void Free(IntPtr ptr)
         {
-            CryptoWrapper.BIO_free(this.handle);
-            return true;
+            CryptoWrapper.BIO_free(ptr);
         }
+
+        #region Overrides
 
         internal override void AddReference()
         {

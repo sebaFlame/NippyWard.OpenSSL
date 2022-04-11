@@ -24,6 +24,7 @@
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles.SSL
 {
@@ -32,6 +33,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
 	/// </summary>
 	internal abstract class SafeSslContextHandle : BaseReference
     {
+        public static SafeSslContextHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeSslContextHandle>(IntPtr.Zero);
+
+        /// <summary>
+        ///     base override - calls SSL_CTX_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeSslContextHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(SSLWrapper.SSL_CTX_free);
+        }
+
         /// <summary>
         ///     Calls SSL_CTX_new()
         /// </summary>
@@ -46,22 +62,9 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
             : base(ptr, takeOwnership)
         { }
 
-        #region IDisposable Members
-
-        /// <summary>
-        ///     base override - calls SSL_CTX_free()
-        /// </summary>
-        protected override bool ReleaseHandle()
-		{
-			SSLWrapper.SSL_CTX_free(this.handle);
-            return true;
-		}
-
         internal override void AddReference()
         {
             SSLWrapper.SSL_CTX_up_ref(this);
         }
-
-        #endregion
     }
 }

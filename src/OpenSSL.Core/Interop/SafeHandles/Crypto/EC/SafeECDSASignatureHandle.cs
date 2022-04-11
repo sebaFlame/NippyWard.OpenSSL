@@ -23,9 +23,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.Core.Interop;
 using System;
-using System.Runtime.InteropServices;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
 {
@@ -34,6 +33,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
 	/// </summary>
 	internal abstract class SafeECDSASignatureHandle : BaseValue
 	{
+        public static SafeECDSASignatureHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeECDSASignatureHandle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Calls ECDSA_SIG_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeECDSASignatureHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.ECDSA_SIG_free);
+        }
+
         internal SafeECDSASignatureHandle(bool takeOwnership)
             : base(takeOwnership)
         { }
@@ -41,17 +55,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
         internal SafeECDSASignatureHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-
-		#region Overrides
-		/// <summary>
-		/// Calls ECDSA_SIG_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
-		{
-			CryptoWrapper.ECDSA_SIG_free(this.handle);
-            return true;
-		}
-        #endregion
     }
 }
 

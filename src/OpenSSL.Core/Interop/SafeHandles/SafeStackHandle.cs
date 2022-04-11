@@ -28,6 +28,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Linq.Expressions;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles
 {
@@ -40,7 +41,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
 	internal interface IStack
 	{ }
 
-    //TODO: item disposal???
 	/// <summary>
 	/// Encapsulates the sk_* functions
 	/// </summary>
@@ -51,6 +51,8 @@ namespace OpenSSL.Core.Interop.SafeHandles
         internal static SafeStackHandle<T> Zero
             => new SafeStackHandleWrapperSafeHandle<T>(IntPtr.Zero);
 
+        internal override OPENSSL_sk_freefunc FreeFunc => this._freeFunc;
+
         public T this[int index]
         {
             get => StackWrapper.OPENSSL_sk_value(this, index);
@@ -59,13 +61,34 @@ namespace OpenSSL.Core.Interop.SafeHandles
         public int Count => StackWrapper.OPENSSL_sk_num(this);
         public virtual bool IsReadOnly => false; //TODO: there are read-only collections
 
+        private readonly OPENSSL_sk_freefunc _freeFunc;
+        //ensures fucntion stays pinned
+        private static OPENSSL_sk_freefunc _ItemFreeFunc;
+
+        static SafeStackHandle()
+        {
+            Type itemType = typeof(T);
+
+            //get the OPENSSL_sk_freefunc from the Zero instance
+            //this instance property should reference a static method
+            PropertyInfo zero = itemType.GetProperty(nameof(SafeBioHandle.Zero), BindingFlags.Static | BindingFlags.Public);
+            PropertyInfo func = itemType.GetProperty(nameof(SafeBioHandle.FreeFunc), BindingFlags.Instance | BindingFlags.NonPublic);
+
+            object zeroSafeHandle = zero.GetValue(null);
+            _ItemFreeFunc = (OPENSSL_sk_freefunc)func.GetValue(zeroSafeHandle);
+        }
+
         internal SafeStackHandle(bool takeOwnership)
             :base(takeOwnership)
-        { }
+        {
+            this._freeFunc = new OPENSSL_sk_freefunc(this.Free);
+        }
 
         internal SafeStackHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
-        { }
+        {
+            this._freeFunc = new OPENSSL_sk_freefunc(this.Free);
+        }
 
         public void Add(T item)
         {
@@ -110,10 +133,22 @@ namespace OpenSSL.Core.Interop.SafeHandles
                 throw new ArgumentOutOfRangeException($"Element {index} not found");
         }
 
-        protected override bool ReleaseHandle()
+        internal void Free(IntPtr ptr)
         {
-            StackWrapper.OPENSSL_sk_free(this.handle);
-            return true;
+            if(this.TakeOwnership)
+            {
+                //do not throw an exception
+                if (ptr != this.handle)
+                {
+                    return;
+                }
+
+                StackWrapper.OPENSSL_sk_pop_free(this, _ItemFreeFunc);
+            }
+            else
+            {
+                StackWrapper.OPENSSL_sk_free(ptr);
+            }
         }
 
         public IEnumerator<T> GetEnumerator()

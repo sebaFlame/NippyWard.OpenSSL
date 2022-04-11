@@ -23,7 +23,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.Core.Interop;
+using OpenSSL.Core.Interop.Wrappers;
 using System;
 
 namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
@@ -31,19 +31,23 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
     /// <summary>
     ///
     /// </summary>
-    internal class SafeECMethodHandle : SafeZeroHandle
+    internal abstract class SafeECMethodHandle : SafeBaseHandle
     {
-        private SafeECMethodHandle()
+        public static SafeECMethodHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeECMethodHandle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Not implemented, these objects should never be disposed
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => Native._FreeShimFunc;
+
+        //always is read-only
+        internal SafeECMethodHandle(bool takeOwnership)
             : base(false) { }
 
-        #region Overrides
-        /// <summary>
-        ///
-        /// </summary>
-        protected override bool ReleaseHandle()
-        {
-            return true;
-        }
-        #endregion
+        //always is read-only
+        internal SafeECMethodHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, false)
+        { }
     }
 }

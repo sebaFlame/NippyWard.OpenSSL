@@ -26,6 +26,7 @@
 using OpenSSL.Core.Interop;
 using System;
 using System.Runtime.InteropServices;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles.X509
 {
@@ -34,6 +35,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// </summary>
 	internal abstract class SafeX509StoreHandle : BaseReference
 	{
+        public static SafeX509StoreHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeX509StoreHandle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Calls X509_STORE_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeX509StoreHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.X509_STORE_free);
+        }
+
         internal SafeX509StoreHandle(bool takeOwnership)
             : base(takeOwnership)
         { }
@@ -43,15 +59,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
         { }
 
         #region Overrides
-
-        /// <summary>
-        /// Calls X509_STORE_free()
-        /// </summary>
-        protected override bool ReleaseHandle()
-		{
-            CryptoWrapper.X509_STORE_free(this.handle);
-            return true;
-		}
 
         internal override void AddReference()
         {

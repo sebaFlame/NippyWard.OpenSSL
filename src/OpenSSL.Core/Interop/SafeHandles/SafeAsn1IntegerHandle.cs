@@ -25,11 +25,24 @@
 
 using System;
 using System.Runtime.InteropServices;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles
 {
 	internal abstract class SafeAsn1IntegerHandle : SafeAsn1StringHandle
     {
+        public static SafeAsn1IntegerHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeAsn1IntegerHandle>(IntPtr.Zero);
+
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeAsn1IntegerHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.ASN1_INTEGER_free);
+        }
+
         internal SafeAsn1IntegerHandle(bool takeOwnership)
             : base(takeOwnership)
         { }
@@ -37,12 +50,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
         internal SafeAsn1IntegerHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-
-        protected override bool ReleaseHandle()
-		{
-			CryptoWrapper.ASN1_INTEGER_free(this.handle);
-            return true;
-		}
 
 		public int Value
 		{

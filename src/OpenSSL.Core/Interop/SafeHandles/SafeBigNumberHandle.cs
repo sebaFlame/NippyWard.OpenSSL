@@ -25,6 +25,7 @@
 
 using System;
 using System.Text;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles
 {
@@ -33,11 +34,26 @@ namespace OpenSSL.Core.Interop.SafeHandles
 	/// </summary>
 	internal abstract class SafeBigNumberHandle : BaseValue, IComparable<SafeBigNumberHandle>, IEquatable<SafeBigNumberHandle>
 	{
-		#region Predefined Values
-		/// <summary>
-		/// Creates a BigNumber object by calling BN_value_one()
-		/// </summary>
-		public static SafeBigNumberHandle One = Native.CryptoWrapper.BN_value_one();
+        public static SafeBigNumberHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeBigNumberHandle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Calls BN_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeBigNumberHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.BN_free);
+        }
+
+        #region Predefined Values
+        /// <summary>
+        /// Creates a BigNumber object by calling BN_value_one()
+        /// </summary>
+        public static SafeBigNumberHandle One = Native.CryptoWrapper.BN_value_one();
 
         #endregion
 
@@ -49,18 +65,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
         internal SafeBigNumberHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-        #endregion
-
-        #region IDisposable Members
-
-        /// <summary>
-        /// Calls BN_free()
-        /// </summary>
-        protected override bool ReleaseHandle()
-		{
-			CryptoWrapper.BN_free(this.handle);
-            return true;
-		}
         #endregion
 
         #region IComparable<BigNumber> Members

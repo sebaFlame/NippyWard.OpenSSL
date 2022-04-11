@@ -187,9 +187,7 @@ namespace OpenSSL.Core.Generator
             }
 
             //make sure it's abstract and a descendant of BaseReference or BaseValue
-            if (namedTypeSymbol.IsAbstract
-                && (IsReferenceSafeHandle(namedTypeSymbol)
-                    || IsValueSafeHandle(namedTypeSymbol)))
+            if (namedTypeSymbol.IsAbstract)
             {
                 return true;
             }
@@ -363,17 +361,10 @@ namespace OpenSSL.Core.Generator
                 return null;
             }
 
-            //make sure it's abstract and a descendant of BaseReference or BaseValue
-            if (IsReferenceSafeHandle(namedTypeSymbol)
-                || IsValueSafeHandle(namedTypeSymbol))
-            {
-                ClassDeclarationSyntax @class = ((ClassDeclarationSyntax)syntaxNode);
-                string name = @class.Identifier.WithoutTrivia().ValueText;
+            ClassDeclarationSyntax @class = ((ClassDeclarationSyntax)syntaxNode);
+            string name = @class.Identifier.WithoutTrivia().ValueText;
 
-                return new SafeHandleModel(name, namedTypeSymbol.IsAbstract);
-            }
-
-            return null;
+            return new SafeHandleModel(name, namedTypeSymbol.IsAbstract);
         }
 
         private static InterfaceDeclarationSyntax TransformFactoryInterface
@@ -535,38 +526,6 @@ namespace OpenSSL.Core.Generator
             }
 
             return FindParentNamespace(node.Parent);
-        }
-
-        private static bool IsReferenceSafeHandle(INamedTypeSymbol namedTypedSymbol)
-        {
-            if (namedTypedSymbol is null)
-            {
-                return false;
-            }
-
-            if (string.Equals(namedTypedSymbol.Name, _SafeHandleReferenceName)
-                && string.Equals(namedTypedSymbol.ContainingNamespace.ToString(), _SafeHandelBaseNamespaceName))
-            {
-                return true;
-            }
-
-            return IsReferenceSafeHandle(namedTypedSymbol.BaseType);
-        }
-
-        private static bool IsValueSafeHandle(INamedTypeSymbol namedTypedSymbol)
-        {
-            if (namedTypedSymbol is null)
-            {
-                return false;
-            }
-
-            if (string.Equals(namedTypedSymbol.Name, _SafeHandleValueName)
-                && string.Equals(namedTypedSymbol.ContainingNamespace.ToString(), _SafeHandelBaseNamespaceName))
-            {
-                return true;
-            }
-
-            return IsValueSafeHandle(namedTypedSymbol.BaseType);
         }
 
         private static bool IsStackHandle(INamedTypeSymbol namedTypedSymbol)

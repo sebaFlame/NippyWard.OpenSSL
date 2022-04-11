@@ -37,6 +37,8 @@ namespace OpenSSL.Core.Interop.SafeHandles
         internal readonly static IStackWrapper StackWrapper;
         internal readonly static ISafeHandleFactory SafeHandleFactory;
 
+        internal abstract OPENSSL_sk_freefunc FreeFunc { get; }
+
         static SafeBaseHandle()
         {
             CryptoWrapper = Native.CryptoWrapper;
@@ -57,6 +59,21 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : this(takeOwnership)
         {
             this.SetHandle(ptr);
+        }
+
+        protected override bool ReleaseHandle()
+        {
+            try
+            {
+                this.FreeFunc(this.handle);
+                return true;
+            }
+            //catch exception so native does not crash
+            //TODO: log exception
+            catch(Exception)
+            {
+                return false;
+            }
         }
     }
 

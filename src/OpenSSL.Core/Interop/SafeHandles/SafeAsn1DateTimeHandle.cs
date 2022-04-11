@@ -27,11 +27,24 @@ using System;
 using System.Globalization;
 using System.Text;
 using System.Runtime.InteropServices;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles
 {
 	internal abstract class SafeAsn1DateTimeHandle : SafeAsn1StringHandle
     {
+        public static SafeAsn1DateTimeHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeAsn1DateTimeHandle>(IntPtr.Zero);
+
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeAsn1DateTimeHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.ASN1_TIME_free);
+        }
+
         internal SafeAsn1DateTimeHandle(bool takeOwnership)
             : base(takeOwnership)
         { }
@@ -85,12 +98,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
             };
 
             return DateTime.ParseExact(str, fmts, new DateTimeFormatInfo(), DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
-        }
-
-        protected override bool ReleaseHandle()
-        {
-            CryptoWrapper.ASN1_TIME_free(this.handle);
-            return true;
         }
     }
 }

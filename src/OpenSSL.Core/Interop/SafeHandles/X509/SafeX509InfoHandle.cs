@@ -2,11 +2,25 @@
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles.X509
 {
     internal abstract class SafeX509InfoHandle : BaseValue, IStackable
     {
+        public static SafeX509InfoHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeX509InfoHandle>(IntPtr.Zero);
+
+        //frees certificate!
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeX509InfoHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.X509_INFO_free);
+        }
+
         public SafeX509CertificateHandle X509Certificate
         {
             get
@@ -23,13 +37,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
         internal SafeX509InfoHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-
-        protected override bool ReleaseHandle()
-        {
-            //frees certificate!
-            CryptoWrapper.X509_INFO_free(this.handle);
-            return true;
-        }
     }
 
     [StructLayout(LayoutKind.Sequential)]

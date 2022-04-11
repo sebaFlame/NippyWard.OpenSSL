@@ -25,6 +25,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles
 {
@@ -33,6 +34,18 @@ namespace OpenSSL.Core.Interop.SafeHandles
 	/// </summary>
 	internal abstract class SafeAsn1ObjectHandle : BaseValue, IEquatable<SafeAsn1ObjectHandle>
 	{
+        public static SafeAsn1ObjectHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeAsn1ObjectHandle>(IntPtr.Zero);
+
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeAsn1ObjectHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.ASN1_OBJECT_free);
+        }
+
         [StructLayout(LayoutKind.Sequential)]
         private struct asn1_object_st
         {
@@ -57,12 +70,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
         public bool Equals(SafeAsn1ObjectHandle other)
         {
             return CryptoWrapper.OBJ_cmp(this, other) == 0;
-        }
-
-        protected override bool ReleaseHandle()
-        {
-            CryptoWrapper.ASN1_OBJECT_free(this.handle);
-            return true;
         }
     }
 }

@@ -25,6 +25,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles.X509
 {
@@ -33,6 +34,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// </summary>
 	internal abstract class SafeX509RequestHandle : BaseValue
 	{
+        public static SafeX509RequestHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeX509RequestHandle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Calls X509_REQ_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeX509RequestHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.X509_REQ_free);
+        }
+
         internal SafeX509RequestHandle(bool takeOwnership)
             : base(takeOwnership)
         { }
@@ -40,18 +56,5 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
         internal SafeX509RequestHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-
-        #region Overrides Members
-
-        /// <summary>
-        /// Calls X509_REQ_free()
-        /// </summary>
-        protected override bool ReleaseHandle()
-		{
-			CryptoWrapper.X509_REQ_free(this.handle);
-            return true;
-		}
-
-        #endregion
     }
 }

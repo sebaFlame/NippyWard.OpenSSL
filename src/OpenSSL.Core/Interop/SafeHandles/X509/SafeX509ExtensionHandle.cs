@@ -23,7 +23,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.Core.Interop;
+using OpenSSL.Core.Interop.Wrappers;
 using System;
 using System.Collections.Generic;
 
@@ -34,6 +34,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// </summary>
 	internal abstract class SafeX509ExtensionHandle : BaseValue, IStackable
 	{
+        public static SafeX509ExtensionHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeX509ExtensionHandle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Calls X509_EXTENSION_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeX509ExtensionHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.X509_EXTENSION_free);
+        }
+
         internal SafeX509ExtensionHandle(bool takeOwnership)
             : base(takeOwnership)
         { }
@@ -41,18 +56,5 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
         internal SafeX509ExtensionHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-
-        #region Overrides
-
-        /// <summary>
-        /// Calls X509_EXTENSION_free()
-        /// </summary>
-        protected override bool ReleaseHandle()
-		{
-			CryptoWrapper.X509_EXTENSION_free(this.handle);
-            return true;
-		}
-
-		#endregion
 	}
 }

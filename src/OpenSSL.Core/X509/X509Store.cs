@@ -82,14 +82,18 @@ namespace OpenSSL.Core.X509
             : this()
         {
             foreach (X509Certificate cert in caList)
+            {
                 CryptoWrapper.X509_STORE_add_cert(this.StoreWrapper.Handle, cert.X509Wrapper.Handle);
+            }
         }
 
         internal X509Store(SafeStackHandle<SafeX509CertificateHandle> stackHandle)
             : this()
         {
             foreach (SafeX509CertificateHandle cert in stackHandle)
+            {
                 CryptoWrapper.X509_STORE_add_cert(this.StoreWrapper.Handle, cert);
+            }
         }
 
         private static ReadOnlySpan<byte> GetCorrectPath(string fullName)
@@ -113,6 +117,7 @@ namespace OpenSSL.Core.X509
             {
                 if (!((certificate = CryptoWrapper.X509_OBJECT_get0_X509(obj)) is null))
                 {
+                    certificate.AddReference();
                     safeCertHandle.Add(certificate);
                 }
             }

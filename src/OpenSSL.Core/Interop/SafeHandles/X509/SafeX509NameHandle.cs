@@ -24,6 +24,7 @@
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles.X509
 {
@@ -32,6 +33,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// </summary>
 	internal abstract class SafeX509NameHandle : BaseValue, IComparable<SafeX509NameHandle>, IStackable, IEquatable<SafeX509NameHandle>
 	{
+        public static SafeX509NameHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeX509NameHandle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Calls X509_NAME_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeX509NameHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.X509_NAME_free);
+        }
+
         internal SafeX509NameHandle(bool takeOwnership)
             : base(takeOwnership)
         { }
@@ -39,19 +55,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
         internal SafeX509NameHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-
-        #region Overrides
-
-        /// <summary>
-        /// Calls X509_NAME_free()
-        /// </summary>
-        protected override bool ReleaseHandle()
-		{
-			CryptoWrapper.X509_NAME_free(this.handle);
-            return true;
-		}
-
-		#endregion
 
 		#region IComparable<X509Name> Members
 

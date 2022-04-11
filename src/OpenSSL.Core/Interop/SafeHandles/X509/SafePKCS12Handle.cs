@@ -25,6 +25,7 @@
 
 using System;
 using OpenSSL.Core.Interop.SafeHandles.Crypto;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles.X509
 {
@@ -33,6 +34,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// </summary>
 	internal abstract class SafePKCS12Handle : BaseValue
 	{
+        public static SafePKCS12Handle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafePKCS12Handle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Calls PKCS12_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafePKCS12Handle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.PKCS12_free);
+        }
+
         internal SafePKCS12Handle(bool takeOwnership)
             : base(takeOwnership)
         { }
@@ -40,19 +56,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
         internal SafePKCS12Handle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-
-        #region Overrides
-
-        /// <summary>
-        /// Calls PKCS12_free()
-        /// </summary>
-        protected override bool ReleaseHandle()
-		{
-			CryptoWrapper.PKCS12_free(this.handle);
-            return true;
-		}
-
-        #endregion
 
         /// <summary>
         /// Password-Based Encryption (from PKCS #5)

@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using System.Text;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 {
@@ -10,6 +8,18 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
     /// </summary>
     internal abstract class SafeCipherContextHandle : BaseValue
     {
+        public static SafeCipherContextHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeCipherContextHandle>(IntPtr.Zero);
+
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeCipherContextHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.EVP_CIPHER_CTX_free);
+        }
+
         /// <summary>
         /// Calls OPENSSL_malloc() and initializes the buffer using EVP_CIPHER_CTX_init()
         /// </summary>
@@ -21,14 +31,5 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
         internal SafeCipherContextHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-
-        #region IDisposable Members
-
-        protected override bool ReleaseHandle()
-        {
-            CryptoWrapper.EVP_CIPHER_CTX_free(this.handle);
-            return true;
-        }
-        #endregion
     }
 }

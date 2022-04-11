@@ -1,4 +1,5 @@
 ﻿using System;
+using OpenSSL.Core.Interop.Wrappers;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,8 +7,17 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 {
     internal abstract class SafeEngineHandle : BaseReference
     {
-        internal static SafeEngineHandle Zero
+        public static SafeEngineHandle Zero
             => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeEngineHandle>(IntPtr.Zero);
+
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeEngineHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.ENGINE_free);
+        }
 
         internal SafeEngineHandle(bool takeOwnership)
             : base(takeOwnership)
@@ -16,12 +26,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
         internal SafeEngineHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-
-        protected override bool ReleaseHandle()
-        {
-            CryptoWrapper.ENGINE_free(this.handle);
-            return true;
-        }
 
         internal override void AddReference()
         {

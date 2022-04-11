@@ -23,7 +23,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.Core.Interop;
+using OpenSSL.Core.Interop.Wrappers;
 using System;
 
 namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
@@ -33,6 +33,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
 	/// </summary>
 	internal abstract class SafeECGroupHandle : BaseValue
 	{
+        public static SafeECGroupHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeECGroupHandle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Calls EC_GROUP_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeECGroupHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.EC_GROUP_free);
+        }
+
         internal SafeECGroupHandle(bool takeOwnership)
             : base(takeOwnership)
         { }
@@ -40,16 +55,5 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
         internal SafeECGroupHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-
-		#region Overrides
-		/// <summary>
-		/// Calls EC_GROUP_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
-		{
-			CryptoWrapper.EC_GROUP_free(this.handle);
-            return true;
-		}
-        #endregion
     }
 }

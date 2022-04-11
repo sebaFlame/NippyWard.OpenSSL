@@ -25,7 +25,7 @@
 
 using OpenSSL.Core.Interop;
 using System;
-using System.Runtime.InteropServices;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles.X509
 {
@@ -34,6 +34,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// </summary>
 	internal abstract class SafePKCS7Handle : BaseValue
 	{
+        public static SafePKCS7Handle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafePKCS7Handle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Calls PKCS7_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafePKCS7Handle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.PKCS7_free);
+        }
+
         internal SafePKCS7Handle(bool takeOwnership)
             : base(takeOwnership)
         { }
@@ -41,18 +56,5 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
         internal SafePKCS7Handle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-
-        #region Overrides
-
-        /// <summary>
-        /// Calls PKCS7_free()
-        /// </summary>
-        protected override bool ReleaseHandle()
-		{
-			CryptoWrapper.PKCS7_free(this.handle);
-            return true;
-		}
-
-        #endregion
 	}
 }

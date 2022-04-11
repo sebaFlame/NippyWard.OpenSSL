@@ -1,11 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles
 {
     internal abstract class SafeASN1BitStringHandle : SafeAsn1StringHandle
     {
+        public static SafeASN1BitStringHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeASN1BitStringHandle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Calls ASN1_STRING_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeASN1BitStringHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.ASN1_BIT_STRING_free);
+        }
+
         internal SafeASN1BitStringHandle(bool takeOwnership)
             : base(takeOwnership)
         { }
@@ -29,15 +45,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
             {
                 CryptoWrapper.ASN1_BIT_STRING_set(this, value.GetPinnableReference(), value.Length);
             }
-        }
-
-        /// <summary>
-        /// Calls ASN1_STRING_free()
-        /// </summary>
-        protected override bool ReleaseHandle()
-        {
-            CryptoWrapper.ASN1_BIT_STRING_free(this.handle);
-            return true;
         }
     }
 }

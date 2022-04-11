@@ -25,6 +25,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles
 {
@@ -33,6 +34,21 @@ namespace OpenSSL.Core.Interop.SafeHandles
 	/// </summary>
 	internal abstract class SafeAsn1StringHandle : BaseValue, IComparable<SafeAsn1StringHandle>
 	{
+        public static SafeAsn1StringHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeAsn1StringHandle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Calls ASN1_STRING_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeAsn1StringHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.ASN1_STRING_free);
+        }
+
         #region debug references
 #if DEBUG
         //internal struct asn1_string_st
@@ -70,18 +86,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
         internal SafeAsn1StringHandle(IntPtr ptr, bool takeOwnership)
             : base(ptr, takeOwnership)
         { }
-
-        #region Overrides
-		/// <summary>
-		/// Calls ASN1_STRING_free()
-		/// </summary>
-		protected override bool ReleaseHandle()
-		{
-			CryptoWrapper.ASN1_STRING_free(this.handle);
-            return true;
-		}
-
-		#endregion
 
 		#region IComparable<Asn1String> Members
 

@@ -1,11 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles
 {
     internal abstract class SafeBigNumberContextHandle : BaseValue
     {
+        public static SafeBigNumberContextHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeBigNumberContextHandle>(IntPtr.Zero);
+
+        /// <summary>
+        /// Calls BN_CTX_free()
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeBigNumberContextHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.BN_CTX_free);
+        }
+
         /// <summary>
         /// Calls BN_CTX_new()
         /// </summary>
@@ -39,15 +55,6 @@ namespace OpenSSL.Core.Interop.SafeHandles
         public void End()
         {
             Native.CryptoWrapper.BN_CTX_end(this);
-        }
-
-        /// <summary>
-        /// Calls BN_CTX_free()
-        /// </summary>
-        protected override bool ReleaseHandle()
-        {
-            CryptoWrapper.BN_CTX_free(this.handle);
-            return true;
         }
     }
 }

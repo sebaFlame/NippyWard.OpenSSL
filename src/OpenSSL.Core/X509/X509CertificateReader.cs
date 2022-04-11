@@ -10,51 +10,49 @@ using OpenSSL.Core.Collections;
 
 namespace OpenSSL.Core.X509
 {
-    public class X509CertificateReader : IDisposable
+    public static class X509CertificateReader
     {
-        private SafeBioHandle currentBioHandle;
-        /// <summary>
-        /// All certificates are owned by this handle
-        /// </summary>
-        public OpenSslList<X509Certificate> Certificates { get; private set; }
-
         /// <summary>
         /// Read from a stream concatenated PEM formatted CA file
         /// Like the one from https://curl.haxx.se/ca/cacert.pem
         /// </summary>
         /// <param name="stream">The stream to read the file from</param>
-        public X509CertificateReader(Stream stream)
+        public static OpenSslList<X509Certificate> ImportPEM(Stream stream)
         {
-            this.currentBioHandle = this.Initialize(stream);
-            this.Certificates = this.ProcessBio(this.currentBioHandle);
+            using (SafeBioHandle bio = Initialize(stream))
+            {
+                return ProcessBio(bio);
+            }
         }
 
         /// <summary>
         /// Read a file with certificates in PEM format
         /// </summary>
         /// <param name="file">The file to read</param>
-        public X509CertificateReader(FileInfo file)
+        public static OpenSslList<X509Certificate> ImportPEM(FileInfo file)
         {
-            this.currentBioHandle = this.Initialize(file.OpenRead());
-            this.Certificates = this.ProcessBio(this.currentBioHandle);
+            using (SafeBioHandle bio = Initialize(file.OpenRead()))
+            {
+                return ProcessBio(bio);
+            }
         }
 
-        internal X509CertificateReader(SafeBioHandle bio)
+        internal static OpenSslList<X509Certificate> ImportPEM(SafeBioHandle bio)
         {
             Native.CryptoWrapper.BIO_up_ref(bio);
-            this.Certificates = this.ProcessBio(bio);
+            return ProcessBio(bio);
         }
 
         /// <summary>
         /// Read a directory with certificates in PEM format
         /// </summary>
         /// <param name="dir"></param>
-        public X509CertificateReader(DirectoryInfo dir)
+        public static OpenSslList<X509Certificate> ImportPEM(DirectoryInfo dir)
         {
-            this.Certificates = this.ProcessDir(dir);
+            return ProcessDir(dir);
         }
 
-        private SafeBioHandle Initialize(Stream stream)
+        private static SafeBioHandle Initialize(Stream stream)
         {
             SafeBioHandle bio = Native.CryptoWrapper.BIO_new(Native.CryptoWrapper.BIO_s_mem());
 
@@ -77,34 +75,33 @@ namespace OpenSSL.Core.X509
             }
         }
 
-        private OpenSslList<X509Certificate> ProcessBio(SafeBioHandle currentBio)
+        private static OpenSslList<X509Certificate> ProcessBio(SafeBioHandle currentBio)
         {
-            SafeStackHandle<SafeX509CertificateHandle> certificates;
+            SafeStackHandle<SafeX509CertificateHandle> certificates = Native.StackWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
+
+            //read the (INFO) stack from the bio
             using (SafeStackHandle<SafeX509InfoHandle> currentInfoStack = Native.CryptoWrapper.PEM_X509_INFO_read_bio(currentBio, IntPtr.Zero, null, IntPtr.Zero))
             {
-                certificates = Native.StackWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
+                //create own stack to hold certificates
                 SafeX509CertificateHandle certificate;
 
-                //SafeX509InfoHandle gets disposed immediately after enumeration / and the certificate with it!
                 foreach (SafeX509InfoHandle info in currentInfoStack)
                 {
-                    //frees the (owned) SafeX509InfoHandle and (!) the certificate
-                    //prevents finalizer from being (randomly) called
-                    using (info)
+                    //does not own the handle, this is just used to add to the (native) stack
+                    certificate = info.X509Certificate;
+
+                    if (certificate is null
+                        || certificate.IsInvalid
+                        || certificate.IsClosed)
                     {
-                        certificate = info.X509Certificate;
-
-                        if (certificate is null
-                            || certificate.IsInvalid)
-                        {
-                            continue;
-                        }
-
-                        //add a reference for the target list
-                        certificate.AddReference();
-
-                        certificates.Add(certificate);
+                        continue;
                     }
+
+                    //add a reference for the target item, so the stack "owns" it
+                    certificate.AddReference();
+
+                    //add the item to the (native) stack
+                    certificates.Add(certificate);
                 }
             }
 
@@ -112,23 +109,27 @@ namespace OpenSSL.Core.X509
         }
 
         //TODO: add exception handling
-        private OpenSslList<X509Certificate> ProcessDir(DirectoryInfo dir)
+        private static OpenSslList<X509Certificate> ProcessDir(DirectoryInfo dir)
         {
             SafeStackHandle<SafeX509CertificateHandle> certificates = Native.StackWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
-            this.GetCertificates(dir, certificates);
+            GetCertificates(dir, certificates);
             return OpenSslList<X509Certificate>.CreateFromSafeHandle(certificates);
         }
 
-        private void GetCertificates(DirectoryInfo dir, SafeStackHandle<SafeX509CertificateHandle> certificates)
+        private static void GetCertificates(DirectoryInfo dir, SafeStackHandle<SafeX509CertificateHandle> certificates)
         {
             foreach (FileInfo file in dir.GetFiles())
-                certificates.Add(readCertificate(file));
+            {
+                certificates.Add(ReadCertificate(file));
+            }
 
             foreach (DirectoryInfo d in dir.GetDirectories())
-                this.GetCertificates(d, certificates);
+            {
+                GetCertificates(d, certificates);
+            }
         }
 
-        private SafeX509CertificateHandle readCertificate(FileInfo file)
+        private static SafeX509CertificateHandle ReadCertificate(FileInfo file)
         {
             int read = 0;
             byte[] buf = ArrayPool<byte>.Shared.Rent(4096);
@@ -152,24 +153,6 @@ namespace OpenSSL.Core.X509
             finally
             {
                 ArrayPool<byte>.Shared.Return(buf);
-            }
-        }
-
-        public void Dispose()
-        {
-            if (!(this.currentBioHandle is null) && !this.currentBioHandle.IsInvalid)
-                this.currentBioHandle.Dispose();
-
-            if (this.Certificates is null)
-                return;
-
-            //TODO: move this to the list instance
-            if (this.Certificates.InternalEnumerable is SafeHandleWrapper<SafeStackHandle<SafeX509CertificateHandle>> handleWrapper)
-            {
-                SafeStackHandle<SafeX509CertificateHandle> stack = handleWrapper.Handle;
-                Native.StackWrapper.OPENSSL_sk_pop_free(stack, Native.CryptoWrapper.X509_free);
-                stack.SetHandleAsInvalid();
-                this.Certificates = null;
             }
         }
     }

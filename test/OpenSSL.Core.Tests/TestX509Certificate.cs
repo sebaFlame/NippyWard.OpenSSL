@@ -318,6 +318,7 @@ namespace OpenSSL.Core.Tests
                             using (X509Certificate cert = ca.ProcessRequest(req, start, end))
                             {
                                 //TODO: add custom extensions before sign
+
                                 //sign new certificate with CA
                                 ca.Sign(cert, DigestType.SHA256);
 
@@ -444,19 +445,18 @@ namespace OpenSSL.Core.Tests
             }
         }
 
-        [Fact(Skip = "Crashes test process when tests run in parallel")]
+        [Fact]
         public void CanInitializeCAStoreFromList()
         {
             FileInfo caFile = new FileInfo("certs/cacert-20190414.pem");
             Assert.True(caFile.Exists);
 
-            using (X509CertificateReader reader = new X509CertificateReader(caFile))
+            using (OpenSslList<X509Certificate> certificates = X509CertificateReader.ImportPEM(caFile))
             {
-                Assert.NotNull(reader.Certificates);
-                Assert.NotEmpty(reader.Certificates);
+                Assert.NotNull(certificates);
+                Assert.NotEmpty(certificates);
 
-                //issue is here v
-                using (X509Store caStore = new X509Store(reader.Certificates))
+                using (X509Store caStore = new X509Store(certificates))
                 {
                     using (OpenSslReadOnlyCollection<X509Certificate> caCerts = caStore.GetCertificates())
                     {

@@ -23,7 +23,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.Core.Interop;
+using OpenSSL.Core.Interop.Wrappers;
 using System;
 using System.Runtime.InteropServices;
 
@@ -34,6 +34,18 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 	/// </summary>
 	internal abstract class SafeKeyHandle : BaseReference, IEquatable<SafeKeyHandle>
 	{
+        public static SafeKeyHandle Zero
+            => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeKeyHandle>(IntPtr.Zero);
+
+        internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
+
+        private static OPENSSL_sk_freefunc _FreeFunc;
+
+        static SafeKeyHandle()
+        {
+            _FreeFunc = new OPENSSL_sk_freefunc(CryptoWrapper.EVP_PKEY_free);
+        }
+
         #region reference count debug
 #if DEBUG
         [StructLayout(LayoutKind.Sequential)]
@@ -72,15 +84,6 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
         {
             return CryptoWrapper.EVP_PKEY_cmp(this, other) == 0;
         }
-
-        protected override bool ReleaseHandle()
-		{
-#if DEBUG
-            int refs = this.References;
-#endif
-            CryptoWrapper.EVP_PKEY_free(this.handle);
-            return true;
-		}
 
         internal override void AddReference()
         {

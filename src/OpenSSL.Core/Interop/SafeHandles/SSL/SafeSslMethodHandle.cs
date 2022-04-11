@@ -23,7 +23,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using OpenSSL.Core.Interop;
+using OpenSSL.Core.Interop.Wrappers;
 using System;
 using System.Runtime.InteropServices;
 
@@ -32,15 +32,21 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
 	/// <summary>
 	/// Wraps the SSL_METHOD structure and methods
 	/// </summary>
-	internal class SafeSslMethodHandle : SafeZeroHandle
-	{
-        private SafeSslMethodHandle()
+	internal abstract class SafeSslMethodHandle : SafeBaseHandle
+    {
+        /// <summary>
+        /// Not implemented, these objects should never be disposed
+        /// </summary>
+        internal override OPENSSL_sk_freefunc FreeFunc => Native._FreeShimFunc;
+
+        //always is read-only
+        internal SafeSslMethodHandle(bool takeOwnership)
             : base(false) { }
 
-        protected override bool ReleaseHandle()
-        {
-            throw new NotSupportedException();
-        }
+        //always is read-only
+        internal SafeSslMethodHandle(IntPtr ptr, bool takeOwnership)
+            : base(ptr, false)
+        { }
 
         /// <summary>
         /// Default client method

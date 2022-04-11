@@ -278,7 +278,7 @@ namespace OpenSSL.Core.X509
             X509ExtensionType type, 
             string internalValue)
         {
-            using (SafeX509ExtensionContextHandle ctx = new SafeX509ExtensionContextHandle())
+            using (SafeX509ExtensionContextHandle ctx = SafeX509ExtensionContextHandle.CreateInstance())
             {
                 CryptoWrapper.X509V3_set_ctx(
                     ctx,
