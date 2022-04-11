@@ -81,6 +81,73 @@ namespace OpenSSL.Core.Tests
             this._sslTestContext.Dispose();
         }
 
+        private static void PendingWriteReadCycle
+        (
+            Ssl writeClient,
+            byte[] writeClientBuffer,
+            ref SslState writeClientState,
+            Ssl readClient,
+            byte[] readClientBuffer,
+            ref SslState readClientState
+        )
+        {
+            int writeClientWritten, readClientRead, readClientIndex, length;
+            ReadOnlySpan<byte> readBuffer;
+
+            while (writeClientState == SslState.WANTWRITE)
+            {
+                //get the client buffer
+                writeClientState = writeClient.WritePending(writeClientBuffer, out writeClientWritten);
+
+                //reset indexing
+                readClientIndex = 0;
+                readClientRead = 0;
+
+                //and write it to the server
+                do
+                {
+                    if (readClientRead > 0)
+                    {
+                        Assert.Equal(SslState.WANTREAD, readClientState);
+                    }
+
+                    length = writeClientWritten - readClientIndex;
+
+                    if(length > readClientBuffer.Length)
+                    {
+                        length = readClientBuffer.Length;
+                    }
+
+                    Array.Copy
+                    (
+                        writeClientBuffer,
+                        readClientIndex,
+                        readClientBuffer,
+                        0,
+                        length
+                    );
+
+                    readBuffer = new ReadOnlySpan<byte>
+                    (
+                        readClientBuffer,
+                        0,
+                        length
+                    );
+
+                    readClientState = readClient.ReadPending
+                    (
+                        readBuffer,
+                        out readClientRead
+                    );
+
+                    readClientIndex += readClientRead;
+                } while (readClientIndex < writeClientWritten);
+
+                //verify write was complete
+                Assert.Equal(writeClientWritten, readClientIndex);
+            }
+        }
+
         private static void DoSynchronousHandshake
         (
             Ssl serverContext,
@@ -92,56 +159,38 @@ namespace OpenSSL.Core.Tests
         )
         {
             SslState clientState, serverState;
-            int clientRead, serverRead, clientWritten, serverWritten;
 
-            Assert.False(serverContext.DoHandshake(out serverState));
-            Assert.NotEqual(SslState.NONE, serverState);
-
-            Assert.False(clientContext.DoHandshake(out clientState));
-            Assert.NotEqual(SslState.NONE, clientState);
-
-            do
+            while(!serverContext.DoHandshake(out serverState)
+                | !clientContext.DoHandshake(out clientState))
             {
                 if (clientState == SslState.WANTWRITE)
                 {
-                    //get the client buffer
-                    clientState = clientContext.WritePending(clientWriteBuffer, out clientWritten);
-
-                    //and write it to the server
-                    Array.Copy(clientWriteBuffer, 0, serverReadBuffer, 0, clientWritten);
-                    serverState = serverContext.ReadPending
+                    PendingWriteReadCycle
                     (
-                        new ReadOnlySpan<byte>(serverReadBuffer, 0, clientWritten),
-                        out serverRead
+                        clientContext,
+                        clientWriteBuffer,
+                        ref clientState,
+                        serverContext,
+                        serverReadBuffer,
+                        ref serverState
                     );
-
-                    //verify write was complete
-                    Assert.Equal(clientWritten, serverRead);
                 }
 
                 if (serverState == SslState.WANTWRITE)
                 {
-                    //get the server buffer
-                    serverState = serverContext.WritePending(serverWriteBuffer, out serverWritten);
-
-                    //and write it to the client
-                    Array.Copy(serverWriteBuffer, 0, clientReadBuffer, 0, serverWritten);
-                    clientState = clientContext.ReadPending
+                    PendingWriteReadCycle
                     (
-                        new ReadOnlySpan<byte>(clientReadBuffer, 0, serverWritten),
-                        out clientRead
+                        serverContext,
+                        serverWriteBuffer,
+                        ref serverState,
+                        clientContext,
+                        clientReadBuffer,
+                        ref clientState
                     );
-
-                    //verify write was complete
-                    Assert.Equal(serverWritten, clientRead);
                 }
-            } while (clientState == SslState.WANTWRITE
-                || serverState == SslState.WANTWRITE);
+            }
 
-            Assert.True(serverContext.DoHandshake(out serverState));
             Assert.Equal(SslState.NONE, serverState);
-
-            Assert.True(clientContext.DoHandshake(out clientState));
             Assert.Equal(SslState.NONE, clientState);
         }
 
@@ -155,59 +204,137 @@ namespace OpenSSL.Core.Tests
             byte[] clientReadBuffer
         )
         {
-            SslState clientState, serverState;
-            int clientRead, serverRead, clientWritten, serverWritten;
+            SslState clientState = SslState.NONE, serverState = SslState.NONE;
 
-            Assert.False(serverContext.DoShutdown(out serverState));
-            Assert.NotEqual(SslState.NONE, serverState);
-
-            Assert.False(clientContext.DoShutdown(out clientState));
-            Assert.NotEqual(SslState.NONE, clientState);
+            //usually initiated from 1 side
+            clientContext.DoShutdown(out clientState);
 
             //make sure you ALWAYS read both
             do
             {
                 if (clientState == SslState.WANTWRITE)
                 {
-                    //get the client buffer
-                    clientState = clientContext.WritePending(clientWriteBuffer, out clientWritten);
-
-                    //and write it to the server
-                    Array.Copy(clientWriteBuffer, 0, serverReadBuffer, 0, clientWritten);
-                    serverContext.ReadPending
+                    PendingWriteReadCycle
                     (
-                        new ReadOnlySpan<byte>(serverReadBuffer, 0, clientWritten),
-                        out serverRead
+                        clientContext,
+                        clientWriteBuffer,
+                        ref clientState,
+                        serverContext,
+                        serverReadBuffer,
+                        ref serverState
                     );
+                }
 
-                    //verify write was complete
-                    Assert.Equal(clientWritten, serverRead);
+                if(serverState == SslState.SHUTDOWN)
+                {
+                    serverContext.DoShutdown(out serverState);
                 }
 
                 if (serverState == SslState.WANTWRITE)
                 {
-                    //get the server buffer
-                    serverState = serverContext.WritePending(serverWriteBuffer, out serverWritten);
-
-                    //and write it to the client
-                    Array.Copy(serverWriteBuffer, 0, clientReadBuffer, 0, serverWritten);
-                    clientContext.ReadPending
+                    PendingWriteReadCycle
                     (
-                        new ReadOnlySpan<byte>(clientReadBuffer, 0, serverWritten),
-                        out clientRead
+                        serverContext,
+                        serverWriteBuffer,
+                        ref serverState,
+                        clientContext,
+                        clientReadBuffer,
+                        ref clientState
+                    );
+                }
+            } while (!serverContext.DoShutdown(out serverState)
+                | !clientContext.DoShutdown(out clientState));
+
+            Assert.Equal(SslState.NONE, serverState);
+            Assert.Equal(SslState.NONE, clientState);
+        }
+
+        private static void WriteReadCycle
+        (
+            Ssl writeClient,
+            byte[] writeClientWriteBuffer,
+            byte[] writeClientReadBuffer,
+            ref SslState writeClientState,
+            Ssl readClient,
+            byte[] readClientWriteBuffer,
+            byte[] readClientReadBuffer,
+            ref SslState readClientState
+        )
+        {
+            int writeClientWritten, writeClientRead, readClientRead,
+                readClientWritten, readClientIndex, length;
+            ReadOnlySpan<byte> readBuffer;
+
+            while (writeClientState == SslState.WANTWRITE)
+            {
+                //no actual data to write
+                readBuffer = ReadOnlySpan<byte>.Empty;
+
+                //get the client buffer
+                writeClientState = writeClient.WriteSsl
+                (
+                    readBuffer,
+                    writeClientWriteBuffer,
+                    out writeClientRead,
+                    out writeClientWritten
+                );
+
+                //check if nothing got encrypted
+                Assert.Equal(0, writeClientRead);
+
+                //reset indexing
+                readClientIndex = 0;
+                readClientRead = 0;
+                readClientWritten = 0;
+
+                //and write it to the server
+                do
+                {
+                    if (readClientRead > 0)
+                    {
+                        Assert.Equal(SslState.WANTREAD, readClientState);
+                    }
+
+                    length = writeClientWritten - readClientIndex;
+
+                    if (length > readClientReadBuffer.Length)
+                    {
+                        length = readClientReadBuffer.Length;
+                    }
+
+                    Array.Copy
+                    (
+                        writeClientWriteBuffer,
+                        readClientIndex,
+                        readClientReadBuffer,
+                        0,
+                        length
                     );
 
-                    //verify write was complete
-                    Assert.Equal(serverWritten, clientRead);
-                }
-            } while (clientState == SslState.WANTWRITE
-                || serverState == SslState.WANTWRITE);
+                    readBuffer = new ReadOnlySpan<byte>
+                    (
+                        readClientReadBuffer,
+                        0,
+                        length
+                    );
 
-            Assert.True(serverContext.DoShutdown(out serverState));
-            Assert.Equal(SslState.NONE, serverState);
+                    readClientState = readClient.ReadSsl
+                    (
+                        readBuffer,
+                        readClientWriteBuffer,
+                        out readClientRead,
+                        out readClientWritten
+                    );
 
-            Assert.True(clientContext.DoShutdown(out clientState));
-            Assert.Equal(SslState.NONE, clientState);
+                    //check if nothing got decrypted
+                    Assert.Equal(0, readClientWritten);
+
+                    readClientIndex += readClientRead;
+                } while (readClientIndex < writeClientWritten);
+
+                //verify write was complete
+                Assert.Equal(writeClientWritten, readClientIndex);
+            }
         }
 
         //the tests using this function are mostly used to test the
@@ -223,85 +350,56 @@ namespace OpenSSL.Core.Tests
         )
         {
             SslState client1State = SslState.NONE, client2State = SslState.NONE;
-            int client2Read, client1Read, client2Written, client1Written;
 
             //force new handshake with a writable buffer
             client1State = client1.Renegotiate();
 
-            //verify it needs a write
             Assert.Equal(SslState.WANTWRITE, client1State);
-            client1State = client1.WritePending(client1WriteBuffer, out client1Written);
 
-            //and write it to the client
-            //do a regular (!) read on the client (this is after initial handshake)
-            Array.Copy(client1WriteBuffer, 0, client2ReadBuffer, 0, client1Written);
-            client2State = client2.ReadSsl
+            //write pending data to client2
+            WriteReadCycle
             (
-                new ReadOnlySpan<byte>(client2ReadBuffer, 0, client1Written),
+                client1,
+                client1WriteBuffer,
+                client1ReadBuffer,
+                ref client1State,
+                client2,
                 client2WriteBuffer,
-                out client2Read,
-                out client2Written
+                client2ReadBuffer,
+                ref client2State
             );
-
-            //verify write was complete
-            Assert.Equal(client1Written, client2Read);
-
-            //and nothing got decrypted
-            Assert.Equal(0, client2Written);
 
             while (client1State == SslState.WANTWRITE
                 || client2State == SslState.WANTWRITE)
             {
                 if (client1State == SslState.WANTWRITE)
                 {
-                    //get the renegotiation buffer form the client
-                    client1State = client1.WritePending
+                    WriteReadCycle
                     (
+                        client1,
                         client1WriteBuffer,
-                        out client1Written
-                    );
-
-                    //and read it into to the next client
-                    Array.Copy(client1WriteBuffer, 0, client2ReadBuffer, 0, client1Written);
-                    client2State = client2.ReadSsl
-                    (
-                        new ReadOnlySpan<byte>(client2ReadBuffer, 0, client1Written),
+                        client1ReadBuffer,
+                        ref client1State,
+                        client2,
                         client2WriteBuffer,
-                        out client2Read,
-                        out client2Written
+                        client2ReadBuffer,
+                        ref client2State
                     );
-
-                    //verify write was complete
-                    Assert.Equal(client1Written, client2Read);
-
-                    //and nothing got decrypted
-                    Assert.Equal(0, client2Written);
                 }
 
                 if (client2State == SslState.WANTWRITE)
                 {
-                    //get the renegotiation buffer form the client
-                    client2State = client2.WritePending
+                    WriteReadCycle
                     (
+                        client2,
                         client2WriteBuffer,
-                        out client2Written
-                    );
-
-                    //and read it into to the next client
-                    Array.Copy(client2WriteBuffer, 0, client1ReadBuffer, 0, client2Written);
-                    client1State = client1.ReadSsl
-                    (
-                        new ReadOnlySpan<byte>(client1ReadBuffer, 0, client2Written),
+                        client2ReadBuffer,
+                        ref client2State,
+                        client1,
                         client1WriteBuffer,
-                        out client1Read,
-                        out client1Written
+                        client1ReadBuffer,
+                        ref client1State
                     );
-
-                    //verify write was complete
-                    Assert.Equal(client2Written, client1Read);
-
-                    //and nothing got decrypted
-                    Assert.Equal(0, client1Written);
                 }
             }
 
@@ -1092,24 +1190,32 @@ namespace OpenSSL.Core.Tests
         }
 
         [Theory]
-        [InlineData(128, 1024, 1024 * 1024)]
-        [InlineData(1024, 128, 1024 * 1024)]
-        [InlineData(1024 * 4, 1024 * 8, 1024 * 1024)]
-        [InlineData(1024 * 8, 1024 * 4, 1024 * 1024)]
-        [InlineData(1024 * 16 * 4, 1024 * 16 * 2, 1024 * 1024)]
-        [InlineData(1024 * 16 * 2, 1024 * 16 * 4, 1024 * 1024)]
-        public void TestRandomData(int sslBufferSize, int bufferSize, int testSize)
+        [InlineData(128, 256, 1024, 1024 * 1024)]
+        [InlineData(256, 128, 1024, 1024 * 1024)]
+        [InlineData(1024 * 4, 1024 * 8, 1024 * 8, 1024 * 1024)]
+        [InlineData(1024 * 8, 1024 * 4, 1024 * 4, 1024 * 1024)]
+        [InlineData(1024 * 16 * 4, 1024 * 16 * 2, 1024 * 16 * 2, 1024 * 1024)]
+        [InlineData(1024 * 16 * 2, 1024 * 16 * 4, 1024 * 16 * 4, 1024 * 1024)]
+        public void TestRandomData
+        (
+            int sslWriteBufferSize,
+            int sslReadBufferSize,
+            int bufferSize,
+            int testSize
+        )
         {
-            long read = 0;
+            long totalDecrypted = 0;
 
             byte[] writeArr = new byte[bufferSize];
             byte[] readArr = new byte[bufferSize];
 
             Span<byte> writeSpan, readSpan, buf;
             int size;
-            SslState clientState, serverState;
+            SslState clientState = SslState.NONE, serverState = SslState.NONE;
             int clientRead, serverRead, clientWritten, serverWritten;
             int totalRead, totalWritten;
+            ReadOnlySpan<byte> readBuf;
+            int length, readClientIndex;
 
             //create server
             Ssl serverContext = Ssl.CreateServerSsl
@@ -1127,10 +1233,10 @@ namespace OpenSSL.Core.Tests
             );
             Assert.False(clientContext.IsServer);
 
-            byte[] serverReadBuffer = ArrayPool<byte>.Shared.Rent(sslBufferSize);
-            byte[] serverWriteBuffer = ArrayPool<byte>.Shared.Rent(sslBufferSize);
-            byte[] clientReadBuffer = ArrayPool<byte>.Shared.Rent(sslBufferSize);
-            byte[] clientWriteBuffer = ArrayPool<byte>.Shared.Rent(sslBufferSize);
+            byte[] serverReadBuffer = ArrayPool<byte>.Shared.Rent(sslReadBufferSize);
+            byte[] serverWriteBuffer = ArrayPool<byte>.Shared.Rent(sslWriteBufferSize);
+            byte[] clientReadBuffer = ArrayPool<byte>.Shared.Rent(sslReadBufferSize);
+            byte[] clientWriteBuffer = ArrayPool<byte>.Shared.Rent(sslWriteBufferSize);
 
             try
             {
@@ -1145,7 +1251,7 @@ namespace OpenSSL.Core.Tests
                 );
 
                 //send ±1GB of encrypted data from server to client
-                while (read < testSize)
+                while (totalDecrypted < testSize)
                 {
                     size = RandomNumberGenerator.GetInt32(4, bufferSize);
                     Assert.NotEqual(0, size);
@@ -1158,13 +1264,17 @@ namespace OpenSSL.Core.Tests
 
                     totalRead = 0;
                     totalWritten = 0;
+                    serverRead = serverWritten = 0;
+                    clientRead = clientWritten = 0;
 
                     buf = writeSpan;
 
                     do
                     {
-                        serverRead = serverWritten = 0;
-                        clientRead = clientWritten = 0;
+                        if (serverWritten < serverRead)
+                        {
+                            Assert.Equal(SslState.WANTWRITE, serverState);
+                        }
 
                         //encrypt (partial) data
                         serverState = serverContext.WriteSsl
@@ -1179,31 +1289,61 @@ namespace OpenSSL.Core.Tests
                         totalRead += serverRead;
                         buf = writeSpan.Slice(totalRead);
 
-                        if (serverWritten > 0)
+                        readClientIndex = 0;
+
+                        do
                         {
-                            Array.Copy(serverWriteBuffer, 0, clientReadBuffer, 0, serverWritten);
-                        }
+                            if (clientRead > 0)
+                            {
+                                Assert.Equal(SslState.WANTREAD, clientState);
+                            }
 
-                        //write (partial) encrypted data to client
-                        clientState = clientContext.ReadSsl
-                        (
-                            new ReadOnlySpan<byte>(clientReadBuffer, 0, serverWritten),
-                            clientWriteBuffer,
-                            out clientRead,
-                            out clientWritten
-                        );
+                            length = serverWritten - readClientIndex;
 
-                        if(clientWritten == 0)
-                        {
-                            continue;
-                        }
+                            if (length > clientReadBuffer.Length)
+                            {
+                                length = clientReadBuffer.Length;
+                            }
 
-                        //copy to result array
-                        Array.Copy(clientWriteBuffer, 0, readArr, totalWritten, clientWritten);
+                            Array.Copy
+                            (
+                                serverWriteBuffer,
+                                readClientIndex,
+                                clientReadBuffer,
+                                0,
+                                length
+                            );
 
-                        //increment index
-                        totalWritten += clientWritten;
-                        
+                            readBuf = new ReadOnlySpan<byte>
+                            (
+                                clientReadBuffer,
+                                0,
+                                length
+                            );
+
+                            //write (partial) encrypted data to client
+                            clientState = clientContext.ReadSsl
+                            (
+                                readBuf,
+                                clientWriteBuffer,
+                                out clientRead,
+                                out clientWritten
+                            );
+
+                            readClientIndex += clientRead;
+
+                            if (clientWritten == 0)
+                            {
+                                continue;
+                            }
+
+                            //copy to result array
+                            Array.Copy(clientWriteBuffer, 0, readArr, totalWritten, clientWritten);
+
+                            //increment index
+                            totalWritten += clientWritten;
+
+                        } while (readClientIndex < serverWritten);
                     } while (totalRead != totalWritten);
 
                     Assert.Equal(size, totalWritten);
@@ -1217,7 +1357,7 @@ namespace OpenSSL.Core.Tests
                     );
 
                     //increment read size
-                    read += totalRead;
+                    totalDecrypted += totalRead;
                 }
 
                 DoSynchronousShutdown

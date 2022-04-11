@@ -332,20 +332,26 @@ namespace OpenSSL.Core.SSL
             if ((ret_code = SSLWrapper.SSL_do_handshake(this._sslHandle)) == 1)
             {
                 //force check of non-blocking write BIO
-                state = SslState.NONE;
+                state = this.VerifyBioStates();
 
-                if (CryptoWrapper.BIO_ctrl_pending(this._writeHandle) > 0)
+                if(state != SslState.NONE)
                 {
-                    state = SslState.WANTWRITE;
                     return false;
                 }
 
                 this._handshakeCompleted = true;
                 return true;
             }
-
-            state = this.VerifyError(ret_code);
-            return false;
+            else if (ret_code == 0)
+            {
+                state = this.VerifyBioStates();
+                return false;
+            }
+            else
+            {
+                state = this.VerifyError(ret_code);
+                return false;
+            }
         }
 
         /// <summary>
@@ -365,19 +371,14 @@ namespace OpenSSL.Core.SSL
                 //initialize (or continue) a shutdown
                 if ((ret_code = SSLWrapper.SSL_shutdown(this._sslHandle)) == 1)
                 {
-                    state = SslState.NONE;
-                    return true;
+                    //force check bio states
+                    state = this.VerifyBioStates();
+                    return state == SslState.NONE;
                 }
                 else if (ret_code == 0)
                 {
-                    state = SslState.WANTREAD;
-
-                    //force check of non-blocking write BIO
-                    if (CryptoWrapper.BIO_ctrl_pending(this._writeHandle) > 0)
-                    {
-                        state = SslState.WANTWRITE;
-                    }
-
+                    //force check bio states
+                    state = this.VerifyBioStates();
                     return false;
                 }
                 else
@@ -443,6 +444,8 @@ namespace OpenSSL.Core.SSL
             {
                  readBuf = readableBuffer.Slice(readIndex, _MaxEncryptedLength);
             }
+
+            CryptoWrapper.ERR_clear_error();
 
             do
             {
@@ -616,24 +619,6 @@ namespace OpenSSL.Core.SSL
             return this.ReadSslIntoBufferWriter(bufferWriter);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static SslState VerifyReadState
-        (
-            SafeBioHandle readHandle,
-            SafeSslHandle sslHandle
-        )
-        {
-            if (CryptoWrapper.BIO_ctrl_pending(readHandle) > 0
-                || SSLWrapper.SSL_pending(sslHandle) > 0)
-            {
-                return SslState.WANTREAD;
-            }
-            else
-            {
-                return SslState.NONE;
-            }
-        }
-
         private SslState ReadUnencryptedIntoBuffer
         (
             Span<byte> writeableBuffer,
@@ -645,32 +630,17 @@ namespace OpenSSL.Core.SSL
 
             //writeableBuffer CAN be empty, allow to force a "flush" of non-application data
 
-            //if nothing is pending, early return
-            if (CryptoWrapper.BIO_ctrl_pending(this._readHandle) == 0
-                && SSLWrapper.SSL_pending(this._sslHandle) == 0)
-            {
-                totalWritten = 0;
-                return SslState.NONE;
-            }
-
             //and write decrypted data to the buffer or flush read data
             read = SSLWrapper.SSL_read(this._sslHandle, ref MemoryMarshal.GetReference<byte>(writeableBuffer), writeableBuffer.Length);
 
-            if ((sslState = this.VerifyError(read)) > 0)
+            if (read <= 0)
             {
                 totalWritten = 0;
-
-                //if(sslState == SslState.WANTREAD)
-                //{
-                //    return VerifyReadState(this._readHandle, this._sslHandle);
-                //}
-
-                return sslState;
+                return this.VerifyError(read);
             }
 
             totalWritten = read;
-
-            return VerifyReadState(this._readHandle, this._sslHandle);
+            return this.VerifyReadState();
         }
 
         private SslState ReadSslIntoBufferWriter
@@ -764,6 +734,8 @@ namespace OpenSSL.Core.SSL
                 readBuf = readableBuffer.Slice(readIndex, _MaxUnencryptedLength);
             }
 
+            CryptoWrapper.ERR_clear_error();
+
             do
             {
                 //allow to continue from previous write operation
@@ -772,17 +744,12 @@ namespace OpenSSL.Core.SSL
                     //write unencrypted data into ssl
                     written = SSLWrapper.SSL_write(this._sslHandle, MemoryMarshal.GetReference<byte>(readBuf), readBuf.Length);
 
-                    if ((sslState = this.VerifyError(written)) > 0)
+                    if (written <= 0)
                     {
                         totalRead = readIndex;
                         totalWritten = writeIndex;
 
-                        //if (sslState == SslState.WANTREAD)
-                        //{
-                        //    return VerifyReadState(this._readHandle, this._sslHandle);
-                        //}
-
-                        return sslState;
+                        return this.VerifyError(written);
                     }
 
                     readIndex += written;
@@ -956,22 +923,6 @@ namespace OpenSSL.Core.SSL
             return SslState.NONE;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static SslState VerifyWriteState
-        (
-            SafeBioHandle writeHandle
-        )
-        {
-            if (CryptoWrapper.BIO_ctrl_pending(writeHandle) > 0)
-            {
-                return SslState.WANTWRITE;
-            }
-            else
-            {
-                return SslState.NONE;
-            }
-        }
-
         private SslState ReadEncryptedIntoBuffer
         (
             Span<byte> writableBuffer,
@@ -983,7 +934,7 @@ namespace OpenSSL.Core.SSL
             if (writableBuffer.IsEmpty)
             {
                 totalWritten = 0;
-                return VerifyWriteState(this._writeHandle);
+                return this.VerifyWriteState();
             }
 
             //check if any more data is pending to be written
@@ -1003,7 +954,7 @@ namespace OpenSSL.Core.SSL
 
             totalWritten = written;
 
-            return VerifyWriteState(this._writeHandle);
+            return this.VerifyWriteState();
         }
 
         private void WriteSslIntoBufferWriter(IBufferWriter<byte> bufferWriter)
@@ -1036,21 +987,26 @@ namespace OpenSSL.Core.SSL
         /// <returns>A user handleable <see cref="SslState"/></returns>
         /// <exception cref="ShutdownException">When a shutdown has already occured</exception>
         /// <exception cref="OpenSslException">When the SSL context is in an erroneous state</exception>
-        private SslState VerifyError(int ret)
+        private SslState VerifyError
+        (
+            int ret
+        )
         {
             if(ret > 0)
             {
                 return SslState.NONE;
             }
 
-            //TODO: error handling incorrect
             int errorCode = SSLWrapper.SSL_get_error(this._sslHandle, ret);
             SslError error = (SslError)errorCode;
 
             return this.MapNativeError(error);
         }
 
-        private SslState MapNativeError(SslError error)
+        private SslState MapNativeError
+        (
+            SslError error
+        )
         {
             switch (error)
             {
@@ -1059,17 +1015,44 @@ namespace OpenSSL.Core.SSL
                 case SslError.SSL_ERROR_SSL:
                     //error of different kind happened, check the currents thread error queue
                     throw new OpenSslException();
+                //drop nonsensical native (read/write) return codes (always returns SSL_ERROR_WANT_READ)
+                //SSL_ERROR_WANT_WRITE will never be returned (non-blocking flush)
+                //and check the (rw)BIO instead
                 case SslError.SSL_ERROR_WANT_READ:
                 case SslError.SSL_ERROR_WANT_WRITE:
-                    return this.GetWriteBioState(error);
+                    return this.VerifyBioStates(error);
                 case SslError.SSL_ERROR_ZERO_RETURN:
+                    return SslState.SHUTDOWN;
                 case SslError.SSL_ERROR_NONE:
                 default:
                     return SslState.NONE;
             }
         }
 
-        private SslState MapNativeReadWriteError(SslError error)
+        //TODO: thread safety
+        //this should only get called on error or during handshake/shutdown
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private SslState VerifyBioStates(SslError error = SslError.SSL_ERROR_NONE)
+        {
+            //prioritize writes
+            if (CryptoWrapper.BIO_ctrl_pending(this._writeHandle) > 0)
+            {
+                return SslState.WANTWRITE;
+            }
+            else if (SSLWrapper.SSL_pending(this._sslHandle) > 0
+                || CryptoWrapper.BIO_ctrl_pending(this._readHandle) > 0)
+            {
+                return SslState.WANTREAD;
+            }
+            else
+            {
+                //should only get called during errors - map directly to managed equivalent
+                return MapNativeReadWriteError(error);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static SslState MapNativeReadWriteError(SslError error)
         {
             switch (error)
             {
@@ -1077,21 +1060,38 @@ namespace OpenSSL.Core.SSL
                     return SslState.WANTREAD;
                 case SslError.SSL_ERROR_WANT_WRITE:
                     return SslState.WANTWRITE;
+                case SslError.SSL_ERROR_NONE:
+                    return SslState.NONE;
                 default:
                     throw new NotSupportedException($"Unsupported read/write error {error}");
             }
         }
 
-        //as we're using non-blocking IO, the state of the underlying BIO needs to get checked
-        private SslState GetWriteBioState(SslError error)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private SslState VerifyReadState()
         {
-            //always prioritize write request
-            if(CryptoWrapper.BIO_ctrl_pending(this._writeHandle) > 0)
+            if (SSLWrapper.SSL_pending(this._sslHandle) > 0
+                || CryptoWrapper.BIO_ctrl_pending(this._readHandle) > 0)
+            {
+                return SslState.WANTREAD;
+            }
+            else
+            {
+                return SslState.NONE;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private SslState VerifyWriteState()
+        {
+            if (CryptoWrapper.BIO_ctrl_pending(this._writeHandle) > 0)
             {
                 return SslState.WANTWRITE;
             }
-
-            return this.MapNativeReadWriteError(error);
+            else
+            {
+                return SslState.NONE;
+            }
         }
 
         /// <summary>

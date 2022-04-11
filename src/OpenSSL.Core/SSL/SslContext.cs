@@ -189,7 +189,8 @@ namespace OpenSSL.Core.SSL
             (
                 sslContextHandle,
                 Native.SSL_CTRL_MODE,
-                (int)SslMode.SSL_MODE_ENABLE_PARTIAL_WRITE,
+                (int)SslMode.SSL_MODE_ENABLE_PARTIAL_WRITE
+                    | (int)SslMode.SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER,
                 IntPtr.Zero
             );
 

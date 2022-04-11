@@ -21,6 +21,10 @@ namespace OpenSSL.Core.SSL
         /// The SSL context requires a write to the socket
         /// Please use <see cref="Ssl.WritePending"/>
         /// </summary>
-        WANTWRITE
+        WANTWRITE,
+        /// <summary>
+        /// Shutdown has been called, stop reading/writing to allow clean shutdown
+        /// </summary>
+        SHUTDOWN
     }
 }
