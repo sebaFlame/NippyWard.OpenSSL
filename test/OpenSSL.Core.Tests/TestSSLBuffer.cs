@@ -45,17 +45,60 @@ namespace OpenSSL.Core.Tests
             this._sslTestContext.Dispose();
         }
 
+        private static void WriteReadCycle
+        (
+            Ssl writeClient,
+            TlsBuffer writeClientWriteBuffer,
+            ref SslState writeClientState,
+            Ssl readClient,
+            TlsBuffer readClientReadBuffer,
+            ref SslState readClientState
+        )
+        {
+            SequencePosition readClientRead;
+            ReadOnlySequence<byte> writeBuffer;
+
+            while (writeClientState == SslState.WANTWRITE)
+            {
+                //get the client buffer (non application data) to write
+                //nothing (no application data) to actually write, thus empty
+                writeClientState = writeClient.WriteSsl
+                (
+                    ReadOnlySpan<byte>.Empty,
+                    writeClientWriteBuffer,
+                    out _
+                );
+
+                //create the sequence
+                writeClientWriteBuffer.CreateReadOnlySequence(out writeBuffer);
+
+                //TODO: verify nothing has been read into readClientBuffer
+                readClientState = readClient.ReadSsl
+                (
+                    writeBuffer,
+                    readClientReadBuffer,
+                    out readClientRead
+                );
+
+                //verify write was complete
+                Assert.Equal(writeBuffer.End, readClientRead);
+
+                //advance reader
+                writeClientWriteBuffer.AdvanceReader(readClientRead);
+            }
+        }
+
         private static void DoSynchronousHandshake
         (
             Ssl serverContext,
             TlsBuffer serverWriter,
+            TlsBuffer serverReader,
             Ssl clientContext,
-            TlsBuffer clientWriter
+            TlsBuffer clientWriter,
+            TlsBuffer clientReader
         )
         {
             SslState clientState, serverState;
-            SequencePosition clientRead, serverRead;
-            ReadOnlySequence<byte> writeBuffer;
 
             //make sure you ALWAYS read both
             while (!clientContext.DoHandshake(out clientState)
@@ -63,102 +106,88 @@ namespace OpenSSL.Core.Tests
             {
                 if (clientState == SslState.WANTWRITE)
                 {
-                    //get the client buffer
-                    Assert.True(clientContext.WritePending(clientWriter));
-
-                    //and write it to the server
-                    clientWriter.CreateReadOnlySequence(out writeBuffer);
-                    serverContext.ReadPending
+                    WriteReadCycle
                     (
-                        writeBuffer,
-                        out serverRead
+                        clientContext,
+                        clientWriter,
+                        ref clientState,
+                        serverContext,
+                        serverReader,
+                        ref serverState
                     );
-
-                    //verify write was complete
-                    Assert.Equal(writeBuffer.End, serverRead);
-
-                    //advance internal buffer
-                    clientWriter.AdvanceReader(serverRead);
                 }
 
                 if (serverState == SslState.WANTWRITE)
                 {
-                    //get the server buffer
-                    Assert.True(serverContext.WritePending(serverWriter));
-
-                    //and write it to the client
-                    serverWriter.CreateReadOnlySequence(out writeBuffer);
-                    clientContext.ReadPending
+                    WriteReadCycle
                     (
-                        writeBuffer,
-                        out clientRead
+                        serverContext,
+                        serverWriter,
+                        ref serverState,
+                        clientContext,
+                        clientReader,
+                        ref clientState
                     );
-
-                    //verify write was complete
-                    Assert.Equal(writeBuffer.End, clientRead);
-
-                    //advance internal buffer
-                    serverWriter.AdvanceReader(clientRead);
                 }
             }
+
+            Assert.Equal(SslState.NONE, serverState);
+            Assert.Equal(SslState.NONE, clientState);
         }
 
         private static void DoSynchronousShutdown
         (
             Ssl serverContext,
             TlsBuffer serverWriter,
+            TlsBuffer serverReader,
             Ssl clientContext,
-            TlsBuffer clientWriter
+            TlsBuffer clientWriter,
+            TlsBuffer clientReader
         )
         {
-            SslState clientState, serverState;
-            SequencePosition clientRead, serverRead;
-            ReadOnlySequence<byte> writeBuffer;
+            SslState clientState = SslState.NONE, serverState = SslState.NONE;
+
+            //usually initiated from 1 side
+            clientContext.DoShutdown(out clientState);
 
             //make sure you ALWAYS read both
-            while (!clientContext.DoShutdown(out clientState)
-                    & !serverContext.DoShutdown(out serverState))
+            do
             {
                 if (clientState == SslState.WANTWRITE)
                 {
-                    //get the client buffer
-                    Assert.True(clientContext.WritePending(clientWriter));
-
-                    //and write it to the server
-                    clientWriter.CreateReadOnlySequence(out writeBuffer);
-                    serverContext.ReadPending
+                    WriteReadCycle
                     (
-                        writeBuffer,
-                        out serverRead
+                        clientContext,
+                        clientWriter,
+                        ref clientState,
+                        serverContext,
+                        serverReader,
+                        ref serverState
                     );
+                }
 
-                    //verify write was complete
-                    Assert.Equal(writeBuffer.End, serverRead);
-
-                    //advance internal buffer
-                    clientWriter.AdvanceReader(serverRead);
+                if (serverState == SslState.SHUTDOWN)
+                {
+                    serverContext.DoShutdown(out serverState);
                 }
 
                 if (serverState == SslState.WANTWRITE)
                 {
-                    //get the server buffer
-                    serverContext.WritePending(serverWriter);
-
-                    //and write it to the client
-                    serverWriter.CreateReadOnlySequence(out writeBuffer);
-                    clientContext.ReadPending
+                    WriteReadCycle
                     (
-                        writeBuffer,
-                        out clientRead
+                        serverContext,
+                        serverWriter,
+                        ref serverState,
+                        clientContext,
+                        clientReader,
+                        ref clientState
                     );
-
-                    //verify write was complete
-                    Assert.Equal(writeBuffer.End, clientRead);
-
-                    //advance internal buffer
-                    serverWriter.AdvanceReader(clientRead);
                 }
-            }
+            } while (!serverContext.DoShutdown(out serverState)
+                | !clientContext.DoShutdown(out clientState));
+
+            Assert.Equal(SslState.NONE, serverState);
+            Assert.Equal(SslState.NONE, clientState);
         }
 
         private static void DoRenegotiate
@@ -172,98 +201,50 @@ namespace OpenSSL.Core.Tests
         )
         {
             SslState client1State = SslState.NONE, client2State = SslState.NONE;
-            SequencePosition client1Read, client2Read;
-            ReadOnlySequence<byte> writeBuffer, readBuffer;
 
             //force new handshake with a writable buffer
-            client1.Renegotiate(client1Writer);
+            client1State = client1.Renegotiate();
 
-            //and write it to the client
-            //do a regular (!) read on the client (this is after initial handshake)
-            client1Writer.CreateReadOnlySequence(out writeBuffer);
-            client2State = client2.ReadSsl
+            Assert.Equal(SslState.WANTWRITE, client1State);
+
+            //write pending data to client2
+            WriteReadCycle
             (
-                writeBuffer,
+                client1,
+                client1Writer,
+                ref client1State,
+                client2,
                 client2Reader,
-                out client2Read
+                ref client2State
             );
 
-            //verify write was complete
-            Assert.Equal(writeBuffer.End, client2Read);
-
-            //and nothing got decrypted
-            client2Reader.CreateReadOnlySequence(out readBuffer);
-            Assert.Equal(0, readBuffer.Length);
-
-            //advance both readers
-            client1Writer.AdvanceReader(client2Read);
-            client2Reader.AdvanceReader(readBuffer.End);
-
-            while(client1State != SslState.NONE
-                || client2State != SslState.NONE)
+            while (client1State == SslState.WANTWRITE
+                || client2State == SslState.WANTWRITE)
             {
-                if(client1State == SslState.WANTWRITE)
+                if (client1State == SslState.WANTWRITE)
                 {
-                    //get the renegotiation buffer form the client
-                    Assert.True
+                    WriteReadCycle
                     (
-                        client1.WritePending
-                        (
-                            client1Writer
-                        )
-                    );
-
-                    //reset state
-                    client1State = SslState.NONE;
-
-                    //and read it into to the next client
-                    client1Writer.CreateReadOnlySequence(out writeBuffer);
-                    client2State = client2.ReadSsl
-                    (
-                        writeBuffer,
+                        client1,
+                        client1Writer,
+                        ref client1State,
+                        client2,
                         client2Reader,
-                        out client2Read
+                        ref client2State
                     );
-
-                    //and nothing got decrypted
-                    client2Reader.CreateReadOnlySequence(out readBuffer);
-                    Assert.Equal(0, readBuffer.Length);
-
-                    //advance both readers
-                    client1Writer.AdvanceReader(client2Read);
-                    client2Reader.AdvanceReader(readBuffer.End);
                 }
 
-                if(client2State == SslState.WANTWRITE)
+                if (client2State == SslState.WANTWRITE)
                 {
-                    //get the renegotiation buffer form the client
-                    Assert.True
+                    WriteReadCycle
                     (
-                        client2.WritePending
-                        (
-                            client2Writer
-                        )
-                    );
-
-                    //reset state
-                    client2State = SslState.NONE;
-
-                    //and read it into to the next client
-                    client2Writer.CreateReadOnlySequence(out writeBuffer);
-                    client1State = client1.ReadSsl
-                    (
-                        writeBuffer,
+                        client2,
+                        client2Writer,
+                        ref client2State,
+                        client1,
                         client1Reader,
-                        out client1Read
+                        ref client1State
                     );
-
-                    //and nothing got decrypted
-                    client1Reader.CreateReadOnlySequence(out readBuffer);
-                    Assert.Equal(0, readBuffer.Length);
-
-                    //advance both readers
-                    client2Writer.AdvanceReader(client1Read);
-                    client1Reader.AdvanceReader(readBuffer.End);
                 }
             }
 
@@ -274,7 +255,7 @@ namespace OpenSSL.Core.Tests
 #endif
         }
 
-        [Fact(Skip = "Improved read/write handling")]
+        [Fact]
         public void TestHandshake()
         {
             //create server
@@ -299,15 +280,17 @@ namespace OpenSSL.Core.Tests
             (
                 serverContext,
                 this._serverWriteBuffer,
+                this._serverReadBuffer,
                 clientContext,
-                this._clientWriteBuffer
+                this._clientWriteBuffer,
+                this._clientReadBuffer
             );
 
             serverContext.Dispose();
             clientContext.Dispose();
         }
 
-        [Fact(Skip = "Improved read/write handling")]
+        [Fact]
         public void TestShutdown()
         {
             //create server
@@ -332,23 +315,27 @@ namespace OpenSSL.Core.Tests
             (
                 serverContext,
                 this._serverWriteBuffer,
+                this._serverReadBuffer,
                 clientContext,
-                this._clientWriteBuffer
+                this._clientWriteBuffer,
+                this._clientReadBuffer
             );
 
             DoSynchronousShutdown
             (
                 serverContext,
                 this._serverWriteBuffer,
+                this._serverReadBuffer,
                 clientContext,
-                this._clientWriteBuffer
+                this._clientWriteBuffer,
+                this._clientReadBuffer
             );
 
             serverContext.Dispose();
             clientContext.Dispose();
         }
 
-        [Fact(Skip = "Improved read/write handling")]
+        [Fact]
         public void TestData()
         {
             //create server
@@ -371,8 +358,10 @@ namespace OpenSSL.Core.Tests
             (
                 serverContext,
                 this._serverWriteBuffer,
+                this._serverReadBuffer,
                 clientContext,
-                this._clientWriteBuffer
+                this._clientWriteBuffer,
+                this._clientReadBuffer
             );
 
             SslState clientState, serverState;
@@ -469,15 +458,17 @@ namespace OpenSSL.Core.Tests
             (
                 serverContext,
                 this._serverWriteBuffer,
+                this._serverReadBuffer,
                 clientContext,
-                this._clientWriteBuffer
+                this._clientWriteBuffer,
+                this._clientReadBuffer
             );
 
             serverContext.Dispose();
             clientContext.Dispose();
         }
 
-        [Fact(Skip = "Improved read/write handling")]
+        [Fact]
         public void TestServerRenegotiate()
         {
             //create server
@@ -500,8 +491,10 @@ namespace OpenSSL.Core.Tests
             (
                 serverContext,
                 this._serverWriteBuffer,
+                this._serverReadBuffer,
                 clientContext,
-                this._clientWriteBuffer
+                this._clientWriteBuffer,
+                this._clientReadBuffer
             );
 
             DoRenegotiate
@@ -518,15 +511,17 @@ namespace OpenSSL.Core.Tests
             (
                 serverContext,
                 this._serverWriteBuffer,
+                this._serverReadBuffer,
                 clientContext,
-                this._clientWriteBuffer
+                this._clientWriteBuffer,
+                this._clientReadBuffer
             );
 
             serverContext.Dispose();
             clientContext.Dispose();
         }
 
-        [Fact(Skip = "Improved read/write handling")]
+        [Fact]
         public void TestClientRenegotiate()
         {
             //create server
@@ -549,8 +544,10 @@ namespace OpenSSL.Core.Tests
             (
                 serverContext,
                 this._serverWriteBuffer,
+                this._serverReadBuffer,
                 clientContext,
-                this._clientWriteBuffer
+                this._clientWriteBuffer,
+                this._clientReadBuffer
             );
 
             DoRenegotiate
@@ -567,18 +564,28 @@ namespace OpenSSL.Core.Tests
             (
                 serverContext,
                 this._serverWriteBuffer,
+                this._serverReadBuffer,
                 clientContext,
-                this._clientWriteBuffer
+                this._clientWriteBuffer,
+                this._clientReadBuffer
             );
 
             serverContext.Dispose();
             clientContext.Dispose();
         }
 
-        [Fact(Skip = "Improved read/write handling")]
-        public void TestRandomData()
+        [Theory]
+        [InlineData(1024, 1024 * 1024)]
+        [InlineData(1024 * 8, 1024 * 1024)]
+        [InlineData(1024 * 4, 1024 * 1024)]
+        [InlineData(1024 * 16 * 2, 1024 * 1024)]
+        [InlineData(1024 * 16 * 4, 1024 * 1024)]
+        public void TestRandomData
+        (
+            int bufferSize,
+            int testSize
+        )
         {
-            int bufferSize = 1024 * 4;
             long read = 0;
             byte[] writeArr = new byte[bufferSize];
             byte[] readArr = new byte[bufferSize];
@@ -608,12 +615,14 @@ namespace OpenSSL.Core.Tests
             (
                 serverContext,
                 this._serverWriteBuffer,
+                this._serverReadBuffer,
                 clientContext,
-                this._clientWriteBuffer
+                this._clientWriteBuffer,
+                this._clientReadBuffer
             );
 
             //send ±1GB of encrypted data from server to client
-            while (read < 1024 * 1024)
+            while (read < testSize)
             {
                 //minimum 8K (minimum segment size is 4K)
                 size = RandomNumberGenerator.GetInt32(0, bufferSize);
@@ -664,8 +673,10 @@ namespace OpenSSL.Core.Tests
             (
                 serverContext,
                 this._serverWriteBuffer,
+                this._serverReadBuffer,
                 clientContext,
-                this._clientWriteBuffer
+                this._clientWriteBuffer,
+                this._clientReadBuffer
             );
 
             serverContext.Dispose();
