@@ -590,8 +590,8 @@ namespace OpenSSL.Core.Tests
             byte[] writeArr = new byte[bufferSize];
             byte[] readArr = new byte[bufferSize];
             Span<byte> writeSpan, readSpan;
-            int size;
-            ReadOnlySequence<byte> writeBuffer, readBuffer;
+            int size, bufSize;
+            ReadOnlySequence<byte> writeBuffer, readBuffer, buf;
             SequencePosition totalRead;
             SslState clientState, serverState;
 
@@ -644,10 +644,28 @@ namespace OpenSSL.Core.Tests
                 //get write sequence to write to client
                 this._serverWriteBuffer.CreateReadOnlySequence(out writeBuffer);
 
-                //write encrypted buffer to client
-                clientState = clientContext.ReadSsl(in writeBuffer, this._clientReadBuffer, out totalRead);
+                //write in 2 parts to test jitter
+                bufSize = (int)(writeBuffer.Length / 2);
+
+                //write first encrypted buffer to client
+                buf = writeBuffer.Slice(0, bufSize);
+                clientState = clientContext.ReadSsl(in buf, this._clientReadBuffer, out totalRead);
+                Assert.Equal(buf.End, totalRead);
+
+                if (bufSize > 0)
+                {
+                    //check if it has the correct state
+                    //this should not always be the case as it could get sliced on the end of a frame
+                    Assert.Equal(SslState.WANTREAD, clientState);
+
+                    //write second encrypted buffer to client
+                    buf = writeBuffer.Slice(bufSize);
+                    clientState = clientContext.ReadSsl(in buf, this._clientReadBuffer, out totalRead);
+                    Assert.Equal(buf.End, totalRead);
+                }
+
+                //verify state
                 Assert.Equal(SslState.NONE, clientState);
-                Assert.Equal(writeBuffer.End, totalRead);
 
                 //get read sequence
                 this._clientReadBuffer.CreateReadOnlySequence(out readBuffer);

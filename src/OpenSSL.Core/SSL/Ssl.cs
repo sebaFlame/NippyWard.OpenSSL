@@ -500,8 +500,10 @@ namespace OpenSSL.Core.SSL
 
                 //no more data can be written
                 if (writeIndex == writableBuffer.Length
-                    || (readBuf.IsEmpty && sslState == SslState.WANTREAD)
-                    || sslState != SslState.NONE)
+                    || (sslState == SslState.WANTREAD
+                        && readBuf.IsEmpty)
+                    || !(sslState == SslState.NONE
+                        || sslState == SslState.WANTREAD))
                 {
                     totalRead = readIndex;
                     totalWritten = writeIndex;
@@ -607,7 +609,8 @@ namespace OpenSSL.Core.SSL
 
                 if ((sslState == SslState.WANTREAD
                         && readBuf.IsEmpty)
-                    || sslState != SslState.NONE)
+                    || !(sslState == SslState.NONE
+                        || sslState == SslState.WANTREAD))
                 {
                     totalRead = readIndex;
                     return sslState;
@@ -852,8 +855,10 @@ namespace OpenSSL.Core.SSL
 
                 //no more data can be written
                 if (writeIndex == writableBuffer.Length
-                    || (readBuf.IsEmpty && sslState == SslState.WANTWRITE)
-                    || sslState != SslState.NONE)
+                    || (sslState == SslState.WANTWRITE
+                        && readBuf.IsEmpty)
+                    || !(sslState == SslState.NONE
+                        || sslState == SslState.WANTWRITE))
                 {
                     totalRead = readIndex;
                     totalWritten = writeIndex;
@@ -961,8 +966,9 @@ namespace OpenSSL.Core.SSL
                 );
 
                 if ((sslState == SslState.WANTWRITE
-                    && readBuf.IsEmpty)
-                    || sslState != SslState.NONE)
+                        && readBuf.IsEmpty)
+                    || !(sslState == SslState.NONE
+                        || sslState == SslState.WANTWRITE))
                 {
                     totalRead = readIndex;
                     return sslState;
