@@ -35,6 +35,8 @@
     <None Update="xunit.runner.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Remove multi-threaded tests -->
+    <Compile Remove="TestSSLBufferThreading.cs" />
   </ItemGroup>
 
 </Project>

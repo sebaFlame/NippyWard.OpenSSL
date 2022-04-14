@@ -304,6 +304,25 @@ namespace OpenSSL.Core.Interop
         public const int SMIME_STREAM = 0x1000;
 
         public const int V_ASN1_OCTET_STRING = 4;
+
+        public const int SSL_ST_CONNECT = 0x1000;
+        public const int SSL_ST_ACCEPT = 0x2000;
+
+        public const int SSL_ST_MASK = 0x0FFF;
+
+        public const int SSL_CB_LOOP = 0x01;
+        public const int SSL_CB_EXIT = 0x02;
+        public const int SSL_CB_READ = 0x04;
+        public const int SSL_CB_WRITE = 0x08;
+        public const int SSL_CB_ALERT = 0x4000;
+        public const int SSL_CB_READ_ALERT = (SSL_CB_ALERT | SSL_CB_READ);
+        public const int SSL_CB_WRITE_ALERT = (SSL_CB_ALERT | SSL_CB_WRITE);
+        public const int SSL_CB_ACCEPT_LOOP = (SSL_ST_ACCEPT | SSL_CB_LOOP);
+        public const int SSL_CB_ACCEPT_EXIT = (SSL_ST_ACCEPT | SSL_CB_EXIT);
+        public const int SSL_CB_CONNECT_LOOP = (SSL_ST_CONNECT | SSL_CB_LOOP);
+        public const int SSL_CB_CONNECT_EXIT = (SSL_ST_CONNECT | SSL_CB_EXIT);
+        public const int SSL_CB_HANDSHAKE_START = 0x10;
+        public const int SSL_CB_HANDSHAKE_DONE = 0x20;
         #endregion
 
         #region Utilities

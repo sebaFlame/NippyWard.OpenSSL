@@ -100,9 +100,11 @@ namespace OpenSSL.Core.Tests
         {
             SslState clientState, serverState;
 
-            //make sure you ALWAYS read both
-            while (!clientContext.DoHandshake(out clientState)
-                    | !serverContext.DoHandshake(out serverState))
+            Assert.False(serverContext.DoHandshake(out serverState));
+            Assert.False(clientContext.DoHandshake(out clientState));
+            Assert.Equal(SslState.WANTWRITE, clientState);
+
+            do
             {
                 if (clientState == SslState.WANTWRITE)
                 {
@@ -129,9 +131,12 @@ namespace OpenSSL.Core.Tests
                         ref clientState
                     );
                 }
-            }
+            } while (clientState == SslState.WANTWRITE
+                || serverState == SslState.WANTWRITE);
 
+            Assert.True(serverContext.DoHandshake(out serverState));
             Assert.Equal(SslState.NONE, serverState);
+            Assert.True(clientContext.DoHandshake(out clientState));
             Assert.Equal(SslState.NONE, clientState);
         }
 
@@ -203,7 +208,7 @@ namespace OpenSSL.Core.Tests
             SslState client1State = SslState.NONE, client2State = SslState.NONE;
 
             //force new handshake with a writable buffer
-            client1State = client1.Renegotiate();
+            client1State = client1.DoRenegotiate();
 
             Assert.Equal(SslState.WANTWRITE, client1State);
 
@@ -217,6 +222,17 @@ namespace OpenSSL.Core.Tests
                 client2Reader,
                 ref client2State
             );
+
+#if DEBUG
+            //only check these when using TLS1.2
+            if ((client1.Protocol & SslProtocol.Tls13) > 0)
+            {
+                return;
+            }
+
+            Assert.True(client1.IsRenegotiatePending);
+            Assert.True(client2.IsRenegotiatePending);
+#endif
 
             while (client1State == SslState.WANTWRITE
                 || client2State == SslState.WANTWRITE)
@@ -250,8 +266,15 @@ namespace OpenSSL.Core.Tests
 
 #if DEBUG
             //only check these when using TLS1.2
+            if ((client1.Protocol & SslProtocol.Tls13) > 0)
+            {
+                return;
+            }
+
             Assert.False(client1.IsRenegotiatePending);
             Assert.False(client2.IsRenegotiatePending);
+
+            Assert.Equal(1, client1.RenegotitationCount);
 #endif
         }
 

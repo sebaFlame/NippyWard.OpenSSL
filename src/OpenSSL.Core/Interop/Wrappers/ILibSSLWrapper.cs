@@ -20,6 +20,9 @@ namespace OpenSSL.Core.Interop.Wrappers
     //int (*cb) (struct ssl_st *ssl, SSL_SESSION *sess)
     internal delegate int SessionCallback(IntPtr ssl, IntPtr sess);
 
+    //callback(SSL *ssl, int where, int ret)
+    internal delegate void SslInfoCallback (IntPtr ssl, int where, int ret);
+
     internal interface ILibSSLWrapper
     {
         void SSL_load_error_strings();
@@ -249,6 +252,13 @@ namespace OpenSSL.Core.Interop.Wrappers
         int SSL_is_init_finished(SafeSslHandle s);
         //int SSL_up_ref(SSL *s);
         int SSL_up_ref(SafeSslHandle s);
+        //void SSL_set_info_callback(SSL *ssl, void (*callback)());
+        void SSL_set_info_callback(SafeSslHandle ssl, SslInfoCallback callback);
+        //const char *SSL_state_string(const SSL *ssl);
+        IntPtr SSL_state_string(SafeSslHandle ssl);
+        //long SSL_ctrl(SSL *ssl, int cmd, long larg, char *parg);
+        [return: DontVerifyType]
+        int SSL_ctrl(SafeSslHandle ssl, int cmd, int larg, IntPtr parg);
 
         //X509 *SSL_get_peer_certificate(const SSL *ssl);
         [return: TakeOwnership] //not new, already gets an extra reference in the native code
