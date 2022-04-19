@@ -38,7 +38,9 @@ namespace OpenSSL.Core.X509
                 using (timeHandle = CryptoWrapper.ASN1_TIME_new())
                 {
                     using (timeHandleDup = CryptoWrapper.ASN1_TIME_set(timeHandle, SafeAsn1DateTimeHandle.DateTimeToTimeT(value)))
+                    {
                         CryptoWrapper.X509_set1_notBefore(this.X509Wrapper.Handle, timeHandleDup);
+                    }
                 }
             }
         }
@@ -304,13 +306,18 @@ namespace OpenSSL.Core.X509
                 fixed (char* c = span)
                 {
                     int length = Encoding.ASCII.GetEncoder().GetByteCount(c, span.Length, false);
+                    //+ 1 to allow for null terminator
                     byte* b = stackalloc byte[length + 1];
                     Encoding.ASCII.GetEncoder().GetBytes(c, span.Length, b, length, true);
                     Span<byte> buf = new Span<byte>(b, length + 1);
                     if (ctx is null)
+                    {
                         extension = CryptoWrapper.X509V3_EXT_conf_nid(IntPtr.Zero, IntPtr.Zero, type.NID, buf.GetPinnableReference());
+                    }
                     else
+                    {
                         extension = CryptoWrapper.X509V3_EXT_conf_nid(IntPtr.Zero, ctx, type.NID, buf.GetPinnableReference());
+                    }
                 }
             }
 

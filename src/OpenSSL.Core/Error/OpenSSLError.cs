@@ -59,7 +59,7 @@ namespace OpenSSL.Core.Error
                 {
                     byte* buf = stackalloc byte[1024];
                     Span<byte> span = new Span<byte>(buf, 1024);
-                    Native.CryptoWrapper.ERR_error_string_n(this.ErrorCode, ref span.GetPinnableReference(), span.Length);
+                    Native.CryptoWrapper.ERR_error_string_n((nuint)this.ErrorCode, ref span.GetPinnableReference(), (nuint)span.Length);
 
                     int length = 0;
                     byte b;
@@ -79,7 +79,7 @@ namespace OpenSSL.Core.Error
         public static List<string> GetErrors()
         {
             var errors = new List<string>();
-            Native.CryptoWrapper.ERR_print_errors_cb((IntPtr str, uint len, IntPtr u) =>
+            Native.CryptoWrapper.ERR_print_errors_cb((IntPtr str, nuint len, IntPtr u) =>
             {
                 errors.Add(Native.PtrToStringAnsi(str, false));
                 return 1;

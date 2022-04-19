@@ -237,6 +237,7 @@ namespace OpenSSL.Core.SSL
                 {
                     ReadOnlySpan<char> chSpan = allowedCiphers.AsSpan();
                     int count = Encoding.ASCII.GetEncoder().GetByteCount(chSpan, false);
+                    //+ 1 to allow for null terminator
                     byte* b = stackalloc byte[count + 1];
                     Span<byte> bSpan = new Span<byte>(b, count + 1);
                     Encoding.ASCII.GetEncoder().GetBytes(chSpan, bSpan, true);

@@ -32,10 +32,11 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
                 fixed (char* c = span)
                 {
                     int bufLength = Encoding.ASCII.GetEncoder().GetByteCount(c, span.Length, false);
+                    //+ 1 to allow for null terminator
                     byte* b = stackalloc byte[bufLength + 1];
                     Encoding.ASCII.GetEncoder().GetBytes(c, span.Length, b, bufLength, true);
                     Span<byte> buf = new Span<byte>(b, bufLength + 1);
-                    ptr = CryptoWrapper.CRYPTO_malloc((ulong)Marshal.SizeOf<X509V3_CTX>(), buf.GetPinnableReference(), 0);
+                    ptr = CryptoWrapper.CRYPTO_malloc((nuint)Marshal.SizeOf<X509V3_CTX>(), buf.GetPinnableReference(), 0);
                 }
             }
 

@@ -69,7 +69,7 @@ namespace OpenSSL.Core.Keys
             ReadOnlySpan<byte> buffer
         )
         {
-            ulong encryptedLength = 0;
+            nuint encryptedLength = 0;
 
             //compute output buffer size
             CryptoWrapper.EVP_PKEY_encrypt
@@ -91,17 +91,19 @@ namespace OpenSSL.Core.Keys
             out ulong encryptedLength
         )
         {
-            encryptedLength = (ulong)encrypted.Length;
+            nuint len = (uint)encrypted.Length;
 
             //encrypt the buffer
             CryptoWrapper.EVP_PKEY_encrypt
             (
                 keyContext._keyContextHandle,
                 ref MemoryMarshal.GetReference(encrypted),
-                ref encryptedLength,
+                ref len,
                 in MemoryMarshal.GetReference(buffer),
                 (uint)buffer.Length
             );
+
+            encryptedLength = len;
         }
 
         public KeyContext CreateDecryptionContext()
@@ -117,7 +119,7 @@ namespace OpenSSL.Core.Keys
             ReadOnlySpan<byte> buffer
         )
         {
-            ulong decryptedLength = 0;
+            nuint decryptedLength = 0;
 
             //compute output buffer size
             CryptoWrapper.EVP_PKEY_decrypt
@@ -139,17 +141,19 @@ namespace OpenSSL.Core.Keys
             out ulong decryptedLength
          )
         {
-            decryptedLength = (uint)decrypted.Length;
+            nuint len = (uint)decrypted.Length;
 
             //decrypt the buffer
             CryptoWrapper.EVP_PKEY_decrypt
             (
                 keyContext._keyContextHandle,
                 ref MemoryMarshal.GetReference(decrypted),
-                ref decryptedLength,
+                ref len,
                 in MemoryMarshal.GetReference(buffer),
                 (uint)buffer.Length
             );
+
+            decryptedLength = len;
         }
 
         public bool Equals(Key other)

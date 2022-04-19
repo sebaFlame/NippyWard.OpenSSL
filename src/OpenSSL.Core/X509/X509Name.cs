@@ -146,9 +146,10 @@ namespace OpenSSL.Core.X509
                 fixed (char* fieldChar = field.AsSpan(), valChar = value.AsSpan())
                 {
                     int byteCount = Encoding.ASCII.GetEncoder().GetByteCount(fieldChar, field.Length, false);
-                    byte* fieldEncoded = stackalloc byte[byteCount];
+                    //+ 1 to allow for null terminator
+                    byte* fieldEncoded = stackalloc byte[byteCount + 1];
                     Encoding.ASCII.GetEncoder().Convert(fieldChar, field.Length, fieldEncoded, byteCount, true, out int charsUsed, out int bytesUsed, out bool completed);
-                    Span<byte> fieldSpan = new Span<byte>(fieldEncoded, byteCount);
+                    Span<byte> fieldSpan = new Span<byte>(fieldEncoded, byteCount + 1);
 
                     byteCount = Encoding.ASCII.GetEncoder().GetByteCount(valChar, value.Length, false);
                     byte* valEncoded = stackalloc byte[byteCount];

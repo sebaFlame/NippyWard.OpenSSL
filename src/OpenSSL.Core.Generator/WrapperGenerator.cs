@@ -31,7 +31,7 @@ namespace OpenSSL.Core.Generator
         private const string _TakeOwnershipAttributeName = "TakeOwnership";
         private const string _DontVerifyTypeName = "DontVerifyType";
         private const string _NativeClassName = "Native";
-        private const string _IntegerVerificationMethodName = "ExpectSuccess";
+        private const string _VerificationMethodName = "ExpectSuccess";
         private const string _SafeHandleVerificationMethodName = "ExpectNonNull";
         private const string _ReturnValueLocalName = "ret";
         private const string _DontVerifyAttributeName = "DontVerifyType";
@@ -39,6 +39,9 @@ namespace OpenSSL.Core.Generator
         private const string _WrapperHandleSuffix = "WrapperSafeHandle";
         private const string _OutParameterNamePrefix = "out";
         private const string _PtrTypeName = "IntPtr";
+        private const string _NativeLongAttributeName = "NativeLong";
+        private const string _WindowsMethodSuffix = "_win";
+        private const string _WindowsArgumentPrefix = "w";
 
         private const string _StackWrapperInterfaceName = "IStackWrapper";
         private const string _SslWrapperInterfaceName = "ILibSSLWrapper";
@@ -631,14 +634,15 @@ namespace OpenSSL.Core.Generator
             TypeSyntax originalTypeSyntax,
             SyntaxList<AttributeListSyntax> symbolAttributes,
             ICollection<SafeHandleModel> abstractSafeBaseHandles,
-            bool isNativeCall
+            bool isNativeCall,
+            bool isNativeWindowsCall
         )
         {
             //if ref, it will never be a safehandle
-            if(originalTypeSyntax is RefTypeSyntax refTypeSyntax)
-            {
-                return originalTypeSyntax;
-            }
+            //if(originalTypeSyntax is RefTypeSyntax refTypeSyntax)
+            //{
+            //    return originalTypeSyntax;
+            //}
 
             string name = GetSafeHandleTypeNameWithoutGenericTypeList(originalTypeSyntax);
 
@@ -663,14 +667,71 @@ namespace OpenSSL.Core.Generator
             //else return the original type
             else
             {
-                return originalTypeSyntax;
+                if(isNativeWindowsCall)
+                {
+                    return CreateWindowsNativeLongType
+                    (
+                        method,
+                        originalTypeSyntax,
+                        symbolAttributes
+                    );
+                }
+                else
+                {
+                    return originalTypeSyntax;
+                }
+            }
+        }
+
+        private static TypeSyntax CreateWindowsNativeLongType
+        (
+            MethodDeclarationSyntax method,
+            TypeSyntax typeSyntax,
+            SyntaxList<AttributeListSyntax> symbolAttributes,
+            bool passByRef = true
+        )
+        {
+            //check for NativeLongAttribute
+            if (!symbolAttributes.Any(x => x.Attributes.Any(y => string.Equals(y.Name.ToString(), _NativeLongAttributeName))))
+            {
+                return typeSyntax;
+            }
+
+            string type = typeSyntax.ToString();
+            TypeSyntax newType = null;
+
+            if (string.Equals(type, "long", StringComparison.OrdinalIgnoreCase))
+            {
+                newType = SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword));
+            }
+            else if (string.Equals(type, "ulong", StringComparison.OrdinalIgnoreCase))
+            {
+                newType = SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.UIntKeyword));
+            }
+
+            if(newType is not null)
+            {
+                if (passByRef
+                    && typeSyntax is RefTypeSyntax refSyntax)
+                {
+                    return SyntaxFactory.RefType(refSyntax.RefKeyword, newType);
+                }
+                else
+                {
+                    return newType;
+                }
+            }
+            else
+            {
+                throw new NotSupportedException($"{type} is not supported");
             }
         }
 
         private static bool IsGeneratorAttribute(string name)
         {
             return string.Equals(name, _DontVerifyAttributeName)
-                    || string.Equals(name, _TakeOwnershipAttributeName);
+                    || string.Equals(name, _TakeOwnershipAttributeName)
+                    || string.Equals(name, _NativeLongAttributeName);
         }
 
         private static SyntaxList<AttributeListSyntax> GenerateAttributesWithoutGeneratorAttributes
@@ -703,6 +764,19 @@ namespace OpenSSL.Core.Generator
             return newAttributes;
         }
 
+        private static bool NeedsWindowsOverride
+        (
+            MethodDeclarationSyntax method
+        )
+            => NeedsWindowsOverride(method.AttributeLists)
+                    || method.ParameterList.Parameters.Any(x => NeedsWindowsOverride(x.AttributeLists));
+
+        private static bool NeedsWindowsOverride
+        (
+            SyntaxList<AttributeListSyntax> symbolAttributes
+        )
+            => symbolAttributes.Any(x => x.Attributes.Any(y => string.Equals(y.Name.ToString(), _NativeLongAttributeName)));
+
         private static bool HasSupportedVerificationType
         (
             MethodDeclarationSyntax method,
@@ -713,10 +787,12 @@ namespace OpenSSL.Core.Generator
         )
         {
             IdentifierNameSyntax methodName;
+            string name = typeSyntax.ToString();
 
-            if (string.Equals(typeSyntax.ToString(), "int"))
+            if (string.Equals(name, "int")
+                || string.Equals(name, "long"))
             {
-                methodName = SyntaxFactory.IdentifierName(_IntegerVerificationMethodName);
+                methodName = SyntaxFactory.IdentifierName(_VerificationMethodName);
             }
             else if (IsSafeHandle(typeSyntax, abstractSafeBaseHandles))
             {

@@ -12,15 +12,19 @@ using OpenSSL.Core.Interop.SafeHandles.Crypto.EC;
 
 namespace OpenSSL.Core.Interop.Wrappers
 {
+    //int (*cb) (const char *str, size_t len, void *u)
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate int err_cb(IntPtr str, uint len, IntPtr u);
+    public delegate int err_cb(IntPtr str, nuint len, IntPtr u);
 
+    //int pem_password_cb (char *buf, int size, int rwflag, void *userdata)
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate int pem_password_cb(IntPtr buf, int size, int rwflag, IntPtr userdata);
 
+    //int (*cb_2) (int, int, bn_gencb_st *)
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate int GeneratorHandler(int p, int n, IntPtr arg);
 
+    //void (*fn) (const OBJ_NAME *, void *arg)
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate void ObjectNameHandler(IntPtr name, IntPtr arg);
 
@@ -30,21 +34,33 @@ namespace OpenSSL.Core.Interop.Wrappers
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate void CRYPTO_id_callback(IntPtr tid);
 
+    //void *(*m) (size_t, const char *, int)
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate IntPtr MallocFunctionPtr(ulong num, IntPtr file, int line);
+    public delegate IntPtr MallocFunctionPtr(nuint num, IntPtr file, int line);
 
+    //void *(*r) (void *, size_t, const char *, int)
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate IntPtr ReallocFunctionPtr(IntPtr addr, ulong num, IntPtr file, int line);
+    public delegate IntPtr ReallocFunctionPtr(IntPtr addr, nuint num, IntPtr file, int line);
 
+    //void (*f) (void *, const char *, int)
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate IntPtr FreeFunctionPtr(IntPtr addr, IntPtr file, int line);
 
+    //void *(*KDF) (const void *in, size_t inlen, void *out, size_t* outlen)
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate IntPtr EC_KEY_dup_func(IntPtr x);
+    public delegate IntPtr ECDH_KDF([MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] byte[] pin, nuint inlen, IntPtr pout, ref nuint outlen);
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate IntPtr ECDH_KDF([MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] byte[] pin, ulong inlen, IntPtr pout, ref ulong outlen);
-
+    /*
+    struct bn_gencb_st {
+        unsigned int ver;
+        void* arg;
+        union {
+            void (* cb_1) (int, int, void*);
+            int (* cb_2) (int, int, BN_GENCB*);
+        }
+        cb;
+    };
+    */
     [StructLayout(LayoutKind.Sequential)]
     public class bn_gencb_st
     {
@@ -55,14 +71,12 @@ namespace OpenSSL.Core.Interop.Wrappers
         public GeneratorHandler cb;
     }
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate void EC_KEY_free_func(IntPtr x);
-
     internal interface ILibCryptoWrapper
     {
         //const char *SSLeay_version(int type);
         IntPtr OpenSSL_version(int type);
         //long SSLeay(void);
+        [return: NativeLong, DontVerifyType]
         ulong OpenSSL_version_num();
 
         //int OPENSSL_init_crypto(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings);
@@ -105,7 +119,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         void ASN1_INTEGER_free(IntPtr x);
         IntPtr ASN1_INTEGER_dup(SafeAsn1IntegerHandle x);
 
-        int ASN1_INTEGER_set(SafeAsn1IntegerHandle a, long v);
+        int ASN1_INTEGER_set(SafeAsn1IntegerHandle a, [NativeLong] long v);
         int ASN1_INTEGER_get(SafeAsn1IntegerHandle a);
         #endregion
 
@@ -117,11 +131,11 @@ namespace OpenSSL.Core.Interop.Wrappers
         //ASN1_TIME *ASN1_TIME_set(ASN1_TIME *s, time_t t);
         SafeAsn1DateTimeHandle ASN1_TIME_set(SafeAsn1DateTimeHandle s, long t);
         //ASN1_TIME* ASN1_TIME_adj(ASN1_TIME* s, time_t t, int offset_day, long offset_sec);
-        SafeAsn1DateTimeHandle ASN1_TIME_adj(SafeAsn1DateTimeHandle s, long t, int offset_day, long offset_sec);
+        SafeAsn1DateTimeHandle ASN1_TIME_adj(SafeAsn1DateTimeHandle s, long t, int offset_day, [NativeLong] long offset_sec);
         //int ASN1_TIME_print(BIO *fp, const ASN1_TIME *a);
         int ASN1_TIME_print(SafeBioHandle bp, SafeAsn1DateTimeHandle a);
         //ASN1_TIME *X509_time_adj_ex(ASN1_TIME *asn1_time, int offset_day, long offset_sec, time_t* in_tm);
-        SafeAsn1DateTimeHandle X509_time_adj(SafeAsn1DateTimeHandle asn1_time, int offset_day, long offset_sec, ref long in_tm);
+        SafeAsn1DateTimeHandle X509_time_adj(SafeAsn1DateTimeHandle asn1_time, int offset_day, [NativeLong] long offset_sec, ref long in_tm);
         #endregion
 
         #region ASN1_STRING
@@ -131,11 +145,14 @@ namespace OpenSSL.Core.Interop.Wrappers
         IntPtr ASN1_STRING_dup(SafeAsn1StringHandle a);
 
         int ASN1_STRING_cmp(SafeAsn1StringHandle a, SafeAsn1StringHandle b);
+        //int ASN1_STRING_set(ASN1_STRING *str, const void *data, int len);
         int ASN1_STRING_set(SafeAsn1StringHandle str, in byte data, int len);
+        //const unsigned char *ASN1_STRING_get0_data(const ASN1_STRING *x);
         IntPtr ASN1_STRING_get0_data(SafeAsn1StringHandle x);
         //int ASN1_STRING_to_UTF8(unsigned char**out, const ASN1_STRING*in)
         [return: DontVerifyType]
         int ASN1_STRING_to_UTF8(out IntPtr strPtr, SafeAsn1StringHandle str);
+        //int ASN1_STRING_length(const ASN1_STRING *x);
         int ASN1_STRING_length(SafeAsn1StringHandle x);
         #endregion
 
@@ -145,6 +162,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         IntPtr ASN1_OCTET_STRING_dup(SafeASN1OctetStringHandle a);
         void ASN1_OCTET_STRING_free(IntPtr a);
 
+        //int ASN1_OCTET_STRING_set(ASN1_OCTET_STRING *str, const unsigned char *data, int len);
         int ASN1_OCTET_STRING_set(SafeASN1OctetStringHandle str, in byte data, int len);
         int ASN1_OCTET_STRING_set(SafeASN1OctetStringHandle str, IntPtr ptr, int len);
         int ASN1_OCTET_STRING_cmp(SafeASN1OctetStringHandle a, SafeASN1OctetStringHandle b);
@@ -166,16 +184,17 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region string conversion
         //int ASN1_mbstring_copy(ASN1_STRING **out, const unsigned char *in, int len, int inform, unsigned long mask)
-        int ASN1_mbstring_copy([TakeOwnership] out SafeAsn1StringHandle outStr, in byte inStr, int len, int inform, ulong mask);
-        int ASN1_mbstring_copy([TakeOwnership] out SafeAsn1StringHandle outStr, IntPtr inStr, int len, int inform, ulong mask);
+        int ASN1_mbstring_copy([TakeOwnership] out SafeAsn1StringHandle outStr, in byte inStr, int len, int inform, [NativeLong] ulong mask);
+        int ASN1_mbstring_copy([TakeOwnership] out SafeAsn1StringHandle outStr, IntPtr inStr, int len, int inform, [NativeLong] ulong mask);
         //unsigned char *OPENSSL_hexstr2buf(const char *str, long *len)
-        IntPtr OPENSSL_hexstr2buf(in byte str, out long len);
+        IntPtr OPENSSL_hexstr2buf(in byte str, [NativeLong] out long len);
         //char *OPENSSL_buf2hexstr(const unsigned char *buffer, long len)
-        IntPtr OPENSSL_buf2hexstr(in byte buffer, long len);
+        IntPtr OPENSSL_buf2hexstr(in byte buffer, [NativeLong] long len);
 
         //int ASN1_item_i2d(ASN1_VALUE *val, unsigned char **out, const ASN1_ITEM *it)
         int ASN1_item_i2d(IntPtr val, out IntPtr ptr, IntPtr it);
         //unsigned long ASN1_tag2bit(int tag)
+        [return: NativeLong, DontVerifyType]
         ulong ASN1_tag2bit(int tag);
         #endregion
 
@@ -185,6 +204,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         IntPtr ASN1_BIT_STRING_dup(SafeASN1BitStringHandle a);
         void ASN1_BIT_STRING_free(IntPtr a);
 
+        //int ASN1_BIT_STRING_set(ASN1_BIT_STRING *a, unsigned char *d, int length);
         int ASN1_BIT_STRING_set(SafeASN1BitStringHandle str, in byte data, int len);
         #endregion
 
@@ -232,8 +252,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         IntPtr X509_REQ_dup(SafeX509RequestHandle req);
 
         //int X509_REQ_set_version(X509_REQ *x, long version);
-        int X509_REQ_set_version(SafeX509RequestHandle x, int version);
+        int X509_REQ_set_version(SafeX509RequestHandle x, [NativeLong] long version);
         //long X509_REQ_get_version(const X509_REQ* req);
+        [return: NativeLong, DontVerifyType]
         long X509_REQ_get_version(SafeX509RequestHandle req);
 
         //int X509_REQ_set_pubkey(X509_REQ *x, EVP_PKEY *pkey);
@@ -274,8 +295,10 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int i2d_X509_bio(BIO *bp, X509 *x);
         int i2d_X509_REQ_bio(SafeBioHandle bp, SafeX509RequestHandle x509);
 
+        //int X509_REQ_print(BIO *bp, X509_REQ *req);
         int X509_REQ_print(SafeBioHandle bp, SafeX509RequestHandle x);
-        int X509_REQ_print_ex(SafeBioHandle bp, SafeX509RequestHandle x, uint nmflag, uint cflag);
+        //int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflag, unsigned long cflag);
+        int X509_REQ_print_ex(SafeBioHandle bp, SafeX509RequestHandle x, [NativeLong] ulong nmflag, [NativeLong] ulong cflag);
         #endregion
 
         #region X509
@@ -309,8 +332,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         int X509_digest(SafeX509CertificateHandle data, SafeMessageDigestHandle type, ref byte md, out uint len);
 
         //int X509_set_version(X509 *x, long version);
-        int X509_set_version(SafeX509CertificateHandle x, long version);
+        int X509_set_version(SafeX509CertificateHandle x, [NativeLong] long version);
         //long X509_get_version(const X509 *x);
+        [return: NativeLong, DontVerifyType]
         long X509_get_version(SafeX509CertificateHandle x);
 
         //int X509_set_serialNumber(X509 *x, ASN1_INTEGER *serial);
@@ -347,7 +371,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         SafeKeyHandle X509_get0_pubkey(SafeX509CertificateHandle x);
 
         //const char *X509_verify_cert_error_string(long n);
-        IntPtr X509_verify_cert_error_string(int n);
+        IntPtr X509_verify_cert_error_string([NativeLong] long n);
 
         //X509_REQ *X509_to_X509_REQ(X509 *x, EVP_PKEY *pkey, const EVP_MD *md);
         SafeX509RequestHandle X509_to_X509_REQ(SafeX509CertificateHandle x, SafeKeyHandle pkey, SafeMessageDigestHandle md);
@@ -377,7 +401,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         //void X509_get0_signature(const ASN1_BIT_STRING **psig, const X509_ALGOR** palg, const X509* x);
         void X509_get0_signature(out SafeASN1BitStringHandle psig, IntPtr palg, SafeX509CertificateHandle x);
 
-        int X509_print_ex(SafeBioHandle bp, SafeX509CertificateHandle x, uint nmflag, uint cflag);
+        //int X509_print_ex(BIO *bp, X509 *x, unsigned long nmflag, unsigned long cflag);
+        int X509_print_ex(SafeBioHandle bp, SafeX509CertificateHandle x, [NativeLong] ulong nmflag, [NativeLong] ulong cflag);
+        //int X509_print(BIO *bp, X509 *x);
         int X509_print(SafeBioHandle bp, SafeX509CertificateHandle x);
         #endregion
 
@@ -392,7 +418,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //X509_EXTENSION *X509_delete_ext(X509 *x, int loc);
         SafeX509ExtensionHandle X509_delete_ext(SafeX509CertificateHandle x, int loc);
         //int X509_add1_ext_i2d(X509 *x, int nid, void *value, int crit, unsigned long flags);
-        int X509_add1_ext_i2d(SafeX509CertificateHandle x, int nid, in byte value, int crit, uint flags);
+        int X509_add1_ext_i2d(SafeX509CertificateHandle x, int nid, in byte value, int crit, [NativeLong] ulong flags);
 
         //X509_EXTENSION *X509_EXTENSION_create_by_NID(X509_EXTENSION **ex, int nid, int crit, ASN1_OCTET_STRING *data);
         [return: TakeOwnership]
@@ -414,7 +440,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region X509V3_EXT
         //int X509V3_EXT_print(BIO *out, X509_EXTENSION *ext, unsigned long flag, int indent)
-        int X509V3_EXT_print(SafeBioHandle bio, SafeX509ExtensionHandle ext, ulong flag, int indent);
+        int X509V3_EXT_print(SafeBioHandle bio, SafeX509ExtensionHandle ext, [NativeLong] ulong flag, int indent);
         #endregion
 
         //TODO: X509_CRL
@@ -527,11 +553,11 @@ namespace OpenSSL.Core.Interop.Wrappers
         int RAND_bytes(ref byte buf, int num);
 
         //int RAND_load_file(const char* filename, long max_bytes);
-        int RAND_load_file(string file, int max_bytes);
+        int RAND_load_file(string file, [NativeLong] long max_bytes);
         //int RAND_write_file(const char *filename);
         int RAND_write_file(string file);
         //const char *RAND_file_name(char *buf, size_t num);
-        IntPtr RAND_file_name(ref byte buf, ulong num);
+        IntPtr RAND_file_name(ref byte buf, nuint num);
 
         //int RAND_query_egd_bytes(const char *path, unsigned char *buf, int bytes);
         int RAND_query_egd_bytes(string path, ref byte buf, int bytes);
@@ -561,7 +587,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         int DSA_up_ref(IntPtr dsa);
 
         //int DSA_generate_parameters_ex(DSA *dsa, int bits, const unsigned char* seed,int seed_len, int* counter_ret, unsigned long* h_ret, BN_GENCB *cb);
-        int DSA_generate_parameters_ex(SafeDSAHandle dsa, int bits, in byte seed, int seed_len, out int counter_ret, out ulong h_ret, bn_gencb_st callback);
+        int DSA_generate_parameters_ex(SafeDSAHandle dsa, int bits, in byte seed, int seed_len, out int counter_ret, [NativeLong] out ulong h_ret, bn_gencb_st callback);
         //int DSA_generate_key(DSA *a);
         int DSA_generate_key(SafeDSAHandle dsa);
         //int DSA_size(const DSA *dsa);
@@ -646,7 +672,7 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         //DH *d2i_DHparams(DH **a, unsigned char **pp, long length);
         [return: TakeOwnership]
-        SafeDHHandle d2i_DHparams(IntPtr a, IntPtr pp, int length);
+        SafeDHHandle d2i_DHparams(IntPtr a, IntPtr pp, [NativeLong] long length);
         //int i2d_DHparams(DH *a, unsigned char **pp);
         int i2d_DHparams(SafeDHHandle a, IntPtr pp);
         #endregion
@@ -699,19 +725,19 @@ namespace OpenSSL.Core.Interop.Wrappers
         int BN_dec2bn([TakeOwnership] out SafeBigNumberHandle a, in byte str);
 
         //BN_ULONG BN_mod_word(const BIGNUM *a, BN_ULONG w);
-        uint BN_mod_word(SafeBigNumberHandle a, uint w);
+        nuint BN_mod_word(SafeBigNumberHandle a, nuint w);
         //BN_ULONG BN_div_word(BIGNUM *a, BN_ULONG w);
-        uint BN_div_word(SafeBigNumberHandle a, uint w);
+        nuint BN_div_word(SafeBigNumberHandle a, nuint w);
         //int BN_mul_word(BIGNUM *a, BN_ULONG w);
-        int BN_mul_word(SafeBigNumberHandle a, uint w);
+        int BN_mul_word(SafeBigNumberHandle a, nuint w);
         //int BN_add_word(BIGNUM *a, BN_ULONG w);
-        int BN_add_word(SafeBigNumberHandle a, uint w);
+        int BN_add_word(SafeBigNumberHandle a, nuint w);
         //int BN_sub_word(BIGNUM *a, BN_ULONG w);
-        int BN_sub_word(SafeBigNumberHandle a, uint w);
+        int BN_sub_word(SafeBigNumberHandle a, nuint w);
         //int BN_set_word(BIGNUM *a, BN_ULONG w);
-        int BN_set_word(SafeBigNumberHandle a, uint w);
+        int BN_set_word(SafeBigNumberHandle a, nuint w);
         //BN_ULONG BN_get_word(BIGNUM *a);
-        uint BN_get_word(SafeBigNumberHandle a);
+        nuint BN_get_word(SafeBigNumberHandle a);
         //int BN_set_bit(BIGNUM* a, int n);
         int BN_set_bit(SafeBigNumberHandle a, int n);
         #endregion
@@ -803,10 +829,11 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int EVP_MD_block_size(const EVP_MD *md);
         int EVP_MD_block_size(SafeMessageDigestHandle md);
         //unsigned long EVP_MD_flags(const EVP_MD *md);
+        [return: NativeLong, DontVerifyType]
         ulong EVP_MD_flags(SafeMessageDigestHandle md);
 
         //int EVP_Digest(const void *data, size_t count, unsigned char* md, unsigned int* size, const EVP_MD* type, ENGINE *impl);
-        int EVP_Digest(in byte data, ulong count, ref byte md, ref uint size, SafeMessageDigestHandle type, SafeEngineHandle impl);
+        int EVP_Digest(in byte data, nuint count, ref byte md, ref uint size, SafeMessageDigestHandle type, SafeEngineHandle impl);
         #endregion
 
         #region EVP_MD_CTX
@@ -824,7 +851,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int EVP_DigestInit(EVP_MD_CTX *ctx, const EVP_MD *type);
         int EVP_DigestInit(SafeMessageDigestContextHandle ctx, SafeMessageDigestHandle type);
         //int EVP_DigestUpdate(EVP_MD_CTX *ctx, const void *d, size_t cnt);
-        int EVP_DigestUpdate(SafeMessageDigestContextHandle ctx, in byte d, ulong cnt);
+        int EVP_DigestUpdate(SafeMessageDigestContextHandle ctx, in byte d, nuint cnt);
         //int EVP_DigestFinal(EVP_MD_CTX* ctx, unsigned char* md, unsigned int* s);
         int EVP_DigestFinal(SafeMessageDigestContextHandle ctx, ref byte md, out uint s);
         //int EVP_DigestFinal_ex(EVP_MD_CTX *ctx, unsigned char *md, unsigned int* s);
@@ -862,7 +889,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         void HMAC_Final(SafeHMACContextHandle ctx, ref byte md, out uint len);
 
         //void HMAC_CTX_set_flags(HMAC_CTX *ctx, unsigned long flags);
-        void HMAC_CTX_set_flags(SafeHMACContextHandle ctx, uint flags);
+        void HMAC_CTX_set_flags(SafeHMACContextHandle ctx, [NativeLong] ulong flags);
         //unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len, const unsigned char* d, int n, unsigned char* md, unsigned int* md_len);
         IntPtr HMAC(SafeMessageDigestHandle evp_md, in byte key, int key_len, in byte d, int n, ref byte md, out uint md_len);
         #endregion
@@ -1162,14 +1189,14 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int EVP_PKEY_decrypt_init(EVP_PKEY_CTX* ctx);
         int EVP_PKEY_decrypt_init(SafeKeyContextHandle ctx);
         //int EVP_PKEY_decrypt(EVP_PKEY_CTX* ctx, unsigned char *out, size_t* outlen, const unsigned char*in, size_t inlen);
-        int EVP_PKEY_decrypt(SafeKeyContextHandle ctx, ref byte output, ref ulong outlen, in byte input, ulong inlen);
-        int EVP_PKEY_decrypt(SafeKeyContextHandle ctx, IntPtr output, ref ulong outlen, in byte input, ulong inlen); //to pass IntPtr.Zero
+        int EVP_PKEY_decrypt(SafeKeyContextHandle ctx, ref byte output, ref nuint outlen, in byte input, nuint inlen);
+        int EVP_PKEY_decrypt(SafeKeyContextHandle ctx, IntPtr output, ref nuint outlen, in byte input, nuint inlen); //to pass IntPtr.Zero
 
         //int EVP_PKEY_encrypt_init(EVP_PKEY_CTX* ctx);
         int EVP_PKEY_encrypt_init(SafeKeyContextHandle ctx);
         //int EVP_PKEY_encrypt(EVP_PKEY_CTX* ctx, unsigned char*out, size_t* outlen, const unsigned char*in, size_t inlen);
-        int EVP_PKEY_encrypt(SafeKeyContextHandle ctx, ref byte output, ref ulong outlen, in byte input, ulong inlen);
-        int EVP_PKEY_encrypt(SafeKeyContextHandle ctx, IntPtr output, ref ulong outlen, in byte input, ulong inlen); //to pass IntPtr.Zero
+        int EVP_PKEY_encrypt(SafeKeyContextHandle ctx, ref byte output, ref nuint outlen, in byte input, nuint inlen);
+        int EVP_PKEY_encrypt(SafeKeyContextHandle ctx, IntPtr output, ref nuint outlen, in byte input, nuint inlen); //to pass IntPtr.Zero
         #endregion
 
         #region EC_METHOD
@@ -1223,9 +1250,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         int EC_POINT_set_compressed_coordinates_GF2m(SafeECGroupHandle group, SafeECPointHandle p, SafeBigNumberHandle x, int y_bit, SafeBigNumberContextHandle ctx);
 
         //size_t EC_POINT_point2oct(const EC_GROUP *group, const EC_POINT *p, point_conversion_form_t form, unsigned char* buf, size_t len, BN_CTX* ctx);
-        ulong EC_POINT_point2oct(SafeECGroupHandle group, SafeECPointHandle p, int form, ref byte buf, ulong len, SafeBigNumberContextHandle ctx);
+        nuint EC_POINT_point2oct(SafeECGroupHandle group, SafeECPointHandle p, int form, ref byte buf, nuint len, SafeBigNumberContextHandle ctx);
         //int EC_POINT_oct2point(const EC_GROUP *group, EC_POINT *p, const unsigned char* buf, size_t len, BN_CTX* ctx);
-        int EC_POINT_oct2point(SafeECGroupHandle group, SafeECPointHandle p, in byte buf, ulong len, SafeBigNumberContextHandle ctx);
+        int EC_POINT_oct2point(SafeECGroupHandle group, SafeECPointHandle p, in byte buf, nuint len, SafeBigNumberContextHandle ctx);
         //BIGNUM *EC_POINT_point2bn(const EC_GROUP *, const EC_POINT *, point_conversion_form_t form, BIGNUM *, BN_CTX *);
         SafeBigNumberHandle EC_POINT_point2bn(SafeECGroupHandle a, SafeECPointHandle b, int form, SafeBigNumberHandle c, SafeBigNumberContextHandle d);
         //EC_POINT *EC_POINT_bn2point(const EC_GROUP *, const BIGNUM *, EC_POINT*, BN_CTX*);
@@ -1248,16 +1275,16 @@ namespace OpenSSL.Core.Interop.Wrappers
         //int EC_POINT_make_affine(const EC_GROUP *group, EC_POINT *point, BN_CTX *ctx);
         int EC_POINT_make_affine(SafeECGroupHandle a, SafeECPointHandle b, SafeBigNumberContextHandle c);
         //int EC_POINTs_make_affine(const EC_GROUP *group, size_t num, EC_POINT *points[], BN_CTX *ctx);
-        int EC_POINTs_make_affine(SafeECGroupHandle a, ulong num, SafeECPointHandle[] b, SafeBigNumberContextHandle c);
+        int EC_POINTs_make_affine(SafeECGroupHandle a, nuint num, SafeECPointHandle[] b, SafeBigNumberContextHandle c);
         //int EC_POINTs_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *n, size_t num, const EC_POINT *p[], const BIGNUM *m[], BN_CTX *ctx);
-        int EC_POINTs_mul(SafeECGroupHandle group, SafeECPointHandle r, SafeBigNumberHandle n, ulong num, SafeECPointHandle[] p, SafeBigNumberHandle[] m, SafeBigNumberContextHandle ctx);
+        int EC_POINTs_mul(SafeECGroupHandle group, SafeECPointHandle r, SafeBigNumberHandle n, nuint num, SafeECPointHandle[] p, SafeBigNumberHandle[] m, SafeBigNumberContextHandle ctx);
         // int EC_POINT_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *n, const EC_POINT *q, const BIGNUM *m, BN_CTX *ctx);
         int EC_POINT_mul(SafeECGroupHandle group, SafeECPointHandle r, SafeBigNumberHandle n, SafeECPointHandle q, SafeBigNumberHandle m, SafeBigNumberContextHandle ctx);
         #endregion
 
         #region EC_GROUP
         //size_t EC_get_builtin_curves(EC_builtin_curve *r, size_t nitems);
-        ulong EC_get_builtin_curves(IntPtr r, ulong nitems);
+        nuint EC_get_builtin_curves(IntPtr r, nuint nitems);
 
         //EC_GROUP *EC_GROUP_new(const EC_METHOD *meth);
         [return: TakeOwnership]
@@ -1310,9 +1337,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         //unsigned char *EC_GROUP_get0_seed(const EC_GROUP *x);
         ref byte EC_GROUP_get0_seed(SafeECGroupHandle x);
         //size_t EC_GROUP_get_seed_len(const EC_GROUP *);
-        ulong EC_GROUP_get_seed_len(SafeECGroupHandle x);
+        nuint EC_GROUP_get_seed_len(SafeECGroupHandle x);
         //size_t EC_GROUP_set_seed(EC_GROUP *, const unsigned char *, size_t len);
-        ulong EC_GROUP_set_seed(SafeECGroupHandle x, in byte buf, ulong len);
+        nuint EC_GROUP_set_seed(SafeECGroupHandle x, in byte buf, nuint len);
 
         //int EC_GROUP_set_curve_GFp(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
         int EC_GROUP_set_curve_GFp(SafeECGroupHandle group, SafeBigNumberHandle p, SafeBigNumberHandle a, SafeBigNumberHandle b, SafeBigNumberContextHandle ctx);
@@ -1377,11 +1404,6 @@ namespace OpenSSL.Core.Interop.Wrappers
         //void EC_KEY_set_conv_form(EC_KEY *eckey, point_conversion_form_t cform);
         void EC_KEY_set_conv_form(SafeECKeyHandle x, int y);
 
-        //void *EC_KEY_get_key_method_data(EC_KEY *key, void* (* dup_func) (void*), void (* free_func) (void*), void (* clear_free_func) (void*));
-        SafeECKeyHandle EC_KEY_get_key_method_data(SafeECKeyHandle x, EC_KEY_dup_func dup_func, EC_KEY_free_func free_func, EC_KEY_free_func clear_free_func);
-        //void EC_KEY_insert_key_method_data(EC_KEY *key, void *data, void* (* dup_func) (void*), void (* free_func) (void*), void (* clear_free_func) (void*));
-        void EC_KEY_insert_key_method_data(SafeECKeyHandle x, IntPtr data, EC_KEY_dup_func dup_func, EC_KEY_free_func free_func, EC_KEY_free_func clear_free_func);
-
         //void EC_KEY_set_asn1_flag(EC_KEY *eckey, int asn1_flag);
         void EC_KEY_set_asn1_flag(SafeECKeyHandle x, int y);
         //int EC_KEY_precompute_mult(EC_KEY *key, BN_CTX *ctx);
@@ -1404,7 +1426,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         int i2d_ECDSA_SIG(SafeECDSASignatureHandle sig, ref byte pp);
         //ECDSA_SIG* d2i_ECDSA_SIG(ECDSA_SIG **sig, const unsigned char **pp, long len);
         [return: TakeOwnership]
-        SafeECDSASignatureHandle d2i_ECDSA_SIG(IntPtr sig, in byte pp, long len);
+        SafeECDSASignatureHandle d2i_ECDSA_SIG(IntPtr sig, in byte pp, [NativeLong] long len);
 
         //ECDSA_SIG* ECDSA_do_sign(const unsigned char *dgst, int dgst_len, EC_KEY* eckey);
         [return: TakeOwnership]
@@ -1437,7 +1459,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         #endregion
 
         //int ECDH_compute_key(void *out, size_t outlen, const EC_POINT *pub_key, EC_KEY* ecdh, void* (* KDF) (const void*in, size_t inlen, void*out, size_t* outlen));
-        int ECDH_compute_key(ref byte pout, ulong outlen, SafeECPointHandle pub_key, SafeECKeyHandle ecdh, ECDH_KDF kdf);
+        int ECDH_compute_key(ref byte pout, nuint outlen, SafeECPointHandle pub_key, SafeECKeyHandle ecdh, ECDH_KDF kdf);
 
         #region BIO
         //const BIO_METHOD* BIO_s_mem(void);
@@ -1466,10 +1488,13 @@ namespace OpenSSL.Core.Interop.Wrappers
         //BIO *BIO_push(BIO *b, BIO *append);
         SafeBioHandle BIO_push(SafeBioHandle bp, SafeBioHandle append);
         //long BIO_ctrl(BIO *bp, int cmd, long larg, void *parg);
-        long BIO_ctrl(SafeBioHandle bp, int cmd, int larg, IntPtr parg);
+        [return: NativeLong, DontVerifyType]
+        long BIO_ctrl(SafeBioHandle bp, int cmd, [NativeLong] long larg, IntPtr parg);
         //long BIO_int_ctrl(BIO *bp, int cmd, long larg, int iarg);
-        long BIO_int_ctrl(SafeBioHandle bp, int cmd, int larg, int parg);
+        [return: NativeLong, DontVerifyType]
+        long BIO_int_ctrl(SafeBioHandle bp, int cmd, [NativeLong] long larg, int iarg);
         //# define BIO_flush(b)            (int)BIO_ctrl(b,BIO_CTRL_FLUSH,0,NULL)
+        [return: NativeLong]
         long BIO_flush(SafeBioHandle b);
         //void *BIO_get_data(BIO *a);
         IntPtr BIO_get_data(SafeBioHandle a);
@@ -1497,30 +1522,39 @@ namespace OpenSSL.Core.Interop.Wrappers
         void BIO_free_all(IntPtr bio);
 
         //uint64_t BIO_number_read(BIO *bio)
+        [return: DontVerifyType]
         ulong BIO_number_read(SafeBioHandle bio);
         //uint64_t BIO_number_written(BIO *bio)
+        [return: DontVerifyType]
         ulong BIO_number_written(SafeBioHandle bio);
 
         //size_t BIO_ctrl_pending(BIO* b);
         [return: DontVerifyType]
-        ulong BIO_ctrl_pending(SafeBioHandle bio);
+        nuint BIO_ctrl_pending(SafeBioHandle bio);
         #endregion
 
         #region ERR
-        [return: DontVerifyType]
+        [return: DontVerifyType, NativeLong]
+        //unsigned long ERR_get_error(void);
         ulong ERR_get_error();
-        void ERR_error_string_n(ulong e, ref byte buf, int len);
-        IntPtr ERR_lib_error_string(ulong e);
-        IntPtr ERR_func_error_string(ulong e);
-        IntPtr ERR_reason_error_string(ulong e);
+        //void ERR_error_string_n(unsigned long e, char *buf, size_t len);
+        void ERR_error_string_n([NativeLong] ulong e, ref byte buf, nuint len);
+        //const char *ERR_lib_error_string(unsigned long e);
+        IntPtr ERR_lib_error_string([NativeLong] ulong e);
+        //const char *ERR_func_error_string(unsigned long e);
+        IntPtr ERR_func_error_string([NativeLong] ulong e);
+        //const char *ERR_reason_error_string(unsigned long e);
+        IntPtr ERR_reason_error_string([NativeLong] ulong e);
+        //void ERR_clear_error(void);
         void ERR_clear_error();
+        //void ERR_print_errors_cb(int (*cb) (const char *str, size_t len, void *u), void* u);
         void ERR_print_errors_cb(err_cb cb, IntPtr u);
         #endregion
 
         //void CRYPTO_free(void *str, const char *file, int line)
         void CRYPTO_free(IntPtr addr, in byte file, int line);
         //void *CRYPTO_malloc(size_t num, const char *file, int line)
-        IntPtr CRYPTO_malloc(ulong size, in byte file, int line);
+        IntPtr CRYPTO_malloc(nuint size, in byte file, int line);
 
         //int CRYPTO_set_mem_functions(void* (* m) (size_t, const char*, int), void* (* r) (void*, size_t, const char*, int), void (* f) (void*, const char*, int))
         int CRYPTO_set_mem_functions(MallocFunctionPtr m, ReallocFunctionPtr r, FreeFunctionPtr f);

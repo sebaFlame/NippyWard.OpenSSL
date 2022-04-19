@@ -105,9 +105,10 @@ namespace OpenSSL.Core.ASN1
                     fixed (char* ch = nameSpan)
                     {
                         int count = Encoding.ASCII.GetEncoder().GetByteCount(ch, nameSpan.Length, false);
-                        byte* b = stackalloc byte[count];
+                        //+ 1 to allow for null terminator
+                        byte* b = stackalloc byte[count + 1];
                         Encoding.ASCII.GetEncoder().GetBytes(ch, nameSpan.Length, b, count, true);
-                        Span<byte> buf = new Span<byte>(b, count);
+                        Span<byte> buf = new Span<byte>(b, count + 1);
                         return Native.CryptoWrapper.OBJ_txt2obj(buf.GetPinnableReference(), 0);
                     }
                 }

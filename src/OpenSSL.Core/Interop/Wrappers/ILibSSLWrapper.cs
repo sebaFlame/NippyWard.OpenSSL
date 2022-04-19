@@ -12,15 +12,19 @@ using OpenSSL.Core.Interop.SafeHandles.X509;
 namespace OpenSSL.Core.Interop.Wrappers
 {
     //int (*client_cert_cb)(SSL *ssl, X509 **x509, EVP_PKEY **pkey)
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     internal delegate int ClientCertificateCallback(IntPtr ssl, out IntPtr x509, out IntPtr pkey);
 
     //int (*verify_callback)(int, X509_STORE_CTX *)
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     internal delegate int VerifyCertificateCallback(int preVerify, IntPtr x509_store_ctx);
 
     //int (*cb) (struct ssl_st *ssl, SSL_SESSION *sess)
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     internal delegate int SessionCallback(IntPtr ssl, IntPtr sess);
 
     //callback(SSL *ssl, int where, int ret)
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     internal delegate void SslInfoCallback (IntPtr ssl, int where, int ret);
 
     internal interface ILibSSLWrapper
@@ -65,7 +69,8 @@ namespace OpenSSL.Core.Interop.Wrappers
         //void SSL_CTX_free(SSL_CTX *ctx);
         void SSL_CTX_free(IntPtr ctx);
         //long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg);
-        long SSL_CTX_ctrl(SafeSslContextHandle ctx, int cmd, int arg, IntPtr parg);
+        [return: NativeLong, DontVerifyType]
+        long SSL_CTX_ctrl(SafeSslContextHandle ctx, int cmd, [NativeLong] long arg, IntPtr parg);
         //void SSL_CTX_set_verify_depth(SSL_CTX *ctx,int depth);
         void SSL_CTX_set_verify_depth(SafeSslContextHandle ctx, int depth);
         //int SSL_CTX_up_ref(SSL_CTX *ctx);
@@ -74,9 +79,11 @@ namespace OpenSSL.Core.Interop.Wrappers
         //STACK_OF(SSL_CIPHER) *SSL_CTX_get_ciphers(const SSL_CTX *ctx);
         SafeStackHandle<SafeSslCipherHandle> SSL_CTX_get_ciphers(SafeSslContextHandle ctx);
         //long SSL_CTX_set_options(SSL_CTX *ctx, long options);
-        long SSL_CTX_set_options(SafeSslContextHandle ctx, long options);
+        [return: NativeLong, DontVerifyType]
+        long SSL_CTX_set_options(SafeSslContextHandle ctx, [NativeLong] long options);
         //long SSL_CTX_clear_options(SSL_CTX *ctx, long options);
-        long SSL_CTX_clear_options(SafeSslContextHandle ctx, long options);
+        [return: NativeLong, DontVerifyType]
+        long SSL_CTX_clear_options(SafeSslContextHandle ctx, [NativeLong] long options);
         //void SSL_CTX_set_security_level(SSL_CTX *ctx, int level);
         void SSL_CTX_set_security_level(SafeSslContextHandle ctx, int level);
 
@@ -98,8 +105,6 @@ namespace OpenSSL.Core.Interop.Wrappers
         void SSL_CTX_set_default_passwd_cb_userdata(SafeSslContextHandle ctx, IntPtr data);
         //void SSL_CTX_set_default_passwd_cb(SSL_CTX *ctx, pem_password_cb *cb);
         void SSL_CTX_set_default_passwd_cb(SafeSslContextHandle ctx, pem_password_cb callback);
-        //long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg);
-        long SSL_CTX_ctrl(SafeSslContextHandle ctx, int cmd, long larg, IntPtr parg);
 
         //int SSL_CTX_set_session_id_context(SSL_CTX *ctx, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
         int SSL_CTX_set_session_id_context(SafeSslContextHandle ctx, in byte sid_ctx, uint sid_ctx_len);
@@ -162,14 +167,16 @@ namespace OpenSSL.Core.Interop.Wrappers
 
         #region SSL
         //long SSL_set_options(SSL *ssl, long options);
-        long SSL_set_options(SafeSslHandle ssl, long options);
+        [return: NativeLong, DontVerifyType]
+        long SSL_set_options(SafeSslHandle ssl, [NativeLong] long options);
         //void SSL_set_security_level(SSL *s, int level);
         void SSL_set_security_level(SafeSslHandle s, int level);
 
         //long SSL_get_verify_result(const SSL *ssl);
+        [return: NativeLong, DontVerifyType]
         long SSL_get_verify_result(SafeSslHandle ssl);
         //void SSL_set_verify_result(SSL *ssl, long verify_result);
-        int SSL_set_verify_result(SafeSslHandle ssl, long v);
+        void SSL_set_verify_result(SafeSslHandle ssl, [NativeLong] long v);
 
         //SSL_CIPHER *SSL_get_current_cipher(const SSL *ssl);
         SafeSslCipherHandle SSL_get_current_cipher(SafeSslHandle ssl);
@@ -257,8 +264,8 @@ namespace OpenSSL.Core.Interop.Wrappers
         //const char *SSL_state_string(const SSL *ssl);
         IntPtr SSL_state_string(SafeSslHandle ssl);
         //long SSL_ctrl(SSL *ssl, int cmd, long larg, char *parg);
-        [return: DontVerifyType]
-        int SSL_ctrl(SafeSslHandle ssl, int cmd, int larg, IntPtr parg);
+        [return: DontVerifyType, NativeLong]
+        long SSL_ctrl(SafeSslHandle ssl, int cmd, [NativeLong] long larg, IntPtr parg);
 
         //X509 *SSL_get_peer_certificate(const SSL *ssl);
         [return: TakeOwnership] //not new, already gets an extra reference in the native code

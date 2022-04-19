@@ -369,6 +369,7 @@ namespace OpenSSL.Core.Interop
             fixed (char* c = span)
             {
                 int bufLength = Encoding.ASCII.GetEncoder().GetByteCount(c, span.Length, false);
+                //+ 1 to allow for null terminator
                 byte* b = stackalloc byte[bufLength + 1];
                 Encoding.ASCII.GetEncoder().GetBytes(c, span.Length, b, bufLength, true);
                 Span<byte> buf = new Span<byte>(b, bufLength + 1);
@@ -401,6 +402,16 @@ namespace OpenSSL.Core.Interop
             }
         }
 
+        //check if the return value is invalid and throws an exception if that's the case
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void ExpectSuccess(long ret)
+        {
+            if (ret <= 0)
+            {
+                throw new OpenSslException();
+            }
+        }
+
         //create a stack item (mostly used for debugging)
         internal static TStackable CreateStackableItem<TStackable>(SafeStackHandle<TStackable> stack, IntPtr ptr)
             where TStackable : SafeBaseHandle, IStackable
@@ -409,6 +420,5 @@ namespace OpenSSL.Core.Interop
         }
 
         #endregion
-
     }
 }

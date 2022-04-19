@@ -62,7 +62,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
         /// <returns></returns>
         private void Get()
 		{
-            ulong count = Native.CryptoWrapper.EC_get_builtin_curves(IntPtr.Zero, 0);
+            nuint count = Native.CryptoWrapper.EC_get_builtin_curves(IntPtr.Zero, 0);
             IntPtr ptr = Marshal.AllocHGlobal(Marshal.SizeOf<EC_builtin_curve>() * (int)count);
             curves = new List<ECCurveType>();
 

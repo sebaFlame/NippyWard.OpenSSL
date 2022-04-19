@@ -114,6 +114,18 @@ namespace OpenSSL.Core.Generator
                     nativeLibrary,
                     out nativeMethodName
                 );
+
+                if (NeedsWindowsOverride(method))
+                {
+                    yield return GenerateNativeWindowsMethod
+                    (
+                        method,
+                        safeHandles,
+                        nativeLibrary,
+                        nativeMethodName
+                    );
+                }
+
                 yield return GenerateImplementationMethod
                 (
                     method,
@@ -196,6 +208,133 @@ namespace OpenSSL.Core.Generator
                     interfaceMethod.ReturnType,
                     interfaceMethod.AttributeLists,
                     safeHandles,
+                    true,
+                    false
+                )
+                .WithoutTrivia(),
+                null,
+                SyntaxFactory.Identifier(nativeMethodName),
+                null,
+                SyntaxFactory.ParameterList
+                (
+                    SyntaxFactory.SeparatedList
+                    (
+                        interfaceMethod.ParameterList.Parameters.Select
+                        (
+                            x => SyntaxFactory.Parameter
+                            (
+                                GenerateAttributesWithoutGeneratorAttributes
+                                (
+                                    x.AttributeLists
+                                ),
+                                x.Modifiers,
+                                x.Modifiers.Any(y => y.WithoutTrivia().ValueText.Equals("out"))
+                                    || ContainsGenericTypeParameter(x.Type, interfaceMethod.TypeParameterList, out _)
+                                    || NeedsWindowsOverride(x.AttributeLists)
+                                    ? CreateConcreteSafeHandleType
+                                    (
+                                        interfaceMethod,
+                                        x.Type,
+                                        x.AttributeLists,
+                                        safeHandles,
+                                        true,
+                                        false
+                                    )
+                                    .WithoutTrivia()
+                                    : x.Type.WithoutTrivia(),
+                                ContainsGenericTypeParameter(x.Type, interfaceMethod.TypeParameterList, out _)
+                                    ? SyntaxFactory.Identifier
+                                    (
+                                        string.Concat(_PtrNamePrefix, x.Identifier.WithoutTrivia())
+                                    )
+                                    : x.Identifier.WithoutTrivia(),
+                                null
+                            )
+                        )
+                    )
+                ),
+                SyntaxFactory.List<TypeParameterConstraintClauseSyntax>(), //drop all generic constraints
+                null,
+                null,
+                SyntaxFactory.Token(SyntaxKind.SemicolonToken)
+            )
+            .NormalizeWhitespace();
+        }
+
+        private static MethodDeclarationSyntax GenerateNativeWindowsMethod
+        (
+            MethodDeclarationSyntax interfaceMethod,
+            ICollection<SafeHandleModel> safeHandles,
+            string nativeLibrary,
+            string nativeMethodName
+        )
+        {
+            nativeMethodName = $"{nativeMethodName}{_WindowsMethodSuffix}";
+
+            return SyntaxFactory.MethodDeclaration
+            (
+                SyntaxFactory.List
+                (
+                    new AttributeListSyntax[]
+                    {
+                        SyntaxFactory.AttributeList
+                        (
+                            SyntaxFactory.SeparatedList
+                            (
+                                new AttributeSyntax[]
+                                {
+                                    SyntaxFactory.Attribute
+                                    (
+                                        SyntaxFactory.ParseName("DllImport"),
+                                        SyntaxFactory.AttributeArgumentList
+                                        (
+                                            SyntaxFactory.SeparatedList
+                                            (
+                                                new AttributeArgumentSyntax[]
+                                                {
+                                                    SyntaxFactory.AttributeArgument
+                                                    (
+                                                        SyntaxFactory.LiteralExpression
+                                                        (
+                                                            SyntaxKind.StringLiteralExpression,
+                                                            SyntaxFactory.Literal(nativeLibrary)
+                                                        )
+                                                    ),
+                                                    SyntaxFactory.AttributeArgument
+                                                    (
+                                                        SyntaxFactory.NameEquals
+                                                        (
+                                                            SyntaxFactory.IdentifierName("EntryPoint")
+                                                        ),
+                                                        null,
+                                                        SyntaxFactory.LiteralExpression
+                                                        (
+                                                            SyntaxKind.StringLiteralExpression,
+                                                            SyntaxFactory.Literal(interfaceMethod.Identifier.ValueText)
+                                                        )
+                                                    )
+                                                }
+                                            )
+                                        )
+                                    )
+                                }
+                            )
+                        )
+                    }
+                ),
+                SyntaxFactory.TokenList
+                (
+                    SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
+                    SyntaxFactory.Token(SyntaxKind.StaticKeyword),
+                    SyntaxFactory.Token(SyntaxKind.ExternKeyword)
+                ),
+                CreateConcreteSafeHandleType
+                (
+                    interfaceMethod,
+                    interfaceMethod.ReturnType,
+                    interfaceMethod.AttributeLists,
+                    safeHandles,
+                    true,
                     true
                 )
                 .WithoutTrivia(),
@@ -217,12 +356,14 @@ namespace OpenSSL.Core.Generator
                                 x.Modifiers,
                                 x.Modifiers.Any(y => y.WithoutTrivia().ValueText.Equals("out"))
                                     || ContainsGenericTypeParameter(x.Type, interfaceMethod.TypeParameterList, out _)
+                                    || NeedsWindowsOverride(x.AttributeLists)
                                     ? CreateConcreteSafeHandleType
                                     (
                                         interfaceMethod,
                                         x.Type,
                                         x.AttributeLists,
                                         safeHandles,
+                                        true,
                                         true
                                     )
                                     .WithoutTrivia()
@@ -306,16 +447,154 @@ namespace OpenSSL.Core.Generator
             BlockSyntax blockSyntax = SyntaxFactory.Block();
             InvocationExpressionSyntax verificationExpression, postConstructionExpression;
             TypeSyntax concreteReturnType = null;
+            InvocationExpressionSyntax winInvocation = null;
 
             SyntaxList<AttributeListSyntax> methodAttributes = interfaceMethod.AttributeLists;
+
+            bool needsWindowsOverride = NeedsWindowsOverride(interfaceMethod);
 
             //generate the invocation method, declaring conrete safe handle types
             InvocationExpressionSyntax invocation = GenerateNativeInvocationMethod
             (
                 interfaceMethod,
                 safeHandles,
-                nativeMethodName
+                nativeMethodName,
+                false
             );
+
+            //generate a windows invocation with out parameter initialization
+            if (needsWindowsOverride)
+            {
+                winInvocation = GenerateNativeInvocationMethod
+                (
+                    interfaceMethod,
+                    safeHandles,
+                    string.Concat(nativeMethodName, _WindowsMethodSuffix),
+                    true
+                );
+            }
+
+            //there is a return type, initialize it
+            if (!string.Equals(interfaceMethod.ReturnType.WithoutTrivia().ToString(), "void"))
+            {
+                //create the concrete return type
+                concreteReturnType = CreateConcreteSafeHandleType
+                (
+                    interfaceMethod,
+                    interfaceMethod.ReturnType,
+                    methodAttributes,
+                    safeHandles,
+                    true,
+                    false
+                )
+                .WithoutTrivia();
+
+                //(byte) ref return type
+                if(concreteReturnType is RefTypeSyntax refTypeSyntax
+                    && string.Equals(refTypeSyntax.Type.ToString(), "byte"))
+                {
+                    //"initialize" by ref byte return type
+                    //using an empty span
+                    blockSyntax = blockSyntax.AddStatements
+                    (
+                        SyntaxFactory.LocalDeclarationStatement
+                        (
+                            SyntaxFactory.VariableDeclaration
+                            (
+                                concreteReturnType,
+                                SyntaxFactory.SeparatedList<VariableDeclaratorSyntax>
+                                (
+                                    new VariableDeclaratorSyntax[]
+                                    {
+                                        SyntaxFactory.VariableDeclarator
+                                        (
+                                            SyntaxFactory.Identifier(_ReturnValueLocalName),
+                                            null,
+                                            SyntaxFactory.EqualsValueClause
+                                            (
+                                                SyntaxFactory.RefExpression
+                                                (
+                                                    SyntaxFactory.InvocationExpression
+                                                    (
+                                                        SyntaxFactory.MemberAccessExpression
+                                                        (
+                                                            SyntaxKind.SimpleMemberAccessExpression,
+                                                            SyntaxFactory.IdentifierName("MemoryMarshal"),
+                                                            SyntaxFactory.IdentifierName("GetReference")
+                                                        ),
+                                                        SyntaxFactory.ArgumentList
+                                                        (
+                                                            SyntaxFactory.SeparatedList<ArgumentSyntax>
+                                                            (
+                                                                new ArgumentSyntax[]
+                                                                {
+                                                                    SyntaxFactory.Argument
+                                                                    (
+                                                                        SyntaxFactory.MemberAccessExpression
+                                                                        (
+                                                                            SyntaxKind.SimpleMemberAccessExpression,
+                                                                            SyntaxFactory.GenericName
+                                                                            (
+                                                                                SyntaxFactory.Identifier("Span"),
+                                                                                SyntaxFactory.TypeArgumentList
+                                                                                (
+                                                                                    SyntaxFactory.Token(SyntaxKind.LessThanToken),
+                                                                                    SyntaxFactory.SeparatedList<TypeSyntax>
+                                                                                    (
+                                                                                        new TypeSyntax[]
+                                                                                        {
+                                                                                            SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.ByteKeyword))
+                                                                                        }
+                                                                                    ),
+                                                                                    SyntaxFactory.Token(SyntaxKind.GreaterThanToken)
+                                                                                )
+                                                                            ),
+                                                                            SyntaxFactory.IdentifierName("Empty")
+                                                                        )
+                                                                    )
+                                                                }
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        )
+                                    }
+                                )
+                            )
+                        )
+                    )
+                    .NormalizeWhitespace();
+                }
+                else
+                {
+                    //initialize return type
+                    blockSyntax = blockSyntax.AddStatements
+                    (
+                        SyntaxFactory.LocalDeclarationStatement
+                        (
+                            SyntaxFactory.VariableDeclaration
+                            (
+                                concreteReturnType,
+                                SyntaxFactory.SeparatedList<VariableDeclaratorSyntax>
+                                (
+                                    new VariableDeclaratorSyntax[]
+                                    {
+                                    SyntaxFactory.VariableDeclarator
+                                    (
+                                        string.Equals(concreteReturnType.ToString(), _PtrTypeName)
+                                            && !string.Equals(concreteReturnType.ToString(), interfaceMethod.ReturnType.WithoutTrivia().ToString())
+                                            ? SyntaxFactory.Identifier(_PtrReturnValueLocalName)
+                                            : SyntaxFactory.Identifier(_ReturnValueLocalName)
+                                    )
+                                    }
+                                )
+                            )
+                        )
+                    )
+                    .NormalizeWhitespace();
+                }
+            }
 
             //first create locals for all generic type parameters
             //skipping out parameters, which are defined and assigned during invocation
@@ -362,19 +641,20 @@ namespace OpenSSL.Core.Generator
                 .NormalizeWhitespace();
             }
 
-            //there is a return type, save the invocation into a local
-            if (!string.Equals(interfaceMethod.ReturnType.WithoutTrivia().ToString(), "void"))
+            //create locals for all out safe handles
+            foreach (ParameterSyntax parameter in interfaceMethod.ParameterList.Parameters)
             {
-                //create the concrete return type
-                concreteReturnType = CreateConcreteSafeHandleType
-                (
-                    interfaceMethod,
-                    interfaceMethod.ReturnType,
-                    methodAttributes,
-                    safeHandles,
-                    true
-                )
-                .WithoutTrivia();
+                if (!parameter.Modifiers.Any(x => x.WithoutTrivia().ValueText.Equals("out")))
+                {
+                    continue;
+                }
+
+                string name = GetSafeHandleTypeNameWithoutGenericTypeList(parameter.Type);
+
+                if (!safeHandles.Any(x => x.IsAbsract && x.Name.Equals(name)))
+                {
+                    continue;
+                }
 
                 blockSyntax = blockSyntax.AddStatements
                 (
@@ -382,27 +662,23 @@ namespace OpenSSL.Core.Generator
                     (
                         SyntaxFactory.VariableDeclaration
                         (
-                            concreteReturnType,
+                            CreateConcreteSafeHandleType
+                            (
+                                interfaceMethod,
+                                parameter.Type,
+                                parameter.AttributeLists,
+                                safeHandles,
+                                true,
+                                false
+                            )
+                            .WithoutTrivia(),
                             SyntaxFactory.SeparatedList<VariableDeclaratorSyntax>
                             (
                                 new VariableDeclaratorSyntax[]
                                 {
                                     SyntaxFactory.VariableDeclarator
                                     (
-                                        string.Equals(concreteReturnType.ToString(), _PtrTypeName)
-                                            && !string.Equals(concreteReturnType.ToString(), interfaceMethod.ReturnType.WithoutTrivia().ToString())
-                                            ? SyntaxFactory.Identifier(_PtrReturnValueLocalName)
-                                            : SyntaxFactory.Identifier(_ReturnValueLocalName),
-                                        null,
-                                        SyntaxFactory.EqualsValueClause
-                                        (
-                                            interfaceMethod.ReturnType is RefTypeSyntax
-                                                ? SyntaxFactory.RefExpression
-                                                (
-                                                    invocation
-                                                )
-                                                : invocation
-                                        )
+                                        SyntaxFactory.Identifier(GenerateOutArgumentName(interfaceMethod, parameter, true, false))
                                     )
                                 }
                             )
@@ -410,9 +686,108 @@ namespace OpenSSL.Core.Generator
                     )
                 )
                 .NormalizeWhitespace();
+
             }
-            //else just execute the invocation
-            else
+
+            //create windows condition
+            if (needsWindowsOverride)
+            {
+                BlockSyntax windowsBlock = SyntaxFactory.Block
+                (
+                    concreteReturnType is null
+                    ? SyntaxFactory.ExpressionStatement
+                    (
+                        winInvocation
+                    )
+                    : SyntaxFactory.ExpressionStatement
+                    (
+                        //this should never be a by ref!!
+                        //TODO: byref return type
+                        SyntaxFactory.AssignmentExpression
+                        (
+                            SyntaxKind.SimpleAssignmentExpression,
+                            SyntaxFactory.IdentifierName(_ReturnValueLocalName),
+                            winInvocation
+                        )
+                    )
+                );
+
+                //assign concrete windows native out parameters
+                if (winInvocation.DescendantNodes().OfType<SingleVariableDesignationSyntax>().Any())
+                {
+                    //find all out paramters with (in)correct long types
+                    foreach (ParameterSyntax parameter in interfaceMethod.ParameterList.Parameters.Where
+                    (
+                        x => x.Modifiers.Any(x => x.WithoutTrivia().ValueText.Equals("out"))
+                            && NeedsWindowsOverride(x.AttributeLists)
+                    ))
+                    {
+                        windowsBlock = windowsBlock.AddStatements
+                        (
+                            SyntaxFactory.ExpressionStatement
+                            (
+                                SyntaxFactory.AssignmentExpression
+                                (
+                                    SyntaxKind.SimpleAssignmentExpression,
+                                    SyntaxFactory.IdentifierName(parameter.Identifier.WithoutTrivia()),
+                                    SyntaxFactory.IdentifierName(GenerateOutArgumentName(interfaceMethod, parameter, false, true))
+                                )
+                            )
+                        )
+                        .NormalizeWhitespace();
+                    }
+                }
+
+                blockSyntax = blockSyntax.AddStatements
+                (
+                    SyntaxFactory.IfStatement
+                    (
+                        SyntaxFactory.InvocationExpression
+                        (
+                            SyntaxFactory.MemberAccessExpression
+                            (
+                                SyntaxKind.SimpleMemberAccessExpression,
+                                SyntaxFactory.IdentifierName("OperatingSystem"),
+                                SyntaxFactory.IdentifierName("IsWindows")
+                            )
+                        ),
+                        //windows
+                        windowsBlock,
+                        //not windows
+                        SyntaxFactory.ElseClause
+                        (
+                            SyntaxFactory.Block
+                            (
+                                concreteReturnType is null
+                                ? SyntaxFactory.ExpressionStatement
+                                (
+                                    invocation
+                                )
+                                : SyntaxFactory.ExpressionStatement
+                                (
+                                    SyntaxFactory.AssignmentExpression
+                                    (
+                                        SyntaxKind.SimpleAssignmentExpression,
+                                        string.Equals(concreteReturnType.ToString(), _PtrTypeName)
+                                            && !string.Equals(concreteReturnType.ToString(), interfaceMethod.ReturnType.WithoutTrivia().ToString())
+                                            ? SyntaxFactory.IdentifierName(_PtrReturnValueLocalName)
+                                            : SyntaxFactory.IdentifierName(_ReturnValueLocalName),
+                                        interfaceMethod.ReturnType is RefTypeSyntax
+                                            ? SyntaxFactory.RefExpression
+                                            (
+                                                invocation
+                                            )
+                                            : invocation
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+                .NormalizeWhitespace();
+            }
+            //no return type
+            else if (concreteReturnType is null)
             {
                 blockSyntax = blockSyntax.AddStatements
                 (
@@ -421,6 +796,31 @@ namespace OpenSSL.Core.Generator
                         invocation
                     )
                 );
+            }
+            //assign return type
+            else
+            {
+                blockSyntax = blockSyntax.AddStatements
+                (
+                    SyntaxFactory.ExpressionStatement
+                    (
+                        SyntaxFactory.AssignmentExpression
+                        (
+                            SyntaxKind.SimpleAssignmentExpression,
+                            string.Equals(concreteReturnType.ToString(), _PtrTypeName)
+                                && !string.Equals(concreteReturnType.ToString(), interfaceMethod.ReturnType.WithoutTrivia().ToString())
+                                ? SyntaxFactory.IdentifierName(_PtrReturnValueLocalName)
+                                : SyntaxFactory.IdentifierName(_ReturnValueLocalName),
+                            interfaceMethod.ReturnType is RefTypeSyntax
+                                ? SyntaxFactory.RefExpression
+                                (
+                                    invocation
+                                )
+                                : invocation
+                        )
+                    )
+                )
+                .NormalizeWhitespace();
             }
 
             LocalDeclarationStatementSyntax localDeclarationStatementSyntax;
@@ -456,8 +856,8 @@ namespace OpenSSL.Core.Generator
                 (
                     interfaceMethod,
                     parameter.Type,
-                    SyntaxFactory.Identifier(GenerateOutArgumentName(interfaceMethod, parameter, false)),
-                    SyntaxFactory.Identifier(GenerateOutArgumentName(interfaceMethod, parameter, true)),
+                    SyntaxFactory.Identifier(GenerateOutArgumentName(interfaceMethod, parameter, false, false)),
+                    SyntaxFactory.Identifier(GenerateOutArgumentName(interfaceMethod, parameter, true, false)),
                     methodAttributes,
                     safeHandles,
                     interfaceMethod,
@@ -509,7 +909,7 @@ namespace OpenSSL.Core.Generator
                 (
                     interfaceMethod,
                     parameter.Type,
-                    SyntaxFactory.IdentifierName(GenerateOutArgumentName(interfaceMethod, parameter, false)),
+                    SyntaxFactory.IdentifierName(GenerateOutArgumentName(interfaceMethod, parameter, false, false)),
                     safeHandles,
                     out verificationExpression
                 ))
@@ -527,30 +927,26 @@ namespace OpenSSL.Core.Generator
                 .NormalizeWhitespace();
             }
 
-            //assign concrete safe handle out parameters
-            if (invocation.DescendantNodes().OfType<SingleVariableDesignationSyntax>().Any())
+            //find all safe handle out paramters
+            foreach (ParameterSyntax parameter in interfaceMethod.ParameterList.Parameters.Where
+            (
+                x => x.Modifiers.Any(x => x.WithoutTrivia().ValueText.Equals("out"))
+                    && safeHandles.Any(y => y.IsAbsract && y.Name.Equals(GetSafeHandleTypeNameWithoutGenericTypeList(x.Type)))
+            ))
             {
-                //find all safe handle out paramters
-                foreach (ParameterSyntax parameter in interfaceMethod.ParameterList.Parameters.Where
+                blockSyntax = blockSyntax.AddStatements
                 (
-                    x => x.Modifiers.Any(x => x.WithoutTrivia().ValueText.Equals("out"))
-                        && safeHandles.Any(y => y.IsAbsract && y.Name.Equals(GetSafeHandleTypeNameWithoutGenericTypeList(x.Type)))
-                ))
-                {
-                    blockSyntax = blockSyntax.AddStatements
+                    SyntaxFactory.ExpressionStatement
                     (
-                        SyntaxFactory.ExpressionStatement
+                        SyntaxFactory.AssignmentExpression
                         (
-                            SyntaxFactory.AssignmentExpression
-                            (
-                                SyntaxKind.SimpleAssignmentExpression,
-                                SyntaxFactory.IdentifierName(parameter.Identifier.WithoutTrivia()),
-                                SyntaxFactory.IdentifierName(GenerateOutArgumentName(interfaceMethod, parameter, false))
-                            )
+                            SyntaxKind.SimpleAssignmentExpression,
+                            SyntaxFactory.IdentifierName(parameter.Identifier.WithoutTrivia()),
+                            SyntaxFactory.IdentifierName(GenerateOutArgumentName(interfaceMethod, parameter, false, false))
                         )
                     )
-                    .NormalizeWhitespace();
-                }
+                )
+                .NormalizeWhitespace();
             }
 
             //if there is a return type, return the value
@@ -578,7 +974,8 @@ namespace OpenSSL.Core.Generator
         (
             MethodDeclarationSyntax interfaceMethod,
             ICollection<SafeHandleModel> safeHandles,
-            string nativeMethodName
+            string nativeMethodName,
+            bool isWindowsCall
         )
             => SyntaxFactory.InvocationExpression
             (
@@ -590,18 +987,8 @@ namespace OpenSSL.Core.Generator
                         interfaceMethod.ParameterList.Parameters.Select
                         (
                             x => x.Modifiers.Any(x => x.WithoutTrivia().ValueText.Equals("out"))
-                                ? GenerateOutArgument(interfaceMethod, x, safeHandles)
-                                : SyntaxFactory.Argument
-                                (
-                                    null,
-                                    x.Modifiers.FirstOrDefault(),
-                                    ContainsGenericTypeParameter(x.Type, interfaceMethod.TypeParameterList, out _)
-                                        ? SyntaxFactory.IdentifierName
-                                        (
-                                            string.Concat(_PtrNamePrefix, x.Identifier.WithoutTrivia())
-                                        )
-                                        : SyntaxFactory.IdentifierName(x.Identifier.WithoutTrivia())
-                                )
+                                ? GenerateOutArgument(interfaceMethod, x, safeHandles, isWindowsCall)
+                                : GenerateArgument(interfaceMethod, x, isWindowsCall)
                         )
                     )
                 )
@@ -611,7 +998,8 @@ namespace OpenSSL.Core.Generator
         (
             MethodDeclarationSyntax interfaceMethod,
             ParameterSyntax parameterSyntax,
-            ICollection<SafeHandleModel> safeHandles
+            ICollection<SafeHandleModel> safeHandles,
+            bool isWindowsCall
         )
         {
             string name = GetSafeHandleTypeNameWithoutGenericTypeList(parameterSyntax.Type);
@@ -620,28 +1008,35 @@ namespace OpenSSL.Core.Generator
             //declare a local
             if (safeHandles.Any(x => x.IsAbsract && x.Name.Equals(name)))
             {
-                //else declare a new local for the concrete type
+                return SyntaxFactory.Argument
+                (
+                    null,
+                    parameterSyntax.Modifiers.First(), //should always be single
+                    SyntaxFactory.IdentifierName(GenerateOutArgumentName(interfaceMethod, parameterSyntax, true, false))
+                );
+            }
+            else if (isWindowsCall
+                && NeedsWindowsOverride(parameterSyntax.AttributeLists))
+            {
                 return SyntaxFactory.Argument
                 (
                     null,
                     parameterSyntax.Modifiers.First(), //should always be single
                     SyntaxFactory.DeclarationExpression
                     (
-                        CreateConcreteSafeHandleType
+                        CreateWindowsNativeLongType
                         (
                             interfaceMethod,
                             parameterSyntax.Type,
                             parameterSyntax.AttributeLists,
-                            safeHandles,
-                            true
-                        ).WithoutTrivia(),
+                            false
+                        ),
                         SyntaxFactory.SingleVariableDesignation
                         (
-                            SyntaxFactory.Identifier(GenerateOutArgumentName(interfaceMethod, parameterSyntax, true))
+                            SyntaxFactory.Identifier(GenerateOutArgumentName(interfaceMethod, parameterSyntax, true, true))
                         )
                     )
                 );
-
             }
             //construct a new argument
             else
@@ -659,7 +1054,8 @@ namespace OpenSSL.Core.Generator
         (
             MethodDeclarationSyntax method,
             ParameterSyntax parameterSyntax,
-            bool isNativeCall
+            bool isNativeCall,
+            bool isWindowsCall
         )
         {
             string name = GetSafeHandleTypeNameWithoutGenericTypeList(parameterSyntax.Type);
@@ -667,13 +1063,22 @@ namespace OpenSSL.Core.Generator
             //if the parameter is a SafeStackhandle
             //or a generic type parameter
             //return pointer out name
-            if(isNativeCall
+            if (isNativeCall
                 && ContainsGenericTypeParameter(parameterSyntax.Type, method.TypeParameterList, out _))
             {
                 return string.Concat
                 (
                     _OutParameterNamePrefix,
                     _PtrNamePrefix,
+                    parameterSyntax.Identifier.WithoutTrivia()
+                );
+            }
+            else if (isWindowsCall)
+            {
+                return string.Concat
+                (
+                    _WindowsArgumentPrefix,
+                    _OutParameterNamePrefix,
                     parameterSyntax.Identifier.WithoutTrivia()
                 );
             }
@@ -686,6 +1091,58 @@ namespace OpenSSL.Core.Generator
                     parameterSyntax.Identifier.WithoutTrivia()
                 );
             }
+        }
+
+        private static ArgumentSyntax GenerateArgument
+        (
+            MethodDeclarationSyntax interfaceMethod,
+            ParameterSyntax parameterSyntax,
+            bool isWindowsCall
+        )
+        {
+            //if it's generic, use a ptr
+            if (ContainsGenericTypeParameter(parameterSyntax.Type, interfaceMethod.TypeParameterList, out _))
+            {
+                return SyntaxFactory.Argument
+                (
+                    null,
+                    parameterSyntax.Modifiers.FirstOrDefault(),
+                    SyntaxFactory.IdentifierName
+                    (
+                        string.Concat(_PtrNamePrefix, parameterSyntax.Identifier.WithoutTrivia())
+                    )
+                );
+            }
+
+            //if it's a NativeLong, it needs to be down casted
+            if (isWindowsCall
+                && NeedsWindowsOverride(parameterSyntax.AttributeLists))
+            {
+                return SyntaxFactory.Argument
+                (
+                    null,
+                    parameterSyntax.Modifiers.FirstOrDefault(),
+                    SyntaxFactory.CastExpression
+                    (
+                        CreateWindowsNativeLongType
+                        (
+                            interfaceMethod,
+                            parameterSyntax.Type,
+                            parameterSyntax.AttributeLists,
+                            false
+                        ),
+                        SyntaxFactory.IdentifierName(parameterSyntax.Identifier.WithoutTrivia())
+                    )
+                );
+            }
+
+            //else pass the argument as is
+            return SyntaxFactory.Argument
+            (
+                null,
+                parameterSyntax.Modifiers.FirstOrDefault(),
+                SyntaxFactory.IdentifierName(parameterSyntax.Identifier.WithoutTrivia())
+            );
         }
 
         private static bool AssignConcreteTypeFromPointer
@@ -749,6 +1206,7 @@ namespace OpenSSL.Core.Generator
                         typeSyntax,
                         symbolAttributes,
                         safeHandles,
+                        false,
                         false
                     ).WithoutTrivia();
 

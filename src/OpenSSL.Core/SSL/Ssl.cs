@@ -1414,7 +1414,7 @@ namespace OpenSSL.Core.SSL
             }
         }
 
-        public int RenegotitationCount
+        public long RenegotitationCount
         {
             get
             {
