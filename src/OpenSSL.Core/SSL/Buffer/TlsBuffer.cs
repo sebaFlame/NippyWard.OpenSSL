@@ -7,6 +7,8 @@ namespace OpenSSL.Core.SSL.Buffer
     //loosely based on System.IO.Pipelines.Pipe
     public class TlsBuffer : IBufferWriter<byte>
     {
+        public long Length => this._unconsumedBytes;
+
         private MemoryPool<byte> _pool;
         private bool _isDefaultSharedMemoryPool;
 

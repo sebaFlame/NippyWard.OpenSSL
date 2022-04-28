@@ -113,6 +113,12 @@ namespace OpenSSL.Core.SSL
         {
             get
             {
+                //server side does not use a session
+                if(this.IsServer)
+                {
+                    return null;
+                }
+
                 ThrowInvalidOperationException_HandshakeNotCompleted(this._handshakeCompleted);
 
                 return new SslSession(this._sslContext._sessionHandle);
@@ -144,6 +150,9 @@ namespace OpenSSL.Core.SSL
         /// </summary>
         public SslContext SslContext => this._sslContext;
 
+        public const SslStrength _DefaultSslStrength = SslStrength.Level2;
+        public const SslProtocol _DefaultSslProtocol = SslProtocol.Tls12 | SslProtocol.Tls13;
+
         #region native handles
         private readonly SafeBioHandle _readHandle;
         private readonly SafeBioHandle _writeHandle;
@@ -164,12 +173,27 @@ namespace OpenSSL.Core.SSL
         //pinned delegate
         private readonly SslInfoCallback _infoCb;
 
-        private const SslStrength _DefaultSslStrength = SslStrength.Level2;
-        private const SslProtocol _DefaultSslProtocol = SslProtocol.Tls12 | SslProtocol.Tls13;
         private const int _MaxUnencryptedLength = Native.SSL3_RT_MAX_PLAIN_LENGTH;
         //guarantee atleast 1 record (TLS1.3 has smaller packet size)
         //TODO: benchmark with Native.SSL3_RT_MAX_PACKET_SIZE + (int)(Native.SSL3_RT_MAX_PACKET_SIZE * 0.5) + 1
         private const int _MaxEncryptedLength = Native.SSL3_RT_MAX_PACKET_SIZE + 1;
+
+        public static Ssl CreateClientSsl
+        (
+            SslOptions sslOptions
+        )
+            => CreateClientSsl
+            (
+                sslOptions.SslStrength,
+                sslOptions.SslProtocol,
+                sslOptions.CertificateStore,
+                sslOptions.Certificate,
+                sslOptions.PrivateKey,
+                sslOptions.ClientCertificateCallbackHandler,
+                sslOptions.RemoteCertificateValidationHandler,
+                sslOptions.PreviousSession,
+                sslOptions.Ciphers
+            );
 
         public static Ssl CreateClientSsl
         (
@@ -203,6 +227,23 @@ namespace OpenSSL.Core.SSL
                 previousSession
             );
         }
+
+        public static Ssl CreateServerSsl
+        (
+            SslOptions sslOptions
+        )
+            => CreateServerSsl
+            (
+                sslOptions.SslStrength,
+                sslOptions.SslProtocol,
+                sslOptions.CertificateStore,
+                sslOptions.Certificate,
+                sslOptions.PrivateKey,
+                sslOptions.ClientCertificateCallbackHandler,
+                sslOptions.RemoteCertificateValidationHandler,
+                sslOptions.PreviousSession,
+                sslOptions.Ciphers
+            );
 
         public static Ssl CreateServerSsl
         (

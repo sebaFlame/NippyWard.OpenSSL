@@ -268,7 +268,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         long SSL_ctrl(SafeSslHandle ssl, int cmd, [NativeLong] long larg, IntPtr parg);
 
         //X509 *SSL_get_peer_certificate(const SSL *ssl);
-        [return: TakeOwnership] //not new, already gets an extra reference in the native code
+        [return: TakeOwnership, DontVerifyType] //not new, already gets an extra reference in the native code
         SafeX509CertificateHandle SSL_get_peer_certificate(SafeSslHandle ssl);
         //X509 *SSL_get_certificate(const SSL *ssl);
         SafeX509CertificateHandle SSL_get_certificate(SafeSslHandle ssl);

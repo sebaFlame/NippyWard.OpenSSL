@@ -38,6 +38,24 @@ namespace OpenSSL.Core.SSL
 
         public static SslContext CreateSslContext
         (
+            SslOptions sslOptions,
+            bool isServer
+        )
+            => CreateSslContext
+            (
+                sslStrength: sslOptions.SslStrength,
+                sslProtocol: sslOptions.SslProtocol,
+                certificateStore: sslOptions.CertificateStore,
+                certificate: sslOptions.Certificate,
+                privateKey: sslOptions.PrivateKey,
+                clientCertificateCallbackHandler: sslOptions.ClientCertificateCallbackHandler,
+                remoteCertificateValidationHandler: sslOptions.RemoteCertificateValidationHandler,
+                ciphers: sslOptions.Ciphers,
+                isServer
+            );
+
+        public static SslContext CreateSslContext
+        (
             SslStrength sslStrength,
             SslProtocol sslProtocol,
             X509Store certificateStore,
@@ -195,33 +213,33 @@ namespace OpenSSL.Core.SSL
             );
 
             //set default SSL options
-            SslOptions protocolOptions = SslOptions.SSL_OP_ALL;
+            Interop.SslOptions protocolOptions = Interop.SslOptions.SSL_OP_ALL;
 
             //disable unwanted protocols
             if ((sslProtocol & SslProtocol.Ssl3) == 0)
             {
-                protocolOptions |= SslOptions.SSL_OP_NO_SSLv3;
+                protocolOptions |= Interop.SslOptions.SSL_OP_NO_SSLv3;
             }
 
             if ((sslProtocol & SslProtocol.Tls) == 0)
             {
-                protocolOptions |= SslOptions.SSL_OP_NO_TLSv1;
+                protocolOptions |= Interop.SslOptions.SSL_OP_NO_TLSv1;
             }
 
             if ((sslProtocol & SslProtocol.Tls11) == 0)
             {
-                protocolOptions |= SslOptions.SSL_OP_NO_TLSv1_1;
+                protocolOptions |= Interop.SslOptions.SSL_OP_NO_TLSv1_1;
             }
 
             if ((sslProtocol & SslProtocol.Tls12) == 0)
             {
-                protocolOptions |= SslOptions.SSL_OP_NO_TLSv1_2;
+                protocolOptions |= Interop.SslOptions.SSL_OP_NO_TLSv1_2;
             } 
 
             if (Interop.Version.Library >= Interop.Version.MinimumOpenSslTLS13Version 
                     && (sslProtocol & SslProtocol.Tls13) == 0)
             {
-                protocolOptions |= SslOptions.SSL_OP_NO_TLSv1_3;
+                protocolOptions |= Interop.SslOptions.SSL_OP_NO_TLSv1_3;
             }
 
             //set the context options
