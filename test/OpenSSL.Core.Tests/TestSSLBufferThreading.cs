@@ -41,6 +41,7 @@ namespace OpenSSL.Core.Tests
             SslCient target,
             int bufferSize,
             int testSize,
+            bool clientRenegotiate,
             CancellationToken cancellationToken
         )
         {
@@ -51,6 +52,9 @@ namespace OpenSSL.Core.Tests
             int size;
             Memory<byte> writeMemory;
             int renegotiate = testSize / 2;
+
+            bool doRenegotiate = (clientRenegotiate && !client.IsServer)
+                || (!clientRenegotiate && client.IsServer);
 
             async Task ReadThread(CancellationToken cancellationToken)
             {
@@ -76,7 +80,7 @@ namespace OpenSSL.Core.Tests
 
             Task readThread = ReadThread(cancellationToken);
 
-            while (client.IsServer
+            while (!doRenegotiate
                 || read < testSize)
             {
                 size = RandomNumberGenerator.GetInt32(4, bufferSize);
@@ -102,7 +106,7 @@ namespace OpenSSL.Core.Tests
                 read += size;
 
                 if (read > renegotiate
-                    && !client.IsServer)
+                    && doRenegotiate)
                 {
                     await client.Renegotiate
                     (
@@ -114,51 +118,37 @@ namespace OpenSSL.Core.Tests
                 }
             }
 
-            if (!client.IsServer)
+            if (doRenegotiate)
             {
-#if DEBUG
-                try
-                {
-                    //only check when not TLS1.3
-                    if ((client._ssl.Protocol & SslProtocol.Tls13) == 0)
-                    {
-                        Assert.False(target._ssl.IsRenegotiatePending);
-                        Assert.False(client._ssl.IsRenegotiatePending);
-
-                        Assert.Equal(1, client._ssl.RenegotitationCount);
-                    }
-                }
-                finally
-                {
-#endif
-                    await client.Disconnect(target, cancellationToken);
-#if DEBUG
-                }
-#endif
+                await client.Disconnect(target, cancellationToken);
             }
 
             await readThread;
         }
 
+        
         [Theory]
-        [InlineData(1024, 1024 * 1024, SslProtocol.Tls12)]
-        [InlineData(1024, 1024 * 1024, SslProtocol.Tls13)]
+        [InlineData(1024, 1024 * 1024, SslProtocol.Tls12, true)]
+        [InlineData(1024, 1024 * 1024, SslProtocol.Tls12, false)]
+        [InlineData(1024, 1024 * 1024, SslProtocol.Tls13, true)]
+        [InlineData(1024, 1024 * 1024, SslProtocol.Tls13, false)]
         public async Task ThreadingTest
         (
             int bufferSize,
             int testSize,
-            SslProtocol sslProtocol
+            SslProtocol sslProtocol,
+            bool clientRenegotiate
         )
         {
-            SslCient server = new SslCient(sslProtocol, this.ServerCertificate, this.ServerKey);
-            SslCient client = new SslCient(sslProtocol);
+            SslCient server = new SslCient(this._testOutputHelper, sslProtocol, this.ServerCertificate, this.ServerKey);
+            SslCient client = new SslCient(this._testOutputHelper, sslProtocol);
 
             try
             {
                 await Task.WhenAll
                 (
-                    Client(server, client, bufferSize, testSize, CancellationToken.None),
-                    Client(client, server, bufferSize, testSize, CancellationToken.None)
+                    Client(server, client, bufferSize, testSize, clientRenegotiate, CancellationToken.None),
+                    Client(client, server, bufferSize, testSize, clientRenegotiate, CancellationToken.None)
                 );
             }
             finally
@@ -176,12 +166,16 @@ namespace OpenSSL.Core.Tests
             private PipeReader _pipeReader;
             private PipeWriter _pipeWriter;
             private TlsBuffer _decryptedBuffer;
+            private ITestOutputHelper _testOuptuHelper;
 
             private SemaphoreSlim _writeSemaphore;
+            private TaskCompletionSource? _renegotiateTcs;
 
             //client
-            public SslCient(SslProtocol sslProtocol)
+            public SslCient(ITestOutputHelper testOutput, SslProtocol sslProtocol)
             {
+                this._testOuptuHelper = testOutput;
+
                 Pipe pipe = new Pipe();
                 this._pipeReader = pipe.Reader;
                 this._pipeWriter = pipe.Writer;
@@ -200,11 +194,14 @@ namespace OpenSSL.Core.Tests
             //server
             public SslCient
             (
+                ITestOutputHelper testOutput,
                 SslProtocol sslProtocol,
                 X509Certificate cert,
                 PrivateKey key
             )
             {
+                this._testOuptuHelper = testOutput;
+
                 //read pipe
                 Pipe readPipe = new Pipe();
                 this._pipeReader = readPipe.Reader;
@@ -234,21 +231,23 @@ namespace OpenSSL.Core.Tests
 
                 while (!this._ssl.DoHandshake(out sslState))
                 {
-                    if (sslState == SslState.WANTWRITE)
+                    if (sslState.WantsWrite())
                     {
                         await this.Write
                         (
                             target,
                             ReadOnlyMemory<byte>.Empty,
-                            cancellationToken
+                            cancellationToken,
+                            true
                         );
                     }
-                    else if (sslState == SslState.WANTREAD)
+                    else if (sslState.WantsRead())
                     {
                         buf = await this.Read
                         (
                             target,
-                            cancellationToken
+                            cancellationToken,
+                            true
                         );
 
                         Assert.Empty(buf);
@@ -259,7 +258,8 @@ namespace OpenSSL.Core.Tests
             public async Task<byte[]> Read
             (
                 SslCient target,
-                CancellationToken cancellationToken
+                CancellationToken cancellationToken,
+                bool duringHandshake = false
             )
             {
                 PipeReader pipeReader = this._pipeReader;
@@ -287,9 +287,15 @@ namespace OpenSSL.Core.Tests
                     );
 
                     pipeReader.AdvanceTo(read, buffer.End);
-                } while (sslState == SslState.WANTREAD);
 
-                if (sslState == SslState.WANTWRITE)
+                    if (sslState.HandshakeCompleted())
+                    {
+                        this._testOuptuHelper.WriteLine($"HandshakeCompleted with {sslState} on {(this.IsServer ? "Server" : "Client")} during {(duringHandshake ? "handshake" : "renegotiation")} on Read");
+                        this._renegotiateTcs?.SetResult();
+                    }
+                } while (sslState.WantsRead());
+
+                if (sslState.WantsWrite())
                 {
                     await this.Write
                     (
@@ -298,7 +304,7 @@ namespace OpenSSL.Core.Tests
                         cancellationToken
                     );
                 }
-                else if (sslState == SslState.SHUTDOWN)
+                else if (sslState.IsShutdown())
                 {
                     this._pipeWriter.Complete();
                     throw new InvalidOperationException();
@@ -315,7 +321,8 @@ namespace OpenSSL.Core.Tests
             (
                 SslCient target,
                 ReadOnlyMemory<byte> buffer,
-                CancellationToken cancellationToken
+                CancellationToken cancellationToken,
+                bool duringHandshake = false
             )
             {
                 PipeWriter pipeWriter = target._pipeWriter;
@@ -344,14 +351,20 @@ namespace OpenSSL.Core.Tests
 
                         //send data
                         await pipeWriter.FlushAsync(cancellationToken);
-                    } while (sslState == SslState.WANTWRITE);
+
+                        if (sslState.HandshakeCompleted())
+                        {
+                            this._testOuptuHelper.WriteLine($"HandshakeCompleted with {sslState} on {(this.IsServer ? "Server" : "Client")} during {(duringHandshake ? "handshake" : "renegotiation")} on Write");
+                            this._renegotiateTcs?.SetResult();
+                        }
+                    } while (sslState.WantsWrite());
                 }
                 finally
                 {
                     this._writeSemaphore.Release();
                 }
 
-                if (sslState == SslState.WANTREAD)
+                if (sslState.WantsRead())
                 {
                     //buf = await this.Read
                     //(
@@ -363,13 +376,14 @@ namespace OpenSSL.Core.Tests
 
                     //always reading
                 }
-                else if (sslState == SslState.SHUTDOWN)
+                else if (sslState.IsShutdown())
                 {
+                    //random not representative error (for testing)
                     throw new InvalidOperationException();
                 }
                 else
                 {
-                    Assert.Equal(buffer.Length, read);
+                    Assert.Equal(buffer.Length, index);
                     Assert.Equal(SslState.NONE, sslState);
                 }
             }
@@ -381,16 +395,38 @@ namespace OpenSSL.Core.Tests
                 CancellationToken cancellationToken
             )
             {
-                SslState state = this._ssl.DoRenegotiate();
+                SslState sslState;
+                //create with TaskCreationOptions.RunContinuationsAsynchronously
+                //else there is a deadlock (due to TESTing code)
+                //even though this is also good practice in production!
+                this._renegotiateTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-                if (state == SslState.WANTWRITE)
+                try
                 {
-                    await this.Write
-                    (
-                        target,
-                        ReadOnlyMemory<byte>.Empty,
-                        cancellationToken
-                    );
+                    sslState = this._ssl.DoRenegotiate();
+
+                    //could already be completed (TLS1.3)
+                    if (sslState.HandshakeCompleted())
+                    {
+                        this._testOuptuHelper.WriteLine($"HandshakeCompleted with {sslState} on {(this.IsServer ? "Server" : "Client")} during Renegotiate");
+                        this._renegotiateTcs.SetResult();
+                    }
+
+                    if (sslState.WantsWrite())
+                    {
+                        await this.Write
+                        (
+                            target,
+                            ReadOnlyMemory<byte>.Empty,
+                            cancellationToken
+                        );
+                    }
+
+                    await this._renegotiateTcs.Task;
+                }
+                finally
+                {
+                    this._renegotiateTcs = null;
                 }
             }
 
@@ -402,7 +438,7 @@ namespace OpenSSL.Core.Tests
             {
                 this._ssl.DoShutdown(out SslState sslState);
 
-                if (sslState == SslState.WANTWRITE)
+                if (sslState.WantsWrite())
                 {
                     await this.Write
                     (

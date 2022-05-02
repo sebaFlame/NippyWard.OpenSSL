@@ -30,6 +30,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Buffers;
 using System.Security.Cryptography;
+using System.Diagnostics;
 
 using Xunit;
 using Xunit.Abstractions;
@@ -97,7 +98,7 @@ namespace OpenSSL.Core.Tests
                 readClientWritten, readClientIndex, length;
             ReadOnlySpan<byte> readBuffer;
 
-            while (writeClientState == SslState.WANTWRITE)
+            while (writeClientState.WantsWrite())
             {
                 //no actual data to write
                 readBuffer = ReadOnlySpan<byte>.Empty;
@@ -175,14 +176,36 @@ namespace OpenSSL.Core.Tests
         )
         {
             SslState clientState, serverState;
+            bool clientComplete = false, serverComplete = false;
 
             Assert.False(serverContext.DoHandshake(out serverState));
             Assert.False(clientContext.DoHandshake(out clientState));
-            Assert.Equal(SslState.WANTWRITE, clientState);
+            Assert.True(clientState.WantsWrite());
+
+            void CheckHandshakeCompleted()
+            {
+                if (clientState.HandshakeCompleted())
+                {
+                    //should be true even though a write is still needed
+                    Assert.True(clientContext.DoHandshake(out _));
+
+                    clientComplete = true;
+                }
+
+                if (serverState.HandshakeCompleted())
+                {
+                    //should be true even though a write is still needed
+                    Assert.True(serverContext.DoHandshake(out _));
+
+                    serverComplete = true;
+                }
+            }
 
             do
             {
-                if (clientState == SslState.WANTWRITE)
+                CheckHandshakeCompleted();
+
+                if (clientState.WantsWrite())
                 {
                     WriteReadCycle
                     (
@@ -196,8 +219,7 @@ namespace OpenSSL.Core.Tests
                         ref serverState
                     );
                 }
-
-                if (serverState == SslState.WANTWRITE)
+                else if (serverState.WantsWrite())
                 {
                     WriteReadCycle
                     (
@@ -211,8 +233,13 @@ namespace OpenSSL.Core.Tests
                         ref clientState
                     );
                 }
-            } while (clientState == SslState.WANTWRITE
-                || serverState == SslState.WANTWRITE);
+
+                CheckHandshakeCompleted();
+            } while (clientState.WantsWrite()
+                || serverState.WantsWrite());
+
+            Assert.True(clientComplete);
+            Assert.True(serverComplete);
 
             Assert.True(serverContext.DoHandshake(out serverState));
             Assert.Equal(SslState.NONE, serverState);
@@ -238,7 +265,7 @@ namespace OpenSSL.Core.Tests
             //make sure you ALWAYS read both
             do
             {
-                if (clientState == SslState.WANTWRITE)
+                if (clientState.WantsWrite())
                 {
                     WriteReadCycle
                     (
@@ -253,12 +280,12 @@ namespace OpenSSL.Core.Tests
                     );
                 }
 
-                if(serverState == SslState.SHUTDOWN)
+                if(serverState.IsShutdown())
                 {
                     serverContext.DoShutdown(out serverState);
                 }
 
-                if (serverState == SslState.WANTWRITE)
+                if (serverState.WantsWrite())
                 {
                     WriteReadCycle
                     (
@@ -292,40 +319,25 @@ namespace OpenSSL.Core.Tests
         )
         {
             SslState client1State = SslState.NONE, client2State = SslState.NONE;
+            bool renegotiateCompleted = false;
 
             //force new handshake with a writable buffer
             client1State = client1.DoRenegotiate();
 
-            Assert.Equal(SslState.WANTWRITE, client1State);
+            Assert.True(client1State.WantsWrite());
 
-            //write pending data to client2
-            WriteReadCycle
-            (
-                client1,
-                client1WriteBuffer,
-                client1ReadBuffer,
-                ref client1State,
-                client2,
-                client2WriteBuffer,
-                client2ReadBuffer,
-                ref client2State
-            );
-
-#if DEBUG
-            //only check these when using TLS1.2
-            if ((client1.Protocol & SslProtocol.Tls13) > 0)
+            //only check the initiator
+            void CheckHandshakeCompleted()
             {
-                return;
+                renegotiateCompleted |= client1State.HandshakeCompleted();
             }
 
-            Assert.True(client1.IsRenegotiatePending);
-            Assert.True(client2.IsRenegotiatePending);
-#endif
-
-            while (client1State == SslState.WANTWRITE
-                || client2State == SslState.WANTWRITE)
+            do
             {
-                if (client1State == SslState.WANTWRITE)
+                //renegotiate it can be completed before the write
+                CheckHandshakeCompleted();
+
+                if (client1State.WantsWrite())
                 {
                     WriteReadCycle
                     (
@@ -339,8 +351,7 @@ namespace OpenSSL.Core.Tests
                         ref client2State
                     );
                 }
-
-                if (client2State == SslState.WANTWRITE)
+                else if (client2State.WantsWrite())
                 {
                     WriteReadCycle
                     (
@@ -354,20 +365,13 @@ namespace OpenSSL.Core.Tests
                         ref client1State
                     );
                 }
-            }
 
-#if DEBUG
-            //only check these when using TLS1.2
-            if ((client1.Protocol & SslProtocol.Tls13) > 0)
-            {
-                return;
-            }
+                //renegotiate can be complete after the read
+                CheckHandshakeCompleted();
+            } while (client1State.WantsWrite()
+                || client2State.WantsWrite());
 
-            Assert.False(client1.IsRenegotiatePending);
-            Assert.False(client2.IsRenegotiatePending);
-
-            Assert.Equal(1, client1.RenegotitationCount);
-#endif
+            Assert.True(renegotiateCompleted);
         }
 
         [Theory]
@@ -599,6 +603,8 @@ namespace OpenSSL.Core.Tests
                 this._clientReadBuffer
             );
 
+            Debug.WriteLine("RENEGOTIATE");
+
             DoSynchrounousRenegotiate
             (
                 serverContext,
@@ -608,6 +614,8 @@ namespace OpenSSL.Core.Tests
                 this._clientWriteBuffer,
                 this._clientReadBuffer
             );
+
+            Debug.WriteLine("SHUTDOWN");
 
             DoSynchronousShutdown
             (
@@ -1295,8 +1303,8 @@ namespace OpenSSL.Core.Tests
                             //increment index
                             totalWritten += clientWritten;
 
-                        } while (clientState == SslState.WANTREAD);
-                    } while (serverState == SslState.WANTWRITE);
+                        } while (clientState.WantsRead());
+                    } while (serverState.WantsWrite());
 
                     Assert.Equal(totalRead, totalWritten);
 

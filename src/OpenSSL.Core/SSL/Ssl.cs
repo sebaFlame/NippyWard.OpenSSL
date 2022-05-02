@@ -169,6 +169,7 @@ namespace OpenSSL.Core.SSL
         //a global state to hold state from different (read/write) threads
         //only mutated inside _lock
         private SslState _state;
+        private int _infoState;
 
         //pinned delegate
         private readonly SslInfoCallback _infoCb;
@@ -387,17 +388,85 @@ namespace OpenSSL.Core.SSL
         //ensure this only gets called in a locked this._lock
         private void SslInfoCallback(IntPtr ssl, int where, int ret)
         {
-            Debug.Assert(Monitor.IsEntered(this._lock));
-            CheckForWrite(this._sslHandle, where, ref this._state);
+            Debug.Assert(Monitor.IsEntered(this._lock), "Lock not entered.");
+            CheckState
+            (
+                this._sslHandle,
+                where,
+                ref this._state,
+                ref this._infoState
+            );
         }
 
-        private static void CheckForWrite
+        /* How not to do TLS1.3 "renegotiate" callbacks
+         * Try and parse SSLOK
+
+            //represents ASCII "OK" as a short
+            private const int _OKLittleEndian = 0x4B4F;
+            private const int _OkBigEndian = 0x4F4B;
+
+            if(where & Native.SSL_CB_EXIT) > 0)
+            {
+                //get the current state
+                IntPtr ptr = SSLWrapper.SSL_state_string(ssl);
+
+                //read 2 bytes into a short
+                short s = Marshal.ReadInt16(ptr, 3);
+
+                //check for OK (from "SSLOK " state)
+                if ((BitConverter.IsLittleEndian
+                        && s == _OKLittleEndian)
+                    || s == _OkBigEndian)
+                {
+                    sslState |= SslState.HANDSHAKECOMPLETE;
+                }
+            }
+
+         * Try and parse key update states
+         * This could work if you always use
+         * SSLWrapper.SSL_key_update(this._sslHandle, 1);
+
+            //TLSv1.3 read client key update
+            private const int _TRCKU = 44;
+            //TLSv1.3 read server key update
+            private const int _TRSKU = 45;
+
+            if ((where & Native.SSL_CB_LOOP) > 0)
+            {
+                //get the current state
+                IntPtr ptr = SSLWrapper.SSL_state_string(ssl);
+
+                //get 2nd ASCII char
+                byte b = Marshal.ReadByte(ptr, 1);
+
+                //if it's a W, a write happened
+                if (b == (byte)'W')
+                {
+                    sslState |= SslState.WANTWRITE;
+                }
+
+		        //>= TLS1.3 handshake complete
+                int state = SSLWrapper.SSL_get_state(ssl);
+                if(state == _TRCKU
+                    || state == _TRSKU)
+                {
+                    sslState |= SslState.HANDSHAKECOMPLETE;
+                }
+            }
+
+         */
+
+        private static void CheckState
         (
             SafeSslHandle ssl,
             int where,
-            ref SslState sslState
+            ref SslState sslState,
+            ref int infoState
         )
         {
+            //gather all the state changes during this SSL_do_handshake/SSL_read/SSL_write
+            infoState |= where;
+
             //state changed
             if ((where & Native.SSL_CB_LOOP) > 0)
             {
@@ -418,6 +487,20 @@ namespace OpenSSL.Core.SSL
             {
                 sslState |= SslState.WANTWRITE;
             }
+            //<= TLS1.2 handshake complete
+            //ignore first (server) SSL_CB_HANDSHAKE_START (which is also considered a SSL_CB_HANDSHAKE_DONE)
+            else if ((infoState & Native.SSL_CB_HANDSHAKE_START) == 0
+                && (where & Native.SSL_CB_HANDSHAKE_DONE) > 0)
+            {
+                sslState |= SslState.HANDSHAKECOMPLETE;
+            }
+        }
+
+        private void ResetState()
+        {
+            Debug.Assert(Monitor.IsEntered(this._lock), "Lock not entered.");
+            this._state = default;
+            this._infoState = 0;
         }
 
         /// <summary>
@@ -435,7 +518,7 @@ namespace OpenSSL.Core.SSL
 
             lock (this._lock)
             {
-                this._state = default;
+                this.ResetState();
                 ret_code = SSLWrapper.SSL_do_handshake(this._sslHandle);
                 writeState = this._state;
             }
@@ -482,7 +565,7 @@ namespace OpenSSL.Core.SSL
             {
                 lock (this._lock)
                 {
-                    this._state = default;
+                    this.ResetState();
                     ret_code = SSLWrapper.SSL_shutdown(this._sslHandle);
                     writeState = this._state;
                 }
@@ -528,6 +611,7 @@ namespace OpenSSL.Core.SSL
                 //these functions do not change state and rely on SSL_do_handshake instead -> no lock
                 if (this.Protocol == SslProtocol.Tls13)
                 {
+                    //requests an update from peer when using 1 (SSL_KEY_UPDATE_REQUESTED)
                     SSLWrapper.SSL_key_update(this._sslHandle, 1);
                 }
                 else
@@ -538,6 +622,13 @@ namespace OpenSSL.Core.SSL
                 if (this.DoHandshake(out sslState))
                 {
                     throw new InvalidOperationException("Handshake should not have completed during renegotiate initialization");
+                }
+
+                //when TLS1.3, there is a one sided "renegotiate" possible
+                //the rest (if any) happens transparently through SSL_write
+                if(this.Protocol == SslProtocol.Tls13)
+                {
+                    sslState |= SslState.HANDSHAKECOMPLETE;
                 }
             }
 
@@ -552,7 +643,7 @@ namespace OpenSSL.Core.SSL
         /// <param name="totalRead">Total bytes read from the encrypted buffer</param>
         /// <param name="totalWritten">Total bytes written to decrypted buffer</param>
         /// <returns><see cref="SslState.NONE"/> when no action is needed.
-        /// <see cref="SslState.WANTREAD"/> or <see cref="SslState.WANTWRITE"/> when the SSL connection needs data.</returns>
+        /// <see cref="SslStateExtensions.WantsRead(SslState)"/> or <see cref="SslStateExtensions.WantsWrite(SslState)"/> when the SSL connection needs data.</returns>
         /// <exception cref="OpenSslException"></exception>
         public SslState ReadSsl
         (
@@ -629,8 +720,7 @@ namespace OpenSSL.Core.SSL
                 if (writeIndex == writableBuffer.Length
                     || (sslState.WantsRead()
                         && readBuf.IsEmpty)
-                    || !(sslState == SslState.NONE
-                        || sslState.WantsRead()))
+                    || (sslState & ~SslState.WANTREAD) > 0)
                 {
                     totalRead = readIndex;
                     totalWritten = writeIndex;
@@ -656,7 +746,7 @@ namespace OpenSSL.Core.SSL
             SslState sslState;
 
             //reset state
-            this._state = default;
+            this.ResetState();
 
             //and write decrypted data to the buffer or flush read data
             read = SSLWrapper.SSL_read(this._sslHandle, ref MemoryMarshal.GetReference<byte>(writeableBuffer), writeableBuffer.Length);
@@ -671,7 +761,14 @@ namespace OpenSSL.Core.SSL
             }
 
             totalWritten = read;
-            return this.VerifyReadState(out _);
+
+            //state might have changed while not throwing an error (read = -1)
+            if (sslState > 0)
+            {
+                return sslState;
+            }
+
+            return this.VerifyReadState(in sslState, out _);
         }
 
         /// <summary>
@@ -681,7 +778,7 @@ namespace OpenSSL.Core.SSL
         /// <param name="bufferWriter">The buffer to decrypt to</param>
         /// <param name="totalRead">Total bytes read from the encrypted buffer</param>
         /// <returns><see cref="SslState.NONE"/> when no action is needed.
-        /// <see cref="SslState.WANTREAD"/> or <see cref="SslState.WANTWRITE"/> when the SSL connection needs data.</returns>
+        /// <see cref="SslStateExtensions.WantsRead(SslState)"/> or <see cref="SslStateExtensions.WantsWrite(SslState)"/> when the SSL connection needs data.</returns>
         public SslState ReadSsl
         (
             ReadOnlySpan<byte> readableBuffer,
@@ -699,7 +796,7 @@ namespace OpenSSL.Core.SSL
             if (readableBuffer.IsEmpty)
             {
                 totalRead = 0;
-                return SslState.NONE;
+                return SslState.EMPTYBUFFER;
             }
 
             CryptoWrapper.ERR_clear_error();
@@ -747,8 +844,7 @@ namespace OpenSSL.Core.SSL
 
                 if ((sslState.WantsRead()
                         && readBuf.IsEmpty)
-                    || !(sslState == SslState.NONE
-                        || sslState.WantsRead()))
+                    || (sslState & ~SslState.WANTREAD) > 0)
                 {
                     totalRead = readIndex;
                     return sslState;
@@ -766,7 +862,7 @@ namespace OpenSSL.Core.SSL
         /// <param name="bufferWriter">The buffer to decrypt to</param>
         /// <param name="totalRead">Total bytes read from the encrypted buffer</param>
         /// <returns><see cref="SslState.NONE"/> when no action is needed.
-        /// <see cref="SslState.WANTREAD"/> or <see cref="SslState.WANTWRITE"/> when the SSL connection needs data.</returns>
+        /// <see cref="SslStateExtensions.WantsRead(SslState)"/> or <see cref="SslStateExtensions.WantsWrite(SslState)"/> when the SSL connection needs data.</returns>
         public SslState ReadSsl
         (
             in ReadOnlySequence<byte> sequence,
@@ -783,7 +879,7 @@ namespace OpenSSL.Core.SSL
             ////bufferwriter is always writable
             if (sequence.IsEmpty)
             {
-                return SslState.NONE;
+                return SslState.EMPTYBUFFER;
             }
 
             if (sequence.IsSingleSegment)
@@ -844,7 +940,12 @@ namespace OpenSSL.Core.SSL
                         );
                     }
 
-                    if (sslState.WantsRead())
+                    if ((sslState & ~SslState.WANTREAD) > 0)
+                    {
+                        totalRead = sequence.GetPosition(totalIndex);
+                        return sslState;
+                    }
+                    else if (sslState.WantsRead())
                     {
                         //still data in current buffer
                         if (!readBuf.IsEmpty)
@@ -874,11 +975,6 @@ namespace OpenSSL.Core.SSL
                             return sslState;
                         }
                     }
-                    else if (sslState != SslState.NONE)
-                    {
-                        totalRead = sequence.GetPosition(totalIndex);
-                        return sslState;
-                    }
                 }
             }
 
@@ -904,10 +1000,10 @@ namespace OpenSSL.Core.SSL
                 writeBuffer = bufferWriter.GetSpan(pending);
 
                 //reset current state
-                this._state = default;
+                this.ResetState();
 
                 //and write decrypted data to the buffer received from IBufferWriter
-                read = SSLWrapper.SSL_read(this._sslHandle, ref MemoryMarshal.GetReference<byte>(writeBuffer), writeBuffer.Length);
+                read = SSLWrapper.SSL_read(this._sslHandle, ref MemoryMarshal.GetReference<byte>(writeBuffer), pending);
 
                 //read new state
                 sslState = this._state;
@@ -919,7 +1015,13 @@ namespace OpenSSL.Core.SSL
 
                 //advance buffer writer with the amount read
                 bufferWriter.Advance(read);
-            } while ((sslState = this.VerifyReadState(out pending)) == SslState.WANTREAD);
+
+                //state might have changed while not throwing an error (read = -1)
+                if (sslState > 0)
+                {
+                    return sslState;
+                }
+            } while ((sslState = this.VerifyReadState(in sslState, out pending)).WantsRead());
 
             return sslState;
         }
@@ -932,7 +1034,7 @@ namespace OpenSSL.Core.SSL
         /// <param name="totalRead">Total bytes read from the unencrypted buffer</param>
         /// <param name="totalWritten">Total bytes written into the encrypted buffer</param>
         /// <returns><see cref="SslState.NONE"/> when no action is needed.
-        /// <see cref="SslState.WANTREAD"/> or <see cref="SslState.WANTWRITE"/> when the SSL connection needs data.</returns>
+        /// <see cref="SslStateExtensions.WantsRead(SslState)"/> or <see cref="SslStateExtensions.WantsWrite(SslState)"/> when the SSL connection needs data.</returns>
         public SslState WriteSsl
         (
             ReadOnlySpan<byte> readableBuffer,
@@ -964,13 +1066,11 @@ namespace OpenSSL.Core.SSL
                     //allow to continue from previous write operation
                     if (!readBuf.IsEmpty)
                     {
-                        //reset current state
-                        this._state = default;
+                        this.ResetState();
 
                         //write unencrypted data into ssl
                         written = SSLWrapper.SSL_write(this._sslHandle, MemoryMarshal.GetReference<byte>(readBuf), readBuf.Length);
 
-                        //get new state after cb (TODO: needed?)
                         sslState = this._state;
 
                         if (written <= 0)
@@ -982,6 +1082,16 @@ namespace OpenSSL.Core.SSL
                         }
 
                         readIndex += written;
+
+                        //only return if there is another state than WANTWRITE
+                        //the actual write into the buffer happens after the encryption/state change
+                        if ((sslState & ~SslState.WANTWRITE) > 0)
+                        {
+                            totalRead = readIndex;
+                            totalWritten = writeIndex;
+
+                            return sslState;
+                        }
 
                         readBuf = SliceReadableSpan
                         (
@@ -1002,6 +1112,7 @@ namespace OpenSSL.Core.SSL
                     sslState = this.ReadEncryptedIntoBuffer
                     (
                         writeBuf,
+                        in sslState,
                         out read
                     );
                 }
@@ -1013,8 +1124,7 @@ namespace OpenSSL.Core.SSL
                 if (writeIndex == writableBuffer.Length
                     || (sslState.WantsWrite()
                         && readBuf.IsEmpty)
-                    || !(sslState == SslState.NONE
-                        || sslState.WantsWrite()))
+                    || (sslState & ~SslState.WANTWRITE) > 0)
                 {
                     totalRead = readIndex;
                     totalWritten = writeIndex;
@@ -1031,6 +1141,7 @@ namespace OpenSSL.Core.SSL
         private SslState ReadEncryptedIntoBuffer
         (
             Span<byte> writableBuffer,
+            in SslState sslState,
             out int totalWritten
         )
         {
@@ -1039,14 +1150,14 @@ namespace OpenSSL.Core.SSL
             if (writableBuffer.IsEmpty)
             {
                 totalWritten = 0;
-                return this.VerifyWriteState();
+                return this.VerifyWriteState(in sslState);
             }
 
             //check if any more data is pending to be written
             if (CryptoWrapper.BIO_ctrl_pending(this._writeHandle) == 0)
             {
                 totalWritten = 0;
-                return SslState.NONE;
+                return sslState;
             }
 
             //and write encrypted data to the buffer received from IBufferWriter
@@ -1059,7 +1170,7 @@ namespace OpenSSL.Core.SSL
 
             totalWritten = written;
 
-            return this.VerifyWriteState();
+            return this.VerifyWriteState(in sslState);
         }
 
         /// <summary>
@@ -1069,7 +1180,7 @@ namespace OpenSSL.Core.SSL
         /// <param name="bufferWriter">The buffer to ecnrypt to</param>
         /// <param name="totalRead">Total bytes read from the unencrypted buffer</param>
         /// <returns><see cref="SslState.NONE"/> when no action is needed.
-        /// <see cref="SslState.WANTREAD"/> or <see cref="SslState.WANTWRITE"/> when the SSL connection needs data.</returns>
+        /// <see cref="SslStateExtensions.WantsRead(SslState)"/> or <see cref="SslStateExtensions.WantsWrite(SslState)"/> when the SSL connection needs data.</returns>
         public SslState WriteSsl
         (
             ReadOnlySpan<byte> readableBuffer,
@@ -1079,7 +1190,7 @@ namespace OpenSSL.Core.SSL
         {
             int readIndex = 0;
             int written = 0;
-            SslState sslState;
+            SslState sslState = SslState.NONE;
             ReadOnlySpan<byte> readBuf;
 
             CryptoWrapper.ERR_clear_error();
@@ -1098,12 +1209,11 @@ namespace OpenSSL.Core.SSL
                     //allow to continue from previous write operation
                     if (!readBuf.IsEmpty)
                     {
-                        this._state = default;
+                        this.ResetState();
 
                         //write unencrypted data into ssl
                         written = SSLWrapper.SSL_write(this._sslHandle, MemoryMarshal.GetReference<byte>(readBuf), readBuf.Length);
 
-                        //get new state after possible cb (TODO: needed?)
                         sslState = this._state;
 
                         if (written <= 0)
@@ -1113,6 +1223,14 @@ namespace OpenSSL.Core.SSL
                         }
 
                         readIndex += written;
+
+                        //only return if there is another state than WANTWRITE
+                        //the actual write into the buffer happens after the encryption/state change
+                        if ((sslState & ~SslState.WANTWRITE) > 0)
+                        {
+                            totalRead = readIndex;
+                            return sslState;
+                        }
 
                         readBuf = SliceReadableSpan
                         (
@@ -1125,14 +1243,14 @@ namespace OpenSSL.Core.SSL
                     //read encrypted data (or read pending if readBuf.IsEmpty)
                     sslState = this.ReadEncryptedIntoBufferWriter
                     (
-                        bufferWriter
+                        bufferWriter,
+                        in sslState
                     );
                 }
 
                 if ((sslState.WantsWrite()
                         && readBuf.IsEmpty)
-                    || !(sslState == SslState.NONE
-                        || sslState.WantsWrite()))
+                    || (sslState & ~SslState.WANTWRITE) > 0)
                 {
                     totalRead = readIndex;
                     return sslState;
@@ -1151,7 +1269,7 @@ namespace OpenSSL.Core.SSL
         /// <param name="bufferWriter">The buffer to ecnrypt to</param>
         /// <param name="totalRead">Total bytes read from the unencrypted buffer</param>
         /// <returns><see cref="SslState.NONE"/> when no action is needed.
-        /// <see cref="SslState.WANTREAD"/> or <see cref="SslState.WANTWRITE"/> when the SSL connection needs data.</returns>
+        /// <see cref="SslStateExtensions.WantsRead(SslState)"/> or <see cref="SslStateExtensions.WantsWrite(SslState)"/> when the SSL connection needs data.</returns>
         public SslState WriteSsl
         (
             in ReadOnlySequence<byte> sequence,
@@ -1191,12 +1309,11 @@ namespace OpenSSL.Core.SSL
                 {
                     lock (this._lock)
                     {
-                        this._state = default;
+                        this.ResetState();
 
                         //write unencrypted data to the BIO
                         written = SSLWrapper.SSL_write(this._sslHandle, in MemoryMarshal.GetReference<byte>(readBuf), readBuf.Length);
 
-                        //get new state after possible cb (TODO: needed?)
                         sslState = this._state;
 
                         if (written <= 0)
@@ -1208,6 +1325,14 @@ namespace OpenSSL.Core.SSL
                         readIndex += written;
                         totalIndex += written;
 
+                        //only return if there is another state than WANTWRITE
+                        //the actual write into the buffer happens after the encryption/state change
+                        if ((sslState & ~SslState.WANTWRITE) > 0)
+                        {
+                            totalRead = sequence.GetPosition(totalIndex);
+                            return sslState;
+                        }
+
                         readBuf = SliceReadableSpan
                         (
                             span,
@@ -1218,11 +1343,17 @@ namespace OpenSSL.Core.SSL
                         //read encrypted data
                         sslState = this.ReadEncryptedIntoBufferWriter
                         (
-                            bufferWriter
+                            bufferWriter,
+                            in sslState
                         );
                     }
 
-                    if (sslState.WantsWrite())
+                    if ((sslState & ~SslState.WANTWRITE) > 0)
+                    {
+                        totalRead = sequence.GetPosition(totalIndex);
+                        return sslState;
+                    }
+                    else if (sslState.WantsWrite())
                     {
                         if (!readBuf.IsEmpty)
                         {
@@ -1251,11 +1382,6 @@ namespace OpenSSL.Core.SSL
                             return sslState;
                         }
                     }
-                    else if (sslState != SslState.NONE)
-                    {
-                        totalRead = sequence.GetPosition(totalIndex);
-                        return sslState;
-                    }
                 }
             }
 
@@ -1265,7 +1391,8 @@ namespace OpenSSL.Core.SSL
 
         private SslState ReadEncryptedIntoBufferWriter
         (
-            IBufferWriter<byte> bufferWriter
+            IBufferWriter<byte> bufferWriter,
+            in SslState sslState
         )
         {
             int written = 0, pending = 0;
@@ -1280,7 +1407,7 @@ namespace OpenSSL.Core.SSL
                 Span<byte> writeBuffer = bufferWriter.GetSpan(pending);
 
                 //and write encrypted data to the buffer received from IBufferWriter
-                written = CryptoWrapper.BIO_read(this._writeHandle, ref MemoryMarshal.GetReference<byte>(writeBuffer), writeBuffer.Length);
+                written = CryptoWrapper.BIO_read(this._writeHandle, ref MemoryMarshal.GetReference<byte>(writeBuffer), pending);
 
                 if (written < 0)
                 {
@@ -1292,7 +1419,7 @@ namespace OpenSSL.Core.SSL
             };
 
             //should be no more pending
-            return this.VerifyWriteState();
+            return this.VerifyWriteState(in sslState);
         }
 
         /// <summary>
@@ -1310,7 +1437,7 @@ namespace OpenSSL.Core.SSL
         {
             if (ret > 0)
             {
-                return SslState.NONE;
+                return opState | SslState.NONE;
             }
 
             int errorCode = SSLWrapper.SSL_get_error(this._sslHandle, ret);
@@ -1338,70 +1465,70 @@ namespace OpenSSL.Core.SSL
                     return SslState.SHUTDOWN;
                 case SslError.SSL_ERROR_NONE:
                 default:
-                    return SslState.NONE;
+                    return opState | SslState.NONE;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static SslState VerifyStageState
         (
-            in SslState sslState,
+            in SslState opState,
             SslError error = SslError.SSL_ERROR_NONE
         )
         {
             //prioritize writes
-            if ((sslState & SslState.WANTWRITE) > 0)
+            if (opState.WantsWrite())
             {
-                return SslState.WANTWRITE;
+                return opState & ~SslState.WANTREAD;
             }
-            else if ((sslState & SslState.WANTREAD) > 0)
+            else if (opState.WantsRead())
             {
-                return SslState.WANTREAD;
+                return opState;
             }
 
-            return MapNativeReadWriteError(error);
+            return MapNativeReadWriteError(in opState, error);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static SslState MapNativeReadWriteError(SslError error)
+        private static SslState MapNativeReadWriteError(in SslState opState, SslError error)
         {
             switch (error)
             {
                 case SslError.SSL_ERROR_WANT_READ:
-                    return SslState.WANTREAD;
+                    return opState | SslState.WANTREAD;
                 case SslError.SSL_ERROR_WANT_WRITE:
-                    return SslState.WANTWRITE;
+                    return opState | SslState.WANTWRITE;
                 case SslError.SSL_ERROR_NONE:
-                    return SslState.NONE;
+                    return opState | SslState.NONE;
                 default:
                     throw new NotSupportedException($"Unsupported read/write error {error}");
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private SslState VerifyReadState(out int pending)
+        private SslState VerifyReadState(in SslState sslState, out int pending)
         {
             if ((pending = SSLWrapper.SSL_pending(this._sslHandle)) > 0
                 || CryptoWrapper.BIO_ctrl_pending(this._readHandle) > 0)
             {
-                return SslState.WANTREAD;
+                return sslState | SslState.WANTREAD;
             }
             else
             {
-                return SslState.NONE;
+                return sslState | SslState.NONE;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private SslState VerifyWriteState()
+        private SslState VerifyWriteState(in SslState sslState)
         {
             if (CryptoWrapper.BIO_ctrl_pending(this._writeHandle) > 0)
             {
-                return SslState.WANTWRITE;
+                return sslState | SslState.WANTWRITE;
             }
             else
             {
-                return SslState.NONE;
+                return sslState | SslState.NONE;
             }
         }
 

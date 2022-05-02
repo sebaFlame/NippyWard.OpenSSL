@@ -263,6 +263,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         void SSL_set_info_callback(SafeSslHandle ssl, SslInfoCallback callback);
         //const char *SSL_state_string(const SSL *ssl);
         IntPtr SSL_state_string(SafeSslHandle ssl);
+        //OSSL_HANDSHAKE_STATE SSL_get_state(const SSL *ssl);
+        [return: DontVerifyType]
+        int SSL_get_state(SafeSslHandle ssl);
         //long SSL_ctrl(SSL *ssl, int cmd, long larg, char *parg);
         [return: DontVerifyType, NativeLong]
         long SSL_ctrl(SafeSslHandle ssl, int cmd, [NativeLong] long larg, IntPtr parg);
