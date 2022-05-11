@@ -203,14 +203,15 @@ namespace OpenSSL.Core.SSL
             }
 
             //enable partial writes to optimize writes
-            SSLWrapper.SSL_CTX_ctrl
-            (
-                sslContextHandle,
-                Native.SSL_CTRL_MODE,
-                (int)SslMode.SSL_MODE_ENABLE_PARTIAL_WRITE
-                    | (int)SslMode.SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER,
-                IntPtr.Zero
-            );
+            //do not enable, this causes writes (to socket) not to be 1-1
+            //SSLWrapper.SSL_CTX_ctrl
+            //(
+            //    sslContextHandle,
+            //    Native.SSL_CTRL_MODE,
+            //    (int)SslMode.SSL_MODE_ENABLE_PARTIAL_WRITE
+            //        | (int)SslMode.SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER,
+            //    IntPtr.Zero
+            //);
 
             //set default SSL options
             Interop.SslOptions protocolOptions = Interop.SslOptions.SSL_OP_ALL;

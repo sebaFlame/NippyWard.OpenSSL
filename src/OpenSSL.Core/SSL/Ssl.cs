@@ -621,7 +621,7 @@ namespace OpenSSL.Core.SSL
 
                 if (this.DoHandshake(out sslState))
                 {
-                    throw new InvalidOperationException("Handshake should not have completed during renegotiate initialization");
+                    throw new InvalidOperationException($"Handshake should not have completed during renegotiate initialization ({sslState})");
                 }
 
                 //when TLS1.3, there is a one sided "renegotiate" possible
