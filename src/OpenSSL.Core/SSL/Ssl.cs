@@ -516,6 +516,8 @@ namespace OpenSSL.Core.SSL
             int ret_code;
             SslState writeState;
 
+            CryptoWrapper.ERR_clear_error();
+
             lock (this._lock)
             {
                 this.ResetState();
@@ -561,6 +563,8 @@ namespace OpenSSL.Core.SSL
             int ret_code;
             SslState writeState;
 
+            CryptoWrapper.ERR_clear_error();
+
             try
             {
                 lock (this._lock)
@@ -603,6 +607,8 @@ namespace OpenSSL.Core.SSL
             ThrowInvalidOperationException_HandshakeNotCompleted(this._handshakeCompleted);
 
             SslState sslState;
+
+            CryptoWrapper.ERR_clear_error();
 
             //ensure the renegotiate/handshake function get executed together
             //so no read/write gets inbetween
@@ -763,7 +769,7 @@ namespace OpenSSL.Core.SSL
             totalWritten = read;
 
             //state might have changed while not throwing an error (read = -1)
-            if (sslState > 0)
+            if ((sslState & ~SslState.WANTREAD) > 0)
             {
                 return sslState;
             }
@@ -1017,7 +1023,7 @@ namespace OpenSSL.Core.SSL
                 bufferWriter.Advance(read);
 
                 //state might have changed while not throwing an error (read = -1)
-                if (sslState > 0)
+                if ((sslState & ~SslState.WANTREAD) > 0)
                 {
                     return sslState;
                 }
