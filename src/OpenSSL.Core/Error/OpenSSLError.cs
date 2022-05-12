@@ -53,7 +53,9 @@ namespace OpenSSL.Core.Error
             get
             {
                 if (!string.IsNullOrEmpty(this.message))
-                    return message;
+                {
+                    return this.message;
+                }
 
                 unsafe
                 {
@@ -72,7 +74,12 @@ namespace OpenSSL.Core.Error
                     this.message = Encoding.ASCII.GetString(buf, length);
                 }
 
-                return message;
+                if(string.IsNullOrWhiteSpace(this.message))
+                {
+                    return this.ErrorCode.ToString();
+                }
+
+                return this.message;
             }
         }
 

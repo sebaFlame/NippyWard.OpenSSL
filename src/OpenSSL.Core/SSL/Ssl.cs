@@ -1212,7 +1212,7 @@ namespace OpenSSL.Core.SSL
                         this.ResetState();
 
                         //write unencrypted data into ssl
-                        written = SSLWrapper.SSL_write(this._sslHandle, MemoryMarshal.GetReference<byte>(readBuf), readBuf.Length);
+                        written = SSLWrapper.SSL_write(this._sslHandle, in MemoryMarshal.GetReference<byte>(readBuf), readBuf.Length);
 
                         sslState = this._state;
 
