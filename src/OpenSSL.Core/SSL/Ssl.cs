@@ -622,10 +622,8 @@ namespace OpenSSL.Core.SSL
                     SSLWrapper.SSL_renegotiate_abbreviated(this._sslHandle);
                 }
 
-                if (this.DoHandshake(out sslState))
-                {
-                    throw new InvalidOperationException($"Handshake should not have completed during renegotiate initialization ({sslState})");
-                }
+                //do some IO on _sslHandle
+                this.DoHandshake(out sslState);
 
                 //when TLS1.3, there is a one sided "renegotiate" possible
                 //the rest (if any) happens transparently through SSL_write
