@@ -76,7 +76,7 @@ namespace OpenSSL.Core.Error
 
                 if(string.IsNullOrWhiteSpace(this.message))
                 {
-                    return this.ErrorCode.ToString();
+                    return (this.message = this.ErrorCode.ToString());
                 }
 
                 return this.message;

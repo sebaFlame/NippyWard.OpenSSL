@@ -202,16 +202,15 @@ namespace OpenSSL.Core.SSL
                 sslContextHandle = SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultClientMethod);
             }
 
-            //enable partial writes to optimize writes
-            //do not enable, this causes writes (to socket) not to be 1-1
-            //SSLWrapper.SSL_CTX_ctrl
-            //(
-            //    sslContextHandle,
-            //    Native.SSL_CTRL_MODE,
-            //    (int)SslMode.SSL_MODE_ENABLE_PARTIAL_WRITE
-            //        | (int)SslMode.SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER,
-            //    IntPtr.Zero
-            //);
+            //do not enable SSL_MODE_ENABLE_PARTIAL_WRITE this causes writes (to socket) not to be 1-1
+            //enabling SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER should help with moving arrays (GC / physical memory)
+            SSLWrapper.SSL_CTX_ctrl
+            (
+                sslContextHandle,
+                Native.SSL_CTRL_MODE,
+                (int)SslMode.SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER,
+                IntPtr.Zero
+            );
 
             //set default SSL options
             Interop.SslOptions protocolOptions = Interop.SslOptions.SSL_OP_ALL;

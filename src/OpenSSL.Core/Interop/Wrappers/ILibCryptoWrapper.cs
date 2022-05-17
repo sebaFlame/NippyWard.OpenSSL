@@ -1537,6 +1537,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         [return: DontVerifyType, NativeLong]
         //unsigned long ERR_get_error(void);
         ulong ERR_get_error();
+        //unsigned long ERR_peek_error(void);
+        [return: DontVerifyType, NativeLong]
+        ulong ERR_peek_error();
         //void ERR_error_string_n(unsigned long e, char *buf, size_t len);
         void ERR_error_string_n([NativeLong] ulong e, ref byte buf, nuint len);
         //const char *ERR_lib_error_string(unsigned long e);

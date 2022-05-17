@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -14,8 +13,6 @@ using OpenSSL.Core.Interop.Wrappers;
 using OpenSSL.Core.X509;
 using OpenSSL.Core.Keys;
 using OpenSSL.Core.Error;
-using OpenSSL.Core.Interop.SafeHandles.X509;
-using OpenSSL.Core.Collections;
 
 namespace OpenSSL.Core.SSL
 {
@@ -1286,6 +1283,8 @@ namespace OpenSSL.Core.SSL
             totalRead = sequence.Start;
             SslState sslState = SslState.NONE;
 
+            //empty sequence will go through this path
+            //this ensures a BIO_read occurs when the buffer is empty
             if (sequence.IsSingleSegment)
             {
                 sslState = this.WriteSsl(sequence.FirstSpan, bufferWriter, out int read);
@@ -1433,8 +1432,8 @@ namespace OpenSSL.Core.SSL
         /// </summary>
         /// <param name="ret">The return value from a previous read/write operation on the ssl context</param>
         /// <returns>A user handleable <see cref="SslState"/></returns>
-        /// <exception cref="ShutdownException">When a shutdown has already occured</exception>
         /// <exception cref="OpenSslException">When the SSL context is in an erroneous state</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private SslState VerifyError
         (
             int ret,
@@ -1449,21 +1448,23 @@ namespace OpenSSL.Core.SSL
             int errorCode = SSLWrapper.SSL_get_error(this._sslHandle, ret);
             SslError error = (SslError)errorCode;
 
-            return MapNativeError(error, in opState);
+            return MapNativeError(error, ret, in opState);
         }
 
         private static SslState MapNativeError
         (
             SslError error,
+            int ret,
             in SslState opState
         )
         {
             switch (error)
             {
-                case SslError.SSL_ERROR_SYSCALL:
                 case SslError.SSL_ERROR_SSL:
-                    //error of different kind happened, check the currents thread error queue
+                    //SSL error occured, check the currents thread error queue
                     throw new OpenSslException();
+                case SslError.SSL_ERROR_SYSCALL:
+                    return VerifySysCallError(ret, in opState);
                 case SslError.SSL_ERROR_WANT_READ:
                 case SslError.SSL_ERROR_WANT_WRITE:
                     return VerifyStageState(in opState, error);
@@ -1473,6 +1474,36 @@ namespace OpenSSL.Core.SSL
                 default:
                     return opState | SslState.NONE;
             }
+        }
+        //see https://github.com/dotnet/runtime/blob/d3af4921f36dba8dde35ade7dff59a3a192edddb/src/libraries/Common/src/Interop/Unix/System.Security.Cryptography.Native/Interop.OpenSsl.cs#L795
+        private static SslState VerifySysCallError
+        (
+            int ret,
+            in SslState opState
+        )
+        {
+            //check if it's an OpenSsl error
+            ulong sslErr = CryptoWrapper.ERR_peek_error();
+            if (sslErr > 0)
+            {
+                throw new OpenSslException();
+            }
+
+            //check last platform error
+            int errno = Marshal.GetLastSystemError();
+            if(errno > 0)
+            {
+                throw new System.IO.IOException($"Platform IO error (errno {errno})");
+            }
+
+            if(ret == 0)
+            {
+                throw new System.IO.EndOfStreamException();
+            }
+
+            //might just be a 0 byte read/write with unknown retry code
+            //retry operation
+            return opState;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
