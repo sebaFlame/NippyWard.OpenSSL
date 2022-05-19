@@ -376,15 +376,16 @@ namespace OpenSSL.Core.Tests
 
                     //always reading
                 }
-                else if (sslState.IsShutdown())
-                {
-                    //random not representative error (for testing)
-                    throw new InvalidOperationException();
-                }
                 else
                 {
                     Assert.Equal(buffer.Length, index);
                     Assert.Equal(SslState.NONE, sslState);
+                }
+
+                if (sslState.IsShutdown())
+                {
+                    //random not representative error (for testing)
+                    throw new InvalidOperationException();
                 }
             }
 
