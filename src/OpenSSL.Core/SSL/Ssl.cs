@@ -1079,11 +1079,7 @@ namespace OpenSSL.Core.SSL
                             totalRead = readIndex;
                             totalWritten = writeIndex;
 
-                            sslState = this.VerifyError(written, in sslState);
-                            if ((sslState & ~SslState.WANTWRITE) > 0)
-                            {
-                                return sslState;
-                            }
+                            return this.VerifyError(written, in sslState);
                         }
 
                         readIndex += written;
@@ -1224,11 +1220,7 @@ namespace OpenSSL.Core.SSL
                         if (written <= 0)
                         {
                             totalRead = readIndex;
-                            sslState = this.VerifyError(written, in sslState);
-                            if ((sslState & ~SslState.WANTWRITE) > 0)
-                            {
-                                return sslState;
-                            }
+                            return this.VerifyError(written, in sslState);
                         }
 
                         readIndex += written;
@@ -1330,11 +1322,7 @@ namespace OpenSSL.Core.SSL
                         if (written <= 0)
                         {
                             totalRead = sequence.GetPosition(totalIndex);
-                            sslState = this.VerifyError(written, in sslState);
-                            if ((sslState & ~SslState.WANTWRITE) > 0)
-                            {
-                                return sslState;
-                            }
+                            return this.VerifyError(written, in sslState);
                         }
 
                         readIndex += written;
