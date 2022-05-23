@@ -26,6 +26,7 @@ using System;
 using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
+using System.IO;
 
 using Xunit;
 using Xunit.Abstractions;
@@ -181,5 +182,35 @@ namespace OpenSSL.Core.Tests
                 }
             }
 		}
+
+        [Fact]
+        public void CanSaveAsPEM()
+        {
+            using (RSAKey key = new RSAKey(1024))
+            {
+                key.GenerateKey();
+
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    //TODO: verify
+                    key.Write(ms, "", CipherType.NONE, FileEncoding.PEM);
+                }
+            }
+        }
+
+        [Fact]
+        public void CanSaveAsDER()
+        {
+            using (RSAKey key = new RSAKey(1024))
+            {
+                key.GenerateKey();
+
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    //TODO: verify
+                    key.Write(ms, "", CipherType.NONE, FileEncoding.DER);
+                }
+            }
+        }
     }
 }

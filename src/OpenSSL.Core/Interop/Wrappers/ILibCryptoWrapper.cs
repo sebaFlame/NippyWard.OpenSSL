@@ -897,6 +897,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         #region EVP_CIPHER
         //const EVP_CIPHER *EVP_get_cipherbyname(const char *name);
         SafeCipherHandle EVP_get_cipherbyname(in byte name);
+        [return: DontVerifyType]
         SafeCipherHandle EVP_get_cipherbyname(IntPtr name);
 
         //const EVP_CIPHER *EVP_enc_null(void);
