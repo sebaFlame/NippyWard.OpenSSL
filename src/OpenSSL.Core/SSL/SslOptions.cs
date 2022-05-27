@@ -30,10 +30,7 @@ namespace OpenSSL.Core.SSL
             _Default = new SslOptions();
         }
 
-        public SslOptions()
-            : this(Ssl._DefaultSslStrength, Ssl._DefaultSslProtocol)
-        { }
-
+        //mandatory constructor
         public SslOptions
         (
             SslStrength sslStrength,
@@ -43,6 +40,10 @@ namespace OpenSSL.Core.SSL
             this.SslStrength = sslStrength;
             this.SslProtocol = sslProtocol;
         }
+
+        public SslOptions()
+            : this(Ssl._DefaultSslStrength, Ssl._DefaultSslProtocol)
+        { }
 
         public SslOptions
         (
@@ -56,9 +57,8 @@ namespace OpenSSL.Core.SSL
             SslSession previousSession,
             IEnumerable<string> ciphers
         )
+            : this(sslStrength, sslProtocol)
         {
-            this.SslStrength = sslStrength;
-            this.SslProtocol = sslProtocol;
             this.CertificateStore = certificateStore;
             this.Certificate = certificate;
             this.PrivateKey = privateKey;
