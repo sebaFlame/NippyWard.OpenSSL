@@ -696,14 +696,13 @@ namespace OpenSSL.Core.Tests
                     buf = writeBuffer.Slice(bufSize);
                     clientState = clientContext.ReadSsl(in buf, this._clientReadBuffer, out totalRead);
                     Assert.Equal(buf.End, totalRead);
-                }
 
-                //verify state
-                Assert.True
-                (
-                    clientState == SslState.NONE
-                        || clientState.ReceivedEmptyBuffer()
-                );
+                    Assert.Equal(SslState.NONE, clientState);
+                }
+                else
+                {
+                    Assert.Equal(SslState.EMPTYBUFFER, clientState);
+                }
 
                 //get read sequence
                 this._clientReadBuffer.CreateReadOnlySequence(out readBuffer);
