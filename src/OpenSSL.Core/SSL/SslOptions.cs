@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Buffers;
 
 using OpenSSL.Core.X509;
 using OpenSSL.Core.Keys;
@@ -15,6 +13,7 @@ namespace OpenSSL.Core.SSL
     {
         public SslStrength SslStrength { get; set; }
         public SslProtocol SslProtocol { get; set; }
+        public MemoryPool<byte> Pool { get; set; }
         public X509Store? CertificateStore { get; set; }
         public X509Certificate? Certificate { get; set; }
         public PrivateKey? PrivateKey { get; set; }
@@ -34,15 +33,17 @@ namespace OpenSSL.Core.SSL
         public SslOptions
         (
             SslStrength sslStrength,
-            SslProtocol sslProtocol
+            SslProtocol sslProtocol,
+            MemoryPool<byte> pool
         )
         {
             this.SslStrength = sslStrength;
             this.SslProtocol = sslProtocol;
+            this.Pool = pool ?? MemoryPool<byte>.Shared;
         }
 
         public SslOptions()
-            : this(Ssl._DefaultSslStrength, Ssl._DefaultSslProtocol)
+            : this(Ssl._DefaultSslStrength, Ssl._DefaultSslProtocol, MemoryPool<byte>.Shared)
         { }
 
         public SslOptions
@@ -55,9 +56,10 @@ namespace OpenSSL.Core.SSL
             ClientCertificateCallbackHandler clientCertificateCallbackHandler,
             RemoteCertificateValidationHandler remoteCertificateValidationHandler,
             SslSession previousSession,
-            IEnumerable<string> ciphers
+            IEnumerable<string> ciphers,
+            MemoryPool<byte> pool
         )
-            : this(sslStrength, sslProtocol)
+            : this(sslStrength, sslProtocol, pool)
         {
             this.CertificateStore = certificateStore;
             this.Certificate = certificate;
@@ -72,14 +74,14 @@ namespace OpenSSL.Core.SSL
         (
             SslStrength sslStrength
         )
-            : this(sslStrength, Ssl._DefaultSslProtocol)
+            : this(sslStrength, Ssl._DefaultSslProtocol, MemoryPool<byte>.Shared)
         { }
 
         public SslOptions
         (
             SslProtocol sslProtocol
         )
-            : this(Ssl._DefaultSslStrength, sslProtocol)
+            : this(Ssl._DefaultSslStrength, sslProtocol, MemoryPool<byte>.Shared)
         { }
 
         public SslOptions
@@ -87,7 +89,7 @@ namespace OpenSSL.Core.SSL
             SslProtocol sslProtocol,
             IEnumerable<string> allowedCiphers
         )
-            : this(Ssl._DefaultSslStrength, sslProtocol)
+            : this(Ssl._DefaultSslStrength, sslProtocol, MemoryPool<byte>.Shared)
         {
             this.Ciphers = allowedCiphers;
         }
@@ -162,7 +164,7 @@ namespace OpenSSL.Core.SSL
             PrivateKey key,
             SslStrength sslStrength
         )
-            : this (sslStrength, Ssl._DefaultSslProtocol)
+            : this (sslStrength, Ssl._DefaultSslProtocol, MemoryPool<byte>.Shared)
         {
             this.Certificate = certificate;
             this.PrivateKey = key;
@@ -174,7 +176,7 @@ namespace OpenSSL.Core.SSL
             PrivateKey key,
             SslProtocol sslProtocol
         )
-            : this(Ssl._DefaultSslStrength, sslProtocol)
+            : this(Ssl._DefaultSslStrength, sslProtocol, MemoryPool<byte>.Shared)
         {
             this.Certificate = certificate;
             this.PrivateKey = key;
@@ -187,7 +189,7 @@ namespace OpenSSL.Core.SSL
             SslProtocol sslProtocol,
             IEnumerable<string> allowedCiphers
         )
-            : this(Ssl._DefaultSslStrength, sslProtocol)
+            : this(Ssl._DefaultSslStrength, sslProtocol, MemoryPool<byte>.Shared)
         {
             this.Certificate = certificate;
             this.PrivateKey = key;

@@ -997,14 +997,13 @@ namespace OpenSSL.Core.SSL
             do
             {
                 //get a buffer from the IBufferWriter (of unkown length - use 16384 as default)
-                pending = pending == 0 ? _MaxUnencryptedLength : pending;
-                writeBuffer = bufferWriter.GetSpan(pending);
+                writeBuffer = bufferWriter.GetSpan(1);
 
                 //reset current state
                 this.ResetState();
 
                 //and write decrypted data to the buffer received from IBufferWriter
-                read = SSLWrapper.SSL_read(this._sslHandle, ref MemoryMarshal.GetReference<byte>(writeBuffer), pending);
+                read = SSLWrapper.SSL_read(this._sslHandle, ref MemoryMarshal.GetReference<byte>(writeBuffer), writeBuffer.Length);
 
                 //read new state
                 sslState = this._state;
@@ -1403,14 +1402,11 @@ namespace OpenSSL.Core.SSL
             //check if any more data is pending to be written
             while ((pending = (int)CryptoWrapper.BIO_ctrl_pending(this._writeHandle)) > 0)
             {
-                //ensure correct packet size
-                pending = pending > _MaxEncryptedLength ? _MaxEncryptedLength : pending;
-
                 //get a buffer from the IBufferWriter with the correct frame size
-                Span<byte> writeBuffer = bufferWriter.GetSpan(pending);
+                Span<byte> writeBuffer = bufferWriter.GetSpan(1);
 
                 //and write encrypted data to the buffer received from IBufferWriter
-                written = CryptoWrapper.BIO_read(this._writeHandle, ref MemoryMarshal.GetReference<byte>(writeBuffer), pending);
+                written = CryptoWrapper.BIO_read(this._writeHandle, ref MemoryMarshal.GetReference<byte>(writeBuffer), writeBuffer.Length);
 
                 if (written < 0)
                 {
