@@ -942,11 +942,6 @@ namespace OpenSSL.Core.SSL
                     break;
                 }
 
-                if (!memoryEnumerator.MoveNext())
-                {
-                    break;
-                }
-
                 s = SliceReadOnlySequence
                 (
                     in sequence,
