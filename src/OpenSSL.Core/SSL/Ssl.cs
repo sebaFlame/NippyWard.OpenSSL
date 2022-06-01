@@ -111,7 +111,7 @@ namespace OpenSSL.Core.SSL
             get
             {
                 //server side does not use a session
-                if(this.IsServer)
+                if (this.IsServer)
                 {
                     return null;
                 }
@@ -627,7 +627,7 @@ namespace OpenSSL.Core.SSL
 
                 //when TLS1.3, there is a one sided "renegotiate" possible
                 //the rest (if any) happens transparently through SSL_write
-                if(this.Protocol == SslProtocol.Tls13)
+                if (this.Protocol == SslProtocol.Tls13)
                 {
                     sslState |= SslState.HANDSHAKECOMPLETE;
                 }
@@ -891,31 +891,35 @@ namespace OpenSSL.Core.SSL
             }
 
             int written = 0, totalIndex = 0;
-            int readIndex = 0;
-            ReadOnlySpan<byte> readBuf, span;
+            ReadOnlySpan<byte> span;
+            ReadOnlySequence<byte> s;
 
             CryptoWrapper.ERR_clear_error();
 
-            ReadOnlySequence<byte>.Enumerator memoryEnumerator = sequence.GetEnumerator();
-            while (memoryEnumerator.MoveNext())
+            s = SliceReadOnlySequence
+            (
+                in sequence,
+                sequence.Start,
+                _MaxEncryptedLength
+            );
+
+            do
             {
-                span = memoryEnumerator.Current.Span;
+                ReadOnlySequence<byte>.Enumerator memoryEnumerator = s.GetEnumerator();
 
-                readIndex = 0;
-
-                readBuf = SliceReadableSpan
-                (
-                    span,
-                    readIndex,
-                    _MaxEncryptedLength
-                );
-
-                while (!readBuf.IsEmpty)
+                lock (this._lock)
                 {
-                    lock (this._lock)
+                    while (memoryEnumerator.MoveNext())
                     {
+                        if (memoryEnumerator.Current.IsEmpty)
+                        {
+                            continue;
+                        }
+
+                        span = memoryEnumerator.Current.Span;
+
                         //write a (possible) packet of encrypted data to the BIO
-                        written = CryptoWrapper.BIO_write(this._readHandle, in MemoryMarshal.GetReference<byte>(readBuf), readBuf.Length);
+                        written = CryptoWrapper.BIO_write(this._readHandle, in MemoryMarshal.GetReference<byte>(span), span.Length);
 
                         if (written < 0)
                         {
@@ -923,61 +927,33 @@ namespace OpenSSL.Core.SSL
                         }
 
                         //increment read index
-                        readIndex += written;
                         totalIndex += written;
-
-                        //create new buffer
-                        readBuf = SliceReadableSpan
-                        (
-                            span,
-                            readIndex,
-                            _MaxEncryptedLength
-                        );
-
-                        //then read the (unencrypted) buffer into the bufferwriter
-                        sslState = this.ReadUnencryptedIntoBufferWriter
-                        (
-                            bufferWriter
-                        );
                     }
 
-                    if ((sslState & ~SslState.WANTREAD) > 0)
-                    {
-                        totalRead = sequence.GetPosition(totalIndex);
-                        return sslState;
-                    }
-                    else if (sslState.WantsRead())
-                    {
-                        //still data in current buffer
-                        if (!readBuf.IsEmpty)
-                        {
-                            continue;
-                        }
-                        //if another memory is available, continue
-                        else if (memoryEnumerator.MoveNext())
-                        {
-                            span = memoryEnumerator.Current.Span;
-
-                            readIndex = 0;
-
-                            readBuf = SliceReadableSpan
-                            (
-                                span,
-                                readIndex,
-                                _MaxEncryptedLength
-                            );
-
-                            continue;
-                        }
-                        //return if no more memory in sequence
-                        else
-                        {
-                            totalRead = sequence.GetPosition(totalIndex);
-                            return sslState;
-                        }
-                    }
+                    //then read the (unencrypted) buffer into the bufferwriter
+                    sslState = this.ReadUnencryptedIntoBufferWriter
+                    (
+                        bufferWriter
+                    );
                 }
-            }
+
+                if ((sslState & ~SslState.WANTREAD) > 0)
+                {
+                    break;
+                }
+
+                if (!memoryEnumerator.MoveNext())
+                {
+                    break;
+                }
+
+                s = SliceReadOnlySequence
+                (
+                    in sequence,
+                    s.End,
+                    _MaxEncryptedLength
+                );
+            } while (!s.IsEmpty);
 
             //get the position which has been read to
             totalRead = sequence.GetPosition(totalIndex);
@@ -1289,32 +1265,37 @@ namespace OpenSSL.Core.SSL
                 return sslState;
             }
 
-            int written = 0, readIndex = 0, totalIndex = 0;
-            ReadOnlySpan<byte> span, readBuf;
+            int written = 0, totalIndex = 0;
+            ReadOnlySpan<byte> span;
+            ReadOnlySequence<byte> s;
 
             CryptoWrapper.ERR_clear_error();
 
-            ReadOnlySequence<byte>.Enumerator memoryEnumerator = sequence.GetEnumerator();
-            while (memoryEnumerator.MoveNext())
+            s = SliceReadOnlySequence
+            (
+                in sequence,
+                sequence.Start,
+                _MaxUnencryptedLength
+            );
+
+            do
             {
-                span = memoryEnumerator.Current.Span;
-                readIndex = 0;
-
-                readBuf = SliceReadableSpan
-                (
-                    span,
-                    readIndex,
-                    _MaxUnencryptedLength
-                );
-
-                while (!readBuf.IsEmpty)
+                ReadOnlySequence<byte>.Enumerator memoryEnumerator = s.GetEnumerator();
+                lock (this._lock)
                 {
-                    lock (this._lock)
+                    while (memoryEnumerator.MoveNext())
                     {
+                        if (memoryEnumerator.Current.IsEmpty)
+                        {
+                            continue;
+                        }
+
+                        span = memoryEnumerator.Current.Span;
+
                         this.ResetState();
 
                         //write unencrypted data to the BIO
-                        written = SSLWrapper.SSL_write(this._sslHandle, in MemoryMarshal.GetReference<byte>(readBuf), readBuf.Length);
+                        written = SSLWrapper.SSL_write(this._sslHandle, in MemoryMarshal.GetReference<byte>(span), span.Length);
 
                         sslState = this._state;
 
@@ -1324,7 +1305,6 @@ namespace OpenSSL.Core.SSL
                             return this.VerifyError(written, in sslState);
                         }
 
-                        readIndex += written;
                         totalIndex += written;
 
                         //only return if there is another state than WANTWRITE
@@ -1334,58 +1314,28 @@ namespace OpenSSL.Core.SSL
                             totalRead = sequence.GetPosition(totalIndex);
                             return sslState;
                         }
-
-                        readBuf = SliceReadableSpan
-                        (
-                            span,
-                            readIndex,
-                            _MaxUnencryptedLength
-                        );
-
-                        //read encrypted data
-                        sslState = this.ReadEncryptedIntoBufferWriter
-                        (
-                            bufferWriter,
-                            in sslState
-                        );
                     }
 
-                    if ((sslState & ~SslState.WANTWRITE) > 0)
-                    {
-                        totalRead = sequence.GetPosition(totalIndex);
-                        return sslState;
-                    }
-                    else if (sslState.WantsWrite())
-                    {
-                        if (!readBuf.IsEmpty)
-                        {
-                            continue;
-                        }
-                        //if another memory is available, continue
-                        else if (memoryEnumerator.MoveNext())
-                        {
-                            span = memoryEnumerator.Current.Span;
-
-                            readIndex = 0;
-
-                            readBuf = SliceReadableSpan
-                            (
-                                span,
-                                readIndex,
-                                _MaxEncryptedLength
-                            );
-
-                            continue;
-                        }
-                        //return if no more memory in sequence
-                        else
-                        {
-                            totalRead = sequence.GetPosition(totalIndex);
-                            return sslState;
-                        }
-                    }
+                    //read encrypted data
+                    sslState = this.ReadEncryptedIntoBufferWriter
+                    (
+                        bufferWriter,
+                        in sslState
+                    );
                 }
-            }
+
+                if ((sslState & ~SslState.WANTWRITE) > 0)
+                {
+                    break;
+                }
+
+                s = SliceReadOnlySequence
+                (
+                    in sequence,
+                    s.End,
+                    _MaxUnencryptedLength
+                );
+            } while (!s.IsEmpty);
 
             totalRead = sequence.GetPosition(totalIndex);
             return sslState;
@@ -1485,12 +1435,12 @@ namespace OpenSSL.Core.SSL
 
             //check last platform error
             int errno = Marshal.GetLastSystemError();
-            if(errno > 0)
+            if (errno > 0)
             {
                 throw new System.IO.IOException($"Platform IO error (errno {errno})");
             }
 
-            if(ret == 0)
+            if (ret == 0)
             {
                 throw new System.IO.EndOfStreamException();
             }
@@ -1561,6 +1511,29 @@ namespace OpenSSL.Core.SSL
             {
                 return sslState | SslState.NONE;
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ReadOnlySequence<byte> SliceReadOnlySequence
+        (
+            in ReadOnlySequence<byte> buffer,
+            SequencePosition start,
+            long length
+        )
+        {
+            if (buffer.Start.Equals(start)
+                && buffer.Length <= length)
+            {
+                return buffer;
+            }
+
+            ReadOnlySequence<byte> t = buffer.Slice(start);
+            if (t.Length <= length)
+            {
+                return t;
+            }
+
+            return buffer.Slice(start, length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
