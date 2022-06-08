@@ -13,10 +13,7 @@ namespace OpenSSL.Core.Ciphers
         public byte[] Key { get; private set; }
         public byte[] IV { get; private set; }
 
-        private int ivLength;
-
-        internal CipherEncryption(CipherInternal handleWarpper)
-            : base(handleWarpper) { }
+        private readonly int _ivLength;
 
         public CipherEncryption(CipherType cipherType)
             : base(cipherType)
@@ -26,24 +23,20 @@ namespace OpenSSL.Core.Ciphers
             Span<byte> bufSpan = new Span<byte>(this.Key);
             CryptoWrapper.EVP_CIPHER_CTX_rand_key(this.CipherContextHandle, ref bufSpan.GetPinnableReference());
 
-            if ((this.ivLength = this.GetIVLength()) > 0)
-                this.IV = Interop.Random.Bytes(this.ivLength);
+            if ((this._ivLength = this.GetIVLength()) > 0)
+                this.IV = Interop.Random.Bytes(this._ivLength);
             else
                 this.IV = Array.Empty<byte>();
 
             this.Initialize();
         }
 
-        //public CipherEncryption(CipherType cipherType, Key key)
-        //    : this(cipherType, GetBufferFromKey(key))
-        //{ }
-
         public CipherEncryption(CipherType cipherType, byte[] key)
             : base(cipherType)
         {
             this.Key = key;
 
-            if ((this.ivLength = this.GetIVLength()) > 0)
+            if ((this._ivLength = this.GetIVLength()) > 0)
                 this.IV = Interop.Random.Bytes(this.GetIVLength());
             else
                 this.IV = Array.Empty<byte>();
@@ -60,7 +53,7 @@ namespace OpenSSL.Core.Ciphers
         {
             this.Key = key;
 
-            if ((this.ivLength = this.GetIVLength()) > 0 && !(iv is null))
+            if ((this._ivLength = this.GetIVLength()) > 0 && !(iv is null))
                 this.IV = iv;
             else
                 this.IV = Array.Empty<byte>();
@@ -79,7 +72,7 @@ namespace OpenSSL.Core.Ciphers
             this.Key = key;
             this.IV = iv;
 
-            this.ivLength = this.IV.Length;
+            this._ivLength = this.IV.Length;
 
             this.Initialize();
         }
@@ -88,13 +81,13 @@ namespace OpenSSL.Core.Ciphers
         {
             Span<byte> key = new Span<byte>(this.Key);
             
-            if (this.ivLength > 0 && !(this.IV is null))
+            if (this._ivLength > 0 && !(this.IV is null))
             {
                 Span<byte> iv = new Span<byte>(this.IV);
-                CryptoWrapper.EVP_EncryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), iv.GetPinnableReference());
+                CryptoWrapper.EVP_EncryptInit(this.CipherContextHandle, this._Handle, key.GetPinnableReference(), iv.GetPinnableReference());
             }
             else
-                CryptoWrapper.EVP_EncryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), IntPtr.Zero);
+                CryptoWrapper.EVP_EncryptInit(this.CipherContextHandle, this._Handle, key.GetPinnableReference(), IntPtr.Zero);
         }
 
         protected override int UpdateInternal(in Span<byte> inputBuffer, ref Span<byte> outputBuffer)

@@ -11,7 +11,7 @@ namespace OpenSSL.Core.Error
     /// </summary>
     public class OpenSslError : BaseOpenSslError
     {
-        private string message;
+        private string? _message;
 
         /// <summary>
         /// Constructs an OpenSslError object.
@@ -19,7 +19,6 @@ namespace OpenSSL.Core.Error
         /// <param name="err">The native error code</param>
         public OpenSslError(ulong err)
             : base(err) { }
-
 
         /// <summary>
         /// Returns the result of ERR_lib_error_string()
@@ -52,9 +51,9 @@ namespace OpenSSL.Core.Error
         {
             get
             {
-                if (!string.IsNullOrEmpty(this.message))
+                if (!string.IsNullOrEmpty(this._message))
                 {
-                    return this.message;
+                    return this._message;
                 }
 
                 unsafe
@@ -71,15 +70,15 @@ namespace OpenSSL.Core.Error
                     while (b != 0);
                     length--;
 
-                    this.message = Encoding.ASCII.GetString(buf, length);
+                    this._message = Encoding.ASCII.GetString(buf, length);
                 }
 
-                if(string.IsNullOrWhiteSpace(this.message))
+                if(string.IsNullOrWhiteSpace(this._message))
                 {
-                    return (this.message = this.ErrorCode.ToString());
+                    return (this._message = this.ErrorCode.ToString());
                 }
 
-                return this.message;
+                return this._message;
             }
         }
 

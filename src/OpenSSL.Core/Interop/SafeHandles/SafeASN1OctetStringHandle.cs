@@ -15,7 +15,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
         /// </summary>
         internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
 
-        private static OPENSSL_sk_freefunc _FreeFunc;
+        private static readonly OPENSSL_sk_freefunc _FreeFunc;
 
         static SafeASN1OctetStringHandle()
         {
@@ -54,9 +54,9 @@ namespace OpenSSL.Core.Interop.SafeHandles
             }
         }
 
-        public int CompareTo(SafeASN1OctetStringHandle other)
+        public int CompareTo(SafeASN1OctetStringHandle? other)
         {
-            return CryptoWrapper.ASN1_OCTET_STRING_cmp(this, other);
+            return CryptoWrapper.ASN1_OCTET_STRING_cmp(this, other ?? SafeASN1OctetStringHandle.Zero);
         }
     }
 }

@@ -15,21 +15,12 @@ namespace OpenSSL.Core.Keys
 {
     public abstract class PrivateKey : Key, IPrivateKey
     {
-        protected PrivateKey()
-            : base() { }
-
-        internal PrivateKey(KeyInternal handleWrapper)
-            : base(handleWrapper) { }
-
         internal PrivateKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         { }
 
         internal static PrivateKey GetCorrectKey(SafeKeyHandle keyHandle)
         {
-            if (keyHandle is null)
-                return null;
-
             KeyType keyType = (KeyType)Native.CryptoWrapper.EVP_PKEY_base_id(keyHandle);
 
             switch (keyType)
@@ -133,11 +124,10 @@ namespace OpenSSL.Core.Keys
 
         public void Write(Stream stream, string password, CipherType cipherType, FileEncoding fileEncoding = FileEncoding.PEM)
         {
-            if (this.KeyWrapper.Handle is null || this.KeyWrapper.Handle.IsInvalid)
-                throw new InvalidOperationException("Key has not been genrated yet");
-
             if (!stream.CanWrite)
+            {
                 throw new InvalidOperationException("Stream is not writable");
+            }
 
             byte[] buf = ArrayPool<byte>.Shared.Rent(4096);
             try
@@ -171,16 +161,28 @@ namespace OpenSSL.Core.Keys
                     {
                         SafeCipherHandle cipherHandle;
                         using (cipherHandle = CryptoWrapper.EVP_get_cipherbyname(cipherType.ShortNamePtr))
-                            CryptoWrapper.PEM_write_bio_PrivateKey(bioHandle, this.KeyWrapper.Handle, cipherHandle, IntPtr.Zero, 0, pass.Callback, IntPtr.Zero);
+                            CryptoWrapper.PEM_write_bio_PrivateKey(bioHandle, this._Handle, cipherHandle, IntPtr.Zero, 0, pass.Callback, IntPtr.Zero);
                         break;
                     }
                 case FileEncoding.DER:
-                    CryptoWrapper.i2d_PrivateKey_bio(bioHandle, this.KeyWrapper.Handle);
+                    CryptoWrapper.i2d_PrivateKey_bio(bioHandle, this._Handle);
                     break;
                 case FileEncoding.PKCS12:
                     {
                         //TODO: cipherType incorrect? should be a PBE?
-                        SafePKCS12Handle pkcs12Handle = CryptoWrapper.PKCS12_create(password, "", this.KeyWrapper.Handle, null, null, cipherType.NID, 0, 2048, 1, 0);
+                        SafePKCS12Handle pkcs12Handle = CryptoWrapper.PKCS12_create
+                        (
+                            password,
+                            "",
+                            this._Handle,
+                            SafeX509CertificateHandle.Zero,
+                            SafeStackHandle<SafeX509CertificateHandle>.Zero,
+                            cipherType.NID,
+                            0,
+                            2048,
+                            1,
+                            0
+                        );
                         CryptoWrapper.i2d_PKCS12_bio(bioHandle, pkcs12Handle);
                         break;
                     }

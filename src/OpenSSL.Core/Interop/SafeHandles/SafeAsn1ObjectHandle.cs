@@ -29,17 +29,22 @@ using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles
 {
-	/// <summary>
-	/// Asn1 object.
-	/// </summary>
-	internal abstract class SafeAsn1ObjectHandle : BaseValue, IEquatable<SafeAsn1ObjectHandle>
+    /// <summary>
+    /// Asn1 object.
+    /// </summary>
+#pragma warning disable CA1067 // Override Object.Equals(object) when implementing IEquatable<T>
+    internal abstract class SafeAsn1ObjectHandle
+#pragma warning restore CA1067 // Override Object.Equals(object) when implementing IEquatable<T>
+        : BaseValue,
+            IEquatable<SafeAsn1ObjectHandle>,
+            IStackable
 	{
         public static SafeAsn1ObjectHandle Zero
             => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeAsn1ObjectHandle>(IntPtr.Zero);
 
         internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
 
-        private static OPENSSL_sk_freefunc _FreeFunc;
+        private static readonly OPENSSL_sk_freefunc _FreeFunc;
 
         static SafeAsn1ObjectHandle()
         {
@@ -47,7 +52,9 @@ namespace OpenSSL.Core.Interop.SafeHandles
         }
 
         [StructLayout(LayoutKind.Sequential)]
+#pragma warning disable IDE1006 // Naming Styles
         private struct asn1_object_st
+#pragma warning restore IDE1006 // Naming Styles
         {
             public IntPtr sn;
             public IntPtr ln;
@@ -67,9 +74,9 @@ namespace OpenSSL.Core.Interop.SafeHandles
             : base(ptr, takeOwnership)
         { }
 
-        public bool Equals(SafeAsn1ObjectHandle other)
+        public bool Equals(SafeAsn1ObjectHandle? other)
         {
-            return CryptoWrapper.OBJ_cmp(this, other) == 0;
+            return CryptoWrapper.OBJ_cmp(this, other ?? SafeAsn1ObjectHandle.Zero) == 0;
         }
     }
 }

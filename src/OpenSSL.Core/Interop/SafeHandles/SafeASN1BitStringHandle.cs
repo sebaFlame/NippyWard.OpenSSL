@@ -7,7 +7,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
 {
     internal abstract class SafeASN1BitStringHandle : SafeAsn1StringHandle
     {
-        public static SafeASN1BitStringHandle Zero
+        public new static SafeASN1BitStringHandle Zero
             => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeASN1BitStringHandle>(IntPtr.Zero);
 
         /// <summary>
@@ -15,7 +15,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
         /// </summary>
         internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
 
-        private static OPENSSL_sk_freefunc _FreeFunc;
+        private static readonly OPENSSL_sk_freefunc _FreeFunc;
 
         static SafeASN1BitStringHandle()
         {

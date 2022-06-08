@@ -7,45 +7,34 @@ namespace OpenSSL.Core.Keys
 {
     public class DHKey : PrivateKey
     {
-        private SafeDHHandle dhHandle;
+        internal SafeDHHandle DHhHandle
+            => CryptoWrapper.EVP_PKEY_get0_DH(this._Handle);
 
         public override KeyType KeyType => KeyType.DH;
 
-        internal DHKey(KeyInternal handleWrapper)
-            : base(handleWrapper) { }
-
         internal DHKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
-        {
-            this.dhHandle = CryptoWrapper.EVP_PKEY_get0_DH(this.KeyWrapper.Handle);
-        }
+        { }
 
         public DHKey(int primeLength, ushort generator)
-            : base()
+            : this(GenerateDHKey(primeLength, generator))
+        { }
+
+        private static SafeKeyHandle GenerateDHKey(int primeLength, ushort generator)
         {
-            if (generator <= 1)
-                throw new InvalidOperationException("Invalid generator");
+            using (SafeDHHandle handle = CryptoWrapper.DH_new())
+            {
+                CryptoWrapper.DH_generate_parameters_ex(handle, primeLength, generator, null);
+                CryptoWrapper.DH_generate_key(handle);
 
-            this.dhHandle = CryptoWrapper.DH_new();
-            CryptoWrapper.DH_generate_parameters_ex(this.dhHandle, primeLength, generator, null);
-            CryptoWrapper.DH_generate_key(this.dhHandle);
-        }
-
-        internal override KeyInternal GenerateKeyInternal()
-        {
-            if (this.dhHandle is null || this.dhHandle.IsInvalid)
-                throw new InvalidOperationException("RSA key has not been created yet");
-
-            SafeKeyHandle keyHandle = CryptoWrapper.EVP_PKEY_new();
-            CryptoWrapper.EVP_PKEY_set1_DH(keyHandle, this.dhHandle);
-            return new KeyInternal(keyHandle);
+                SafeKeyHandle keyHandle = CryptoWrapper.EVP_PKEY_new();
+                CryptoWrapper.EVP_PKEY_set1_DH(keyHandle, handle);
+                return keyHandle;
+            }
         }
 
         protected override void Dispose(bool disposing)
         {
-            if (!(this.dhHandle is null) && !this.dhHandle.IsInvalid)
-                this.dhHandle.Dispose();
-
             base.Dispose(disposing);
         }
     }

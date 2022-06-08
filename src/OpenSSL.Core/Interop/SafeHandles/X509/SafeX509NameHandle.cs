@@ -31,8 +31,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// <summary>
 	/// Encapsulates the X509_NAME_* functions
 	/// </summary>
-	internal abstract class SafeX509NameHandle : BaseValue, IComparable<SafeX509NameHandle>, IStackable, IEquatable<SafeX509NameHandle>
-	{
+	internal abstract class SafeX509NameHandle
+        : BaseValue,
+            IComparable<SafeX509NameHandle>,
+            IEquatable<SafeX509NameHandle>,
+            IStackable
+    {
         public static SafeX509NameHandle Zero
             => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeX509NameHandle>(IntPtr.Zero);
 
@@ -41,7 +45,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
         /// </summary>
         internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
 
-        private static OPENSSL_sk_freefunc _FreeFunc;
+        private static readonly OPENSSL_sk_freefunc _FreeFunc;
 
         static SafeX509NameHandle()
         {
@@ -63,14 +67,14 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 		/// </summary>
 		/// <param name="other"></param>
 		/// <returns></returns>
-		public int CompareTo(SafeX509NameHandle other)
+		public int CompareTo(SafeX509NameHandle? other)
 		{
-			return CryptoWrapper.X509_NAME_cmp(this, other);
+			return CryptoWrapper.X509_NAME_cmp(this, other ?? SafeX509NameHandle.Zero);
 		}
 
-        public bool Equals(SafeX509NameHandle other)
+        public bool Equals(SafeX509NameHandle? other)
         {
-            return CryptoWrapper.X509_NAME_cmp(this, other) == 0;
+            return CryptoWrapper.X509_NAME_cmp(this, other ?? SafeX509NameHandle.Zero) == 0;
         }
 
         #endregion

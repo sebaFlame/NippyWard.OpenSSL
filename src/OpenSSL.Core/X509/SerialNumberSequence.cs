@@ -25,7 +25,7 @@ namespace OpenSSL.Core.X509
     /// </summary>
     public class FileSerialNumber : ISequenceNumber
     {
-        private string path;
+        private readonly string path;
 
         /// <summary>
         /// Constructs a FileSerialNumber. The path specifies where

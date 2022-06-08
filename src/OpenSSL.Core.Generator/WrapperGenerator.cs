@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Diagnostics;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -51,12 +52,12 @@ namespace OpenSSL.Core.Generator
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
-//#if DEBUG
-//            if (!Debugger.IsAttached)
-//            {
-//                Debugger.Launch();
-//            }
-//#endif
+            //#if DEBUG
+            //            if (!Debugger.IsAttached)
+            //            {
+            //                Debugger.Launch();
+            //            }
+            //#endif
 
             //get abstract safe handles (without stack handles)
             IncrementalValuesProvider<string> abstractSafeHandles =
@@ -65,7 +66,8 @@ namespace OpenSSL.Core.Generator
                 IsSafeHandleCandidate,
                 TransformSafeHandleCandidate
             )
-            .Where(static x => x is not null);
+            .Where(static x => x is not null)
+            .Select(static (y, _) => y!);
 
             //register safe handle concrete type generation
             context.RegisterSourceOutput
@@ -82,7 +84,7 @@ namespace OpenSSL.Core.Generator
                 TransformStackHandleCandidate
             )
             .Where(static x => x.HasValue)
-            .Select(static (y, _) => y.Value);
+            .Select(static (y, _) => y!.Value);
 
             //register safe stack handle concrete type generations
             context.RegisterSourceOutput
@@ -99,7 +101,8 @@ namespace OpenSSL.Core.Generator
                 IsSafeHandleCandidate,
                 TransformFactorySafeHandle
             )
-            .Where(static x => x is not null);
+            .Where(static x => x is not null)
+            .Select(static (y, _) => y!);
 
             //get factory interface
             IncrementalValuesProvider<InterfaceDeclarationSyntax> factoryInterface =
@@ -125,7 +128,7 @@ namespace OpenSSL.Core.Generator
                 TransformSafeHandleCandidateForWrapper
             )
             .Where(static x => x.HasValue)
-            .Select(static (x, _) => x.Value);
+            .Select(static (x, _) => x!.Value);
 
             //get all wrapper interfaces
             IncrementalValuesProvider<InterfaceDeclarationSyntax> wrapperInterfaces =
@@ -166,10 +169,10 @@ namespace OpenSSL.Core.Generator
         (
             SyntaxNode syntaxNode,
             SemanticModel semanticModel,
-            out INamedTypeSymbol namedTypeSymbol
+            out INamedTypeSymbol? namedTypeSymbol
         )
         {
-            ISymbol symbol = semanticModel.GetDeclaredSymbol(syntaxNode);
+            ISymbol? symbol = semanticModel.GetDeclaredSymbol(syntaxNode);
 
             if (symbol is null
                 || symbol.Kind != SymbolKind.NamedType)
@@ -198,7 +201,7 @@ namespace OpenSSL.Core.Generator
             return false;
         }
 
-        private static string TransformSafeHandleCandidate
+        private static string? TransformSafeHandleCandidate
         (
             GeneratorSyntaxContext generatorSyntaxContext,
             CancellationToken cancellationToken
@@ -210,8 +213,9 @@ namespace OpenSSL.Core.Generator
             (
                 syntaxNode,
                 generatorSyntaxContext.SemanticModel,
-                out INamedTypeSymbol namedTypeSymbol
-            ))
+                out INamedTypeSymbol? namedTypeSymbol
+            )
+                || namedTypeSymbol is null)
             {
                 return null;
             }
@@ -256,8 +260,9 @@ namespace OpenSSL.Core.Generator
             (
                 syntaxNode,
                 generatorSyntaxContext.SemanticModel,
-                out INamedTypeSymbol namedTypeSymbol
-            ))
+                out INamedTypeSymbol? namedTypeSymbol
+            )
+                || namedTypeSymbol is null)
             {
                 return null;
             }
@@ -271,7 +276,7 @@ namespace OpenSSL.Core.Generator
                 (
                     stackClass.Identifier.WithoutTrivia().ValueText,
                     stackClass
-                        .TypeParameterList
+                        .TypeParameterList!
                         .DescendantNodes()
                         .OfType<TypeParameterSyntax>()
                         .Select(x => x.Identifier.WithoutTrivia().ValueText)
@@ -302,7 +307,7 @@ namespace OpenSSL.Core.Generator
             sourceProductionContext.AddSource($"ConcreteStackSafeHandles.g.cs", concreteText);
         }
 
-        private static string TransformFactorySafeHandle
+        private static string? TransformFactorySafeHandle
         (
             GeneratorSyntaxContext generatorSyntaxContext,
             CancellationToken cancellationToken
@@ -314,8 +319,9 @@ namespace OpenSSL.Core.Generator
             (
                 syntaxNode,
                 generatorSyntaxContext.SemanticModel,
-                out INamedTypeSymbol namedTypeSymbol
-            ))
+                out INamedTypeSymbol? namedTypeSymbol
+            )
+                || namedTypeSymbol is null)
             {
                 return null;
             }
@@ -345,7 +351,7 @@ namespace OpenSSL.Core.Generator
             SyntaxNode syntaxNode = generatorSyntaxContext.Node;
             SemanticModel semanticModel = generatorSyntaxContext.SemanticModel;
 
-            ISymbol symbol = semanticModel.GetDeclaredSymbol(syntaxNode);
+            ISymbol? symbol = semanticModel.GetDeclaredSymbol(syntaxNode);
 
             if (symbol is null
                 || symbol.Kind != SymbolKind.NamedType)
@@ -455,7 +461,7 @@ namespace OpenSSL.Core.Generator
             (InterfaceDeclarationSyntax, ImmutableArray<SafeHandleModel>) tpl
         )
         {
-            SourceText sourceText = null;
+            SourceText? sourceText = null;
             string hintName = String.Empty;
             InterfaceDeclarationSyntax @interface = tpl.Item1;
             ICollection<SafeHandleModel> safeHandles = tpl.Item2;
@@ -516,7 +522,7 @@ namespace OpenSSL.Core.Generator
             sourceProductionContext.AddSource(hintName, sourceText);
         }
 
-        internal static NamespaceDeclarationSyntax FindParentNamespace(SyntaxNode node)
+        internal static NamespaceDeclarationSyntax FindParentNamespace(SyntaxNode? node)
         {
             if(node is null)
             {
@@ -531,7 +537,7 @@ namespace OpenSSL.Core.Generator
             return FindParentNamespace(node.Parent);
         }
 
-        private static bool IsStackHandle(INamedTypeSymbol namedTypedSymbol)
+        private static bool IsStackHandle(INamedTypeSymbol? namedTypedSymbol)
         {
             if (namedTypedSymbol is null)
             {
@@ -549,10 +555,15 @@ namespace OpenSSL.Core.Generator
 
         private static bool IsSafeHandle
         (
-            TypeSyntax originalTypeSyntax,
+            TypeSyntax? originalTypeSyntax,
             ICollection<SafeHandleModel> safeHandles
         )
         {
+            if (originalTypeSyntax is null)
+            {
+                return false;
+            }
+
             //if ref, it will never be a safehandle
             if (originalTypeSyntax is RefTypeSyntax)
             {
@@ -564,7 +575,7 @@ namespace OpenSSL.Core.Generator
             return safeHandles.Any(x => x.Name.Equals(name));
         }
 
-        private static bool IsSafeHandle(INamedTypeSymbol namedTypedSymbol)
+        private static bool IsSafeHandle(INamedTypeSymbol? namedTypedSymbol)
         {
             if(namedTypedSymbol is null)
             {
@@ -685,7 +696,9 @@ namespace OpenSSL.Core.Generator
 
         private static TypeSyntax CreateWindowsNativeLongType
         (
+#pragma warning disable IDE0060 // Remove unused parameter
             MethodDeclarationSyntax method,
+#pragma warning restore IDE0060 // Remove unused parameter
             TypeSyntax typeSyntax,
             SyntaxList<AttributeListSyntax> symbolAttributes,
             bool passByRef = true
@@ -698,7 +711,7 @@ namespace OpenSSL.Core.Generator
             }
 
             string type = typeSyntax.ToString();
-            TypeSyntax newType = null;
+            TypeSyntax? newType = null;
 
             if (string.Equals(type, "long", StringComparison.OrdinalIgnoreCase))
             {
@@ -742,7 +755,6 @@ namespace OpenSSL.Core.Generator
             bool added = false;
             AttributeListSyntax attributeList = SyntaxFactory.AttributeList();
             SyntaxList<AttributeListSyntax> newAttributes = SyntaxFactory.List<AttributeListSyntax>();
-            SymbolInfo symbolInfo;
 
             foreach(AttributeSyntax attribute in originalAttributes.SelectMany(x => x.Attributes))
             {
@@ -783,7 +795,7 @@ namespace OpenSSL.Core.Generator
             TypeSyntax typeSyntax,
             IdentifierNameSyntax localName,
             ICollection<SafeHandleModel> abstractSafeBaseHandles,
-            out InvocationExpressionSyntax verificationInvocation
+            out InvocationExpressionSyntax? verificationInvocation
         )
         {
             IdentifierNameSyntax methodName;
@@ -850,8 +862,8 @@ namespace OpenSSL.Core.Generator
 
         private static bool ContainsGenericTypeParameter
         (
-            TypeSyntax typeSyntax,
-            TypeParameterListSyntax typeParameters,
+            TypeSyntax? typeSyntax,
+            TypeParameterListSyntax? typeParameters,
             out bool isTypeParameter
         )
         {
@@ -861,6 +873,11 @@ namespace OpenSSL.Core.Generator
             if (typeSyntax is GenericNameSyntax genericNameSyntax)
             {
                 return true;
+            }
+
+            if(typeSyntax is null)
+            {
+                throw new NullReferenceException($"{nameof(typeSyntax)} should never be null");
             }
 
             if(typeParameters is null)

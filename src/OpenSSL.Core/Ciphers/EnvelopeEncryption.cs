@@ -19,24 +19,21 @@ namespace OpenSSL.Core.Ciphers
         /// <summary>
         /// The generated keys to decrypt per public key
         /// </summary>
-        public byte[][] EncryptionKeys { get; private set; }
+        public byte[][]? EncryptionKeys { get; private set; }
 
         /// <summary>
         /// The IV used to encrypt (can be empty if the cipher doesn't support it)
         /// </summary>
         public byte[] IV { get; private set; }
 
-        private int ivLength;
-
-        internal EnvelopeEncryption(CipherInternal handleWarpper)
-            : base(handleWarpper) { }
+        private readonly int _ivLength;
 
         public EnvelopeEncryption(CipherType cipherType, params IPublicKey[] publicKeys)
             : base(cipherType)
         {
             this.publicKeys = publicKeys;
 
-            if ((this.ivLength = this.GetIVLength()) > 0)
+            if ((this._ivLength = this.GetIVLength()) > 0)
                 this.IV = Interop.Random.Bytes(this.GetIVLength());
             else
                 this.IV = Array.Empty<byte>();
@@ -49,7 +46,7 @@ namespace OpenSSL.Core.Ciphers
         {
             this.publicKeys = publicKeys;
 
-            if((this.ivLength = this.GetIVLength()) > 0 && !(iv is null))
+            if((this._ivLength = this.GetIVLength()) > 0 && !(iv is null))
                 this.IV = iv;
             else
                 this.IV = Array.Empty<byte>();
@@ -67,17 +64,17 @@ namespace OpenSSL.Core.Ciphers
 
             for (int i = 0; i < this.publicKeys.Length; i++)
             {
-                keyHandles[i] = (this.publicKeys[i] as Key).KeyWrapper.Handle.DangerousGetHandle();
-                ek[i] = Marshal.AllocHGlobal(CryptoWrapper.EVP_PKEY_size((this.publicKeys[i] as Key).KeyWrapper.Handle));
+                keyHandles[i] = (this.publicKeys[i] as Key)!._Handle.DangerousGetHandle();
+                ek[i] = Marshal.AllocHGlobal(CryptoWrapper.EVP_PKEY_size((this.publicKeys[i] as Key)!._Handle));
             }
 
             Span<int> lenSpan = new Span<int>(keyLengths);
             try
             {
-                if (this.ivLength > 0 && !(this.IV is null))
+                if (this._ivLength > 0 && !(this.IV is null))
                 {
                     Span<byte> ivSpan = new Span<byte>(this.IV);
-                    CryptoWrapper.EVP_SealInit(this.CipherContextHandle, this.CipherWrapper.Handle,
+                    CryptoWrapper.EVP_SealInit(this.CipherContextHandle, this._Handle,
                         ek,
                         lenSpan.GetPinnableReference(),
                         ivSpan.GetPinnableReference(),
@@ -85,7 +82,7 @@ namespace OpenSSL.Core.Ciphers
                         this.publicKeys.Length);
                 }
                 else
-                    CryptoWrapper.EVP_SealInit(this.CipherContextHandle, this.CipherWrapper.Handle,
+                    CryptoWrapper.EVP_SealInit(this.CipherContextHandle, this._Handle,
                         ek,
                         lenSpan.GetPinnableReference(),
                         IntPtr.Zero,

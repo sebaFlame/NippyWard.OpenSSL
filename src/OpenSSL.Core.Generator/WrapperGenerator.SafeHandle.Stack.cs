@@ -46,7 +46,27 @@ namespace OpenSSL.Core.Generator
                     .NormalizeWhitespace()
                     .AddMembers
                     (
-                        SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(_ConcreteNamespaceName))
+                        SyntaxFactory.NamespaceDeclaration
+                        (
+                            SyntaxFactory.Token(SyntaxKind.NamespaceKeyword)
+                                .WithLeadingTrivia
+                                (
+                                    SyntaxFactory.TriviaList
+                                    (
+                                        SyntaxFactory.Trivia
+                                        (
+                                            SyntaxFactory.NullableDirectiveTrivia(SyntaxFactory.Token(SyntaxKind.EnableKeyword), true)
+                                        )
+                                    )
+                                ),
+                            SyntaxFactory.ParseName(_ConcreteNamespaceName),
+                            SyntaxFactory.Token(SyntaxKind.OpenBraceToken),
+                            default,
+                            default,
+                            default,
+                            SyntaxFactory.Token(SyntaxKind.CloseBraceToken),
+                            default
+                        )
                             .AddMembers
                             (
                                 GenerateConcreteSafeStackHandleTypes(model).ToArray()

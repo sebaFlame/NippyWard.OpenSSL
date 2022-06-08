@@ -46,16 +46,16 @@ namespace OpenSSL.Core.X509
     {
         private const string _DefaultCAKeyUsage = "critical,cRLSign,keyCertSign";
 
-        private X509Certificate caCert;
-        private PrivateKey caKey;
-        private ISequenceNumber serial;
+        private readonly X509Certificate _caCert;
+        private readonly PrivateKey _caKey;
+        private readonly ISequenceNumber _serial;
 
         /// <summary>
         /// Accessor to the CA's X509 Certificate
         /// </summary>
         public X509Certificate Certificate
         {
-            get { return caCert; }
+            get { return _caCert; }
         }
 
         /// <summary>
@@ -63,30 +63,31 @@ namespace OpenSSL.Core.X509
         /// </summary>
         public PrivateKey Key
         {
-            get { return caKey; }
+            get { return _caKey; }
         }
 
         #region Initialization
 
-        public static X509CertificateAuthority CreateX509CertificateAuthority(
+        public static X509CertificateAuthority CreateX509CertificateAuthority
+        (
             int keyBits, 
             string OU, 
             string CN, 
             DateTime notBefore, 
             DateTime notAfter,
             out X509Certificate caCert,
-            DigestType signHash = null,
-            ISequenceNumber serialGenerator = null,
-            string keyUsage = _DefaultCAKeyUsage)
+            DigestType? signHash = null,
+            ISequenceNumber? serialGenerator = null,
+            string keyUsage = _DefaultCAKeyUsage
+        )
         {
             RSAKey rsaKey = new RSAKey(keyBits);
-            rsaKey.GenerateKey();
 
             caCert = new X509Certificate(rsaKey, OU, CN, notBefore, notAfter);
 
             //set issuer as subject (self signed)
-            SafeX509NameHandle x509Name = CryptoWrapper.X509_get_subject_name(caCert.X509Wrapper.Handle);
-            CryptoWrapper.X509_set_issuer_name(caCert.X509Wrapper.Handle, x509Name);
+            SafeX509NameHandle x509Name = CryptoWrapper.X509_get_subject_name(caCert._Handle);
+            CryptoWrapper.X509_set_issuer_name(caCert._Handle, x509Name);
 
             //subject hash (issuer also subject)
             caCert.AddExtension(caCert, null, X509ExtensionType.SubjectKeyIdentifier, "hash");
@@ -118,9 +119,9 @@ namespace OpenSSL.Core.X509
                 throw new Exception("The specified CA Private Key does not match the specified CA Certificate");
             }
 
-            this.caCert = caCert;
-			this.caKey = caKey;
-			this.serial = serial;
+            this._caCert = caCert;
+			this._caKey = caKey;
+			this._serial = serial;
 		}
 
 		#endregion
@@ -138,10 +139,10 @@ namespace OpenSSL.Core.X509
             SafeKeyHandle requestKey;
 
             //get the key from the request
-            requestKey = CryptoWrapper.X509_REQ_get0_pubkey(request.X509RequestWrapper.Handle);
+            requestKey = CryptoWrapper.X509_REQ_get0_pubkey(request._Handle);
 
             //and verify with the request
-            CryptoWrapper.X509_REQ_verify(request.X509RequestWrapper.Handle, requestKey);
+            CryptoWrapper.X509_REQ_verify(request._Handle, requestKey);
 
             //convert and sign
             //do not use X509_REQ_to_X509 as it uses MD5 to sign
@@ -151,14 +152,14 @@ namespace OpenSSL.Core.X509
             X509Certificate cert = new X509Certificate(certHandle);
 
             //assign correct serial number
-            cert.SerialNumber = this.serial.Next();
+            cert.SerialNumber = this._serial.Next();
 
             //set the correct issuer
-            x509Name = CryptoWrapper.X509_get_subject_name(this.caCert.X509Wrapper.Handle);
+            x509Name = CryptoWrapper.X509_get_subject_name(this._caCert._Handle);
             CryptoWrapper.X509_set_issuer_name(certHandle, x509Name);
 
             //set the correct subject
-            x509Name = CryptoWrapper.X509_REQ_get_subject_name(request.X509RequestWrapper.Handle);
+            x509Name = CryptoWrapper.X509_REQ_get_subject_name(request._Handle);
             CryptoWrapper.X509_set_subject_name(certHandle, x509Name);
 
             //set correct properties
@@ -167,23 +168,23 @@ namespace OpenSSL.Core.X509
             cert.Version = request.Version;
 
             //set the public key
-            requestKey = CryptoWrapper.X509_REQ_get0_pubkey(request.X509RequestWrapper.Handle);
+            requestKey = CryptoWrapper.X509_REQ_get0_pubkey(request._Handle);
             CryptoWrapper.X509_set_pubkey(certHandle, requestKey);
 
             //subject hash
-            cert.AddExtension(this.caCert, request, X509ExtensionType.SubjectKeyIdentifier, "hash");
+            cert.AddExtension(this._caCert, request, X509ExtensionType.SubjectKeyIdentifier, "hash");
 
             //issuer hash
-            cert.AddExtension(this.caCert, request, X509ExtensionType.AuthorityKeyIdentifier, "keyid:always");
+            cert.AddExtension(this._caCert, request, X509ExtensionType.AuthorityKeyIdentifier, "keyid:always");
 
             return cert;
 		}
 
-        public void Sign(X509Certificate certificate, DigestType digestType = null)
+        public void Sign(X509Certificate certificate, DigestType? digestType = null)
         {
             //get the key from the certificate
-            SafeKeyHandle certKey = CryptoWrapper.X509_get0_pubkey(certificate.X509Wrapper.Handle);
-            SafeKeyHandle caKey = this.caKey.KeyWrapper.Handle;
+            SafeKeyHandle certKey = CryptoWrapper.X509_get0_pubkey(certificate._Handle);
+            SafeKeyHandle caKey = this._caKey._Handle;
 
             if (CryptoWrapper.EVP_PKEY_missing_parameters(certKey) == 1
                 && CryptoWrapper.EVP_PKEY_missing_parameters(caKey) == 0)
@@ -193,7 +194,7 @@ namespace OpenSSL.Core.X509
 
             //sign the request with the CA key
             //certificate.Sign(this.caKey, digestType ?? DigestType.SHA256);
-            this.Sign(certificate.X509Wrapper.Handle, digestType ?? DigestType.SHA256);
+            this.Sign(certificate._Handle, digestType ?? DigestType.SHA256);
         }
 
         private void Sign(SafeX509CertificateHandle certHandle, DigestType digestType)
@@ -208,7 +209,7 @@ namespace OpenSSL.Core.X509
                         out SafeKeyContextHandle pctx,
                         md,
                         SafeEngineHandle.Zero,
-                        this.caKey.KeyWrapper.Handle
+                        this._caKey._Handle
                     );
 
                     CryptoWrapper.X509_sign_ctx(certHandle, ctx);
@@ -220,8 +221,8 @@ namespace OpenSSL.Core.X509
 
         public void Dispose()
         {
-            this.caKey?.Dispose();
-            this.caCert?.Dispose();
+            this._caKey.Dispose();
+            this._caCert.Dispose();
         }
 	}
 }

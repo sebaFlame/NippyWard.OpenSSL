@@ -44,14 +44,14 @@ namespace OpenSSL.Core.Interop
 	/// </summary>
 	public class PasswordCallback
 	{
-		private string password;
+		private readonly string _password;
 		/// <summary>
 		/// Constructs a PasswordCallback
 		/// </summary>
 		/// <param name="password"></param>
 		public PasswordCallback(string password)
 		{
-			this.password = password;
+			this._password = password;
 		}
 
 		/// <summary>
@@ -60,30 +60,32 @@ namespace OpenSSL.Core.Interop
 		/// <param name="verify"></param>
 		/// <param name="userdata"></param>
 		/// <returns></returns>
-		public string OnPassword(bool verify)
+		public string OnPassword(bool _)
 		{
-			return this.password;
+			return this._password;
 		}
 	}
 
 	internal class PasswordThunk
 	{
-		private PasswordHandler OnPassword;
+		private readonly PasswordHandler _onPassword;
 
 		public pem_password_cb Callback
 		{
 			get
 			{
-				if (OnPassword == null)
-					return null;
+				if (_onPassword is null)
+                {
+                    throw new InvalidOperationException("A password is mandatory");
+                }
 
-				return OnPasswordThunk;
+				return this.OnPasswordThunk;
 			}
 		}
 
 		public PasswordThunk(PasswordHandler client)
 		{
-			OnPassword = client;
+			_onPassword = client;
 		}
 
 		internal int OnPasswordThunk(IntPtr buf, int size, int rwflag, IntPtr userdata)
@@ -92,7 +94,7 @@ namespace OpenSSL.Core.Interop
 
             try
 			{
-				password = OnPassword(rwflag != 0);
+				password = _onPassword(rwflag != 0);
 
                 if (password.Length > size)
                     throw new OverflowException("Password too long");
@@ -114,5 +116,5 @@ namespace OpenSSL.Core.Interop
 
 			return password.Length;
 		}
-	}
+    }
 }

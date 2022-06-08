@@ -4,36 +4,26 @@ using System.Text;
 
 using OpenSSL.Core.ASN1;
 using OpenSSL.Core.Keys;
+using OpenSSL.Core.Interop.SafeHandles.Crypto;
 
 namespace OpenSSL.Core.Digests
 {
     public class Verify : DigestBase
     {
-        private bool finalized;
-
-        internal Verify(DigestInternal handleWarpper)
-            : base(handleWarpper) { }
-
         public Verify(DigestType digestType)
             : base(digestType)
         {
-            CryptoWrapper.EVP_VerifyInit_ex(this.digestCtxHandle, this.DigestWrapper.Handle, null);
+            CryptoWrapper.EVP_VerifyInit_ex(this.DigestCtxHandle, this._Handle, SafeEngineHandle.Zero);
         }
 
         public void Update(Span<byte> buffer)
         {
-            if (this.finalized)
-                throw new InvalidOperationException("Sign has already been finalized");
-
-            CryptoWrapper.EVP_VerifyUpdate(this.digestCtxHandle, buffer.GetPinnableReference(), (uint)buffer.Length);
+            CryptoWrapper.EVP_VerifyUpdate(this.DigestCtxHandle, buffer.GetPinnableReference(), (uint)buffer.Length);
         }
 
         public bool Finalize(Key key, Span<byte> signature)
         {
-            if (this.finalized)
-                throw new InvalidOperationException("Sign has already been finalized");
-
-            return CryptoWrapper.EVP_VerifyFinal(this.digestCtxHandle, signature.GetPinnableReference(), (uint)signature.Length, key.KeyWrapper.Handle) > 0;
+            return CryptoWrapper.EVP_VerifyFinal(this.DigestCtxHandle, signature.GetPinnableReference(), (uint)signature.Length, key._Handle) > 0;
         }
     }
 }

@@ -27,7 +27,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 
             unsafe
             {
-                ReadOnlySpan<char> span = Assembly.GetEntryAssembly().FullName.AsSpan();
+                ReadOnlySpan<char> span = Assembly.GetEntryAssembly()!.FullName.AsSpan();
 
                 fixed (char* c = span)
                 {

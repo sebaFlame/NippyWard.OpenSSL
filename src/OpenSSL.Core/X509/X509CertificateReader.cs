@@ -17,7 +17,7 @@ namespace OpenSSL.Core.X509
         /// Like the one from https://curl.haxx.se/ca/cacert.pem
         /// </summary>
         /// <param name="stream">The stream to read the file from</param>
-        public static OpenSslList<X509Certificate> ImportPEM(Stream stream)
+        public static IOpenSslReadOnlyCollection<X509Certificate> ImportPEM(Stream stream)
         {
             using (SafeBioHandle bio = Initialize(stream))
             {
@@ -29,7 +29,7 @@ namespace OpenSSL.Core.X509
         /// Read a file with certificates in PEM format
         /// </summary>
         /// <param name="file">The file to read</param>
-        public static OpenSslList<X509Certificate> ImportPEM(FileInfo file)
+        public static IOpenSslReadOnlyCollection<X509Certificate> ImportPEM(FileInfo file)
         {
             using (SafeBioHandle bio = Initialize(file.OpenRead()))
             {
@@ -37,7 +37,7 @@ namespace OpenSSL.Core.X509
             }
         }
 
-        internal static OpenSslList<X509Certificate> ImportPEM(SafeBioHandle bio)
+        internal static IOpenSslReadOnlyCollection<X509Certificate> ImportPEM(SafeBioHandle bio)
         {
             Native.CryptoWrapper.BIO_up_ref(bio);
             return ProcessBio(bio);
@@ -47,7 +47,7 @@ namespace OpenSSL.Core.X509
         /// Read a directory with certificates in PEM format
         /// </summary>
         /// <param name="dir"></param>
-        public static OpenSslList<X509Certificate> ImportPEM(DirectoryInfo dir)
+        public static IOpenSslReadOnlyCollection<X509Certificate> ImportPEM(DirectoryInfo dir)
         {
             return ProcessDir(dir);
         }
@@ -75,12 +75,18 @@ namespace OpenSSL.Core.X509
             }
         }
 
-        private static OpenSslList<X509Certificate> ProcessBio(SafeBioHandle currentBio)
+        private static IOpenSslReadOnlyCollection<X509Certificate> ProcessBio(SafeBioHandle currentBio)
         {
             SafeStackHandle<SafeX509CertificateHandle> certificates = Native.StackWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
 
             //read the (INFO) stack from the bio
-            using (SafeStackHandle<SafeX509InfoHandle> currentInfoStack = Native.CryptoWrapper.PEM_X509_INFO_read_bio(currentBio, IntPtr.Zero, null, IntPtr.Zero))
+            using (SafeStackHandle<SafeX509InfoHandle> currentInfoStack = Native.CryptoWrapper.PEM_X509_INFO_read_bio
+            (
+                currentBio,
+                IntPtr.Zero,
+                null,
+                IntPtr.Zero
+            ))
             {
                 //create own stack to hold certificates
                 SafeX509CertificateHandle certificate;
@@ -105,15 +111,15 @@ namespace OpenSSL.Core.X509
                 }
             }
 
-            return OpenSslList<X509Certificate>.CreateFromSafeHandle(certificates);
+            return new OpenSslList<X509Certificate, SafeX509CertificateHandle>(certificates);
         }
 
         //TODO: add exception handling
-        private static OpenSslList<X509Certificate> ProcessDir(DirectoryInfo dir)
+        private static IOpenSslReadOnlyCollection<X509Certificate> ProcessDir(DirectoryInfo dir)
         {
             SafeStackHandle<SafeX509CertificateHandle> certificates = Native.StackWrapper.OPENSSL_sk_new_null<SafeX509CertificateHandle>();
             GetCertificates(dir, certificates);
-            return OpenSslList<X509Certificate>.CreateFromSafeHandle(certificates);
+            return new OpenSslList<X509Certificate, SafeX509CertificateHandle>(certificates);
         }
 
         private static void GetCertificates(DirectoryInfo dir, SafeStackHandle<SafeX509CertificateHandle> certificates)

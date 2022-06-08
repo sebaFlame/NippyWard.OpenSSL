@@ -93,7 +93,6 @@ namespace OpenSSL.Core.Tests
             DateTime end = start + TimeSpan.FromMinutes(10);
             using (RSAKey key = new RSAKey(2048))
             {
-                key.GenerateKey();
                 using (X509Certificate cert = new X509Certificate(key, "localhost", "localhost", start, end))
                 {
                     Assert.Equal("localhost", cert.Common);
@@ -115,7 +114,6 @@ namespace OpenSSL.Core.Tests
 
             using (RSAKey key = new RSAKey(1024))
             {
-                key.GenerateKey();
                 int bits = key.Bits;
 
                 using (X509Certificate cert = new X509Certificate(key, "localhost", "localhost", start, end))
@@ -150,7 +148,6 @@ namespace OpenSSL.Core.Tests
 
             using (RSAKey key = new RSAKey(1024))
             {
-                key.GenerateKey();
                 using (X509Certificate cert = new X509Certificate(key, "localhost", "Root", start, end))
                 {
                     cert.SerialNumber = 101;
@@ -225,7 +222,6 @@ namespace OpenSSL.Core.Tests
             var end = start + TimeSpan.FromMinutes(10);
             using (RSAKey key = new RSAKey(1024))
             {
-                key.GenerateKey();
                 using (var cert = new X509Certificate(key, "localhost", "localhost", start, end))
                 {
                     cert.SelfSign(key, DigestType.SHA256);
@@ -240,15 +236,12 @@ namespace OpenSSL.Core.Tests
             var end = start + TimeSpan.FromMinutes(10);
             using (RSAKey key = new RSAKey(1024))
             {
-                key.GenerateKey();
-
                 using (var cert = new X509Certificate(key, "localhost", "localhost", start, end))
                 {
                     Assert.True(cert.VerifyPrivateKey(key));
 
                     using (DSAKey other = new DSAKey(32))
                     {
-                        other.GenerateKey();
                         Assert.Throws<OpenSslException>(() => cert.VerifyPrivateKey(other));
                     }
                 }
@@ -262,7 +255,6 @@ namespace OpenSSL.Core.Tests
             var end = start + TimeSpan.FromMinutes(10);
             using (RSAKey key = new RSAKey(1024))
             {
-                key.GenerateKey();
                 using (var cert = new X509Certificate(key, "localhost", "localhost", start, end))
                 {
                     cert.Sign(key, DigestType.SHA256);
@@ -270,7 +262,6 @@ namespace OpenSSL.Core.Tests
 
                     using (RSAKey other = new RSAKey(1024))
                     {
-                        other.GenerateKey();
                         Assert.Throws<OpenSslException>(() => cert.VerifyPublicKey(other));
                     }
                 }
@@ -301,8 +292,6 @@ namespace OpenSSL.Core.Tests
                 {
                     using (RSAKey key = new RSAKey(1024))
                     {
-                        key.GenerateKey();
-
                         using (X509CertificateRequest req = new X509CertificateRequest(key, "localhost", "root"))
                         {
                             //sign the request with itself
@@ -359,8 +348,6 @@ namespace OpenSSL.Core.Tests
             {
                 using (RSAKey key = new RSAKey(1024))
                 {
-                    key.GenerateKey();
-
                     using (X509CertificateRequest req = new X509CertificateRequest(key, "localhost", "root"))
                     {
                         //sign the request with itself
@@ -407,7 +394,6 @@ namespace OpenSSL.Core.Tests
             var end = start + TimeSpan.FromMinutes(10);
             using (RSAKey key = new RSAKey(1024))
             {
-                key.GenerateKey();
                 using (X509Certificate cert = new X509Certificate(key, "root", "root", start, end))
                 {
                     foreach (var tuple in extList)
@@ -438,7 +424,7 @@ namespace OpenSSL.Core.Tests
 
             using (X509Store caStore = new X509Store(caFile))
             {
-                using (OpenSslReadOnlyCollection<X509Certificate> caCerts = caStore.GetCertificates())
+                using (IOpenSslReadOnlyCollection<X509Certificate> caCerts = caStore.GetCertificates())
                 {
                     Assert.NotEmpty(caCerts);
                 }
@@ -451,14 +437,14 @@ namespace OpenSSL.Core.Tests
             FileInfo caFile = new FileInfo("certs/cacert-20190414.pem");
             Assert.True(caFile.Exists);
 
-            using (OpenSslList<X509Certificate> certificates = X509CertificateReader.ImportPEM(caFile))
+            using (IOpenSslReadOnlyCollection<X509Certificate> certificates = X509CertificateReader.ImportPEM(caFile))
             {
                 Assert.NotNull(certificates);
                 Assert.NotEmpty(certificates);
 
                 using (X509Store caStore = new X509Store(certificates))
                 {
-                    using (OpenSslReadOnlyCollection<X509Certificate> caCerts = caStore.GetCertificates())
+                    using (IOpenSslReadOnlyCollection<X509Certificate> caCerts = caStore.GetCertificates())
                     {
                         Assert.NotEmpty(caCerts);
                     }

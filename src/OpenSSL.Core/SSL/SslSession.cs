@@ -1,35 +1,25 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles.SSL;
 
 namespace OpenSSL.Core.SSL
 {
-    public class SslSession : OpenSslWrapperBase
+    public class SslSession
+        : OpenSslWrapperBase,
+            ISafeHandleWrapper<SafeSslSessionHandle>
     {
-        internal class SslSesionInternal : SafeHandleWrapper<SafeSslSessionHandle>
-        {
-            internal SslSesionInternal(SafeSslSessionHandle safeHandle)
-                : base(safeHandle) 
-            {
-                //only add the reference after the creation was successful
-                safeHandle.AddReference();
-            }
-        }
+        SafeSslSessionHandle ISafeHandleWrapper<SafeSslSessionHandle>.Handle
+            => this._Handle;
+        public override SafeHandle Handle
+            => this._Handle;
 
-        internal SslSesionInternal SessionWrapper { get; private set; }
-        internal override ISafeHandleWrapper HandleWrapper => this.SessionWrapper;
+        internal readonly SafeSslSessionHandle _Handle;
 
         internal SslSession(SafeSslSessionHandle sessionHandle)
         {
-            this.SessionWrapper = new SslSesionInternal
-            (
-                Native.SafeHandleFactory.CreateTakeOwnershipSafeHandle<SafeSslSessionHandle>(sessionHandle.DangerousGetHandle())
-            );
+            this._Handle = Native.SafeHandleFactory.CreateTakeOwnershipSafeHandle<SafeSslSessionHandle>(sessionHandle.DangerousGetHandle());
         }
 
         protected override void Dispose(bool isDisposing)

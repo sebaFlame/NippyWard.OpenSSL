@@ -9,18 +9,10 @@ namespace OpenSSL.Core.Keys
 {
     public class PublicKey : Key, IPublicKey
     {
-        public override KeyType KeyType => (KeyType)CryptoWrapper.EVP_PKEY_base_id(this.KeyWrapper.Handle);
-
-        internal PublicKey(KeyInternal handleWrapper)
-            : base(handleWrapper) { }
+        public override KeyType KeyType => (KeyType)CryptoWrapper.EVP_PKEY_base_id(this._Handle);
 
         internal PublicKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
         { }
-
-        internal override KeyInternal GenerateKeyInternal()
-        {
-            throw new InvalidOperationException("A public key can not be generated.");
-        }
     }
 }

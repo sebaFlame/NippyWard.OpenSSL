@@ -82,7 +82,42 @@ namespace OpenSSL.Core.Generator
                     .NormalizeWhitespace()
                     .AddMembers
                     (
-                        SyntaxFactory.NamespaceDeclaration(ns)
+                        SyntaxFactory.NamespaceDeclaration
+                        (
+                            SyntaxFactory.Token(SyntaxKind.NamespaceKeyword)
+                                .WithLeadingTrivia
+                                (
+                                    SyntaxFactory.TriviaList
+                                    (
+                                        SyntaxFactory.Trivia
+                                        (
+                                            SyntaxFactory.NullableDirectiveTrivia(SyntaxFactory.Token(SyntaxKind.EnableKeyword), true)
+                                        ),
+                                        SyntaxFactory.Trivia
+                                        (
+                                            SyntaxFactory.PragmaWarningDirectiveTrivia
+                                            (
+                                                SyntaxFactory.Token(SyntaxKind.DisableKeyword),
+                                                SyntaxFactory.SeparatedList<ExpressionSyntax>
+                                                (
+                                                    new ExpressionSyntax[]
+                                                    {
+                                                        SyntaxFactory.IdentifierName("CS8603")
+                                                    }
+                                                ),
+                                                true
+                                            )
+                                        )
+                                    )
+                                ),
+                            ns,
+                            SyntaxFactory.Token(SyntaxKind.OpenBraceToken),
+                            default,
+                            default,
+                            default,
+                            SyntaxFactory.Token(SyntaxKind.CloseBraceToken),
+                            default
+                        )
                             .AddMembers(classDeclaration)
                     )
                     .NormalizeWhitespace(),
@@ -160,12 +195,12 @@ namespace OpenSSL.Core.Generator
                 interfaceMethod.ReturnType.WithoutTrivia(),
                 null,
                 SyntaxFactory.Identifier(interfaceMethod.Identifier.ValueText),
-                interfaceMethod.TypeParameterList.WithoutTrivia(),
+                interfaceMethod.TypeParameterList!.WithoutTrivia(),
                 interfaceMethod.ParameterList.WithoutTrivia(),
                 interfaceMethod.ConstraintClauses,
                 GenerateFactoryBlock
                 (
-                    interfaceMethod.TypeParameterList.Parameters.First(),
+                    interfaceMethod.TypeParameterList!.Parameters.First(),
                     fullSafeHandleTypeNames,
                     suffix
                 ),

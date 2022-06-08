@@ -5,8 +5,6 @@ using System.Buffers;
 using OpenSSL.Core.X509;
 using OpenSSL.Core.Keys;
 
-#nullable enable
-
 namespace OpenSSL.Core.SSL
 {
     public class SslOptions

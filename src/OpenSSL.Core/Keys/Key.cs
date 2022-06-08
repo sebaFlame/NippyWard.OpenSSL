@@ -11,54 +11,36 @@ using OpenSSL.Core.Interop.SafeHandles.Crypto;
 using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles.X509;
+using OpenSSL.Core.Collections;
 
 namespace OpenSSL.Core.Keys
 {
-    [Wrapper(typeof(KeyInternal))]
-    public abstract class Key : OpenSslWrapperBase, IEquatable<Key>
+    public abstract class Key
+        : OpenSslWrapperBase,
+            IEquatable<Key>,
+            ISafeHandleWrapper<SafeKeyHandle>
     {
-        internal class KeyInternal : SafeHandleWrapper<SafeKeyHandle>
-        {
-            internal KeyInternal(SafeKeyHandle safeHandle)
-                : base(safeHandle) { }
-        }
-
-        internal KeyInternal KeyWrapper { get; private set; }
-        internal override ISafeHandleWrapper HandleWrapper => this.KeyWrapper;
+        SafeKeyHandle ISafeHandleWrapper<SafeKeyHandle>.Handle
+            => this._Handle;
+        public override SafeHandle Handle
+            => this._Handle;
 
         public abstract KeyType KeyType { get; }
 
-        public int Bits => CryptoWrapper.EVP_PKEY_bits(this.KeyWrapper.Handle);
-        public int Size => CryptoWrapper.EVP_PKEY_size(this.KeyWrapper.Handle);
+        public int Bits => CryptoWrapper.EVP_PKEY_bits(this._Handle);
+        public int Size => CryptoWrapper.EVP_PKEY_size(this._Handle);
 
-        protected Key()
-            : base() { }
-
-        internal Key(KeyInternal handleWarpper)
-            : this()
-        {
-            this.KeyWrapper = handleWarpper;
-        }
+        internal readonly SafeKeyHandle _Handle;
 
         internal Key(SafeKeyHandle keyHandle)
-            : this()
+            : base()
         {
-            this.KeyWrapper = new KeyInternal(keyHandle);
-        }
-
-        internal abstract KeyInternal GenerateKeyInternal();
-
-        public void GenerateKey()
-        {
-            if (!(this.KeyWrapper is null))
-                throw new InvalidOperationException("Key has already been generated");
-
-            this.KeyWrapper = this.GenerateKeyInternal();
+            this._Handle = keyHandle;
         }
 
         public KeyContext CreateEncryptionContext()
         {
-            SafeKeyContextHandle keyContext = CryptoWrapper.EVP_PKEY_CTX_new(this.KeyWrapper.Handle, SafeEngineHandle.Zero);
+            SafeKeyContextHandle keyContext = CryptoWrapper.EVP_PKEY_CTX_new(this._Handle, SafeEngineHandle.Zero);
             CryptoWrapper.EVP_PKEY_encrypt_init(keyContext);
             return new KeyContext(keyContext);
         }
@@ -108,7 +90,7 @@ namespace OpenSSL.Core.Keys
 
         public KeyContext CreateDecryptionContext()
         {
-            SafeKeyContextHandle keyContext = CryptoWrapper.EVP_PKEY_CTX_new(this.KeyWrapper.Handle, SafeEngineHandle.Zero);
+            SafeKeyContextHandle keyContext = CryptoWrapper.EVP_PKEY_CTX_new(this._Handle, SafeEngineHandle.Zero);
             CryptoWrapper.EVP_PKEY_decrypt_init(keyContext);
             return new KeyContext(keyContext);
         }
@@ -156,19 +138,24 @@ namespace OpenSSL.Core.Keys
             decryptedLength = len;
         }
 
-        public bool Equals(Key other)
+        public bool Equals(Key? other)
         {
-            if (other.KeyWrapper.Handle is null || other.KeyWrapper.Handle.IsInvalid)
-                throw new InvalidOperationException("Key hasn't been generated yet");
-
-            if (this.KeyWrapper.Handle is null || this.KeyWrapper.Handle.IsInvalid)
-                throw new InvalidOperationException("Key hasn't been generated yet");
-
-            return CryptoWrapper.EVP_PKEY_cmp(this.KeyWrapper.Handle, other.KeyWrapper.Handle) == 1;
+            return CryptoWrapper.EVP_PKEY_cmp
+            (
+                this._Handle,
+                other is null
+                    ? SafeKeyHandle.Zero
+                    : other._Handle
+            ) == 1;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
+            if(obj is null)
+            {
+                return false;
+            }
+
             if (!(obj is Key key))
                 return false;
 

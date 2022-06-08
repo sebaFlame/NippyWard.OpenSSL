@@ -1,29 +1,43 @@
 ﻿using System;
-
-using OpenSSL.Core.Interop.Wrappers;
-using OpenSSL.Core.Interop;
+using System.Runtime.InteropServices;
 
 namespace OpenSSL.Core
 {
-    public abstract class OpenSslWrapperBase : OpenSslBase, IDisposable
+    public abstract class OpenSslWrapperBase
+        : OpenSslBase,
+            ISafeHandleWrapper,
+            IDisposable
     {
-        internal abstract ISafeHandleWrapper HandleWrapper { get; }
+        public abstract SafeHandle Handle { get; }
 
         protected OpenSslWrapperBase()
             : base() { }
 
         ~OpenSslWrapperBase()
         {
-            this.Dispose();
+            this.DisposeInternal(false);
         }
 
         protected abstract void Dispose(bool disposing);
 
+        private void DisposeInternal(bool isDisposing)
+        {
+            this.Dispose(isDisposing);
+
+            if (this.Handle.IsClosed
+                || this.Handle.IsInvalid)
+            {
+                return;
+            }
+
+            this.Handle.Dispose();
+        }
+
         public void Dispose()
         {
-            this.Dispose(false);
+            this.DisposeInternal(true);
 
-            this.HandleWrapper?.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

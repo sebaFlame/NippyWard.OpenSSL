@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 
 namespace OpenSSL.Core.SSL.Buffer
 {
@@ -16,7 +17,7 @@ namespace OpenSSL.Core.SSL.Buffer
 
         public int Count => _size;
 
-        public bool TryPop(out TlsBufferSegment? result)
+        public bool TryPop([NotNullWhen(true)] out TlsBufferSegment? result)
         {
             int size = this._size - 1;
             SegmentAsValueType[] array = _array;

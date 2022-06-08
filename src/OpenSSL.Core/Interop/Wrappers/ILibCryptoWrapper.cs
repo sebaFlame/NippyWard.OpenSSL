@@ -68,7 +68,9 @@ namespace OpenSSL.Core.Interop.Wrappers
         public uint ver;
         /// callback-specific data
         public IntPtr arg;
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public GeneratorHandler cb;
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     }
 
     internal interface ILibCryptoWrapper
@@ -391,7 +393,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         int PEM_write_bio_X509(SafeBioHandle bp, SafeX509CertificateHandle x);
         //X509 *PEM_read_bio_X509(BIO *bp, X509 **x, pem_password_cb *cb, void *u);
         [return: TakeOwnership]
-        SafeX509CertificateHandle PEM_read_bio_X509(SafeBioHandle bp, IntPtr x, pem_password_cb cb, IntPtr u); //an IntPtr to pass IntPtr.Zero
+        SafeX509CertificateHandle PEM_read_bio_X509(SafeBioHandle bp, IntPtr x, pem_password_cb? cb, IntPtr u); //an IntPtr to pass IntPtr.Zero
 
         //int X509_get_ext_count(const X509 *x);
         int X509_get_ext_count(SafeX509CertificateHandle x);
@@ -478,7 +480,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         void X509_INFO_free(IntPtr a);
         //STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,  pem_password_cb* cb, void* u)
         [return: TakeOwnership]
-        SafeStackHandle<SafeX509InfoHandle> PEM_X509_INFO_read_bio(SafeBioHandle bp, IntPtr sk, pem_password_cb cb, IntPtr u);
+        SafeStackHandle<SafeX509InfoHandle> PEM_X509_INFO_read_bio(SafeBioHandle bp, IntPtr sk, pem_password_cb? cb, IntPtr u);
         #endregion
 
         #region X509_STORE
@@ -587,7 +589,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         int DSA_up_ref(IntPtr dsa);
 
         //int DSA_generate_parameters_ex(DSA *dsa, int bits, const unsigned char* seed,int seed_len, int* counter_ret, unsigned long* h_ret, BN_GENCB *cb);
-        int DSA_generate_parameters_ex(SafeDSAHandle dsa, int bits, in byte seed, int seed_len, out int counter_ret, [NativeLong] out ulong h_ret, bn_gencb_st callback);
+        int DSA_generate_parameters_ex(SafeDSAHandle dsa, int bits, in byte seed, int seed_len, out int counter_ret, [NativeLong] out ulong h_ret, bn_gencb_st? callback);
         //int DSA_generate_key(DSA *a);
         int DSA_generate_key(SafeDSAHandle dsa);
         //int DSA_size(const DSA *dsa);
@@ -613,7 +615,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         int RSA_up_ref(SafeRSAHandle rsa);
 
         //int RSA_generate_key_ex(RSA *rsa, int bits, BIGNUM *e, BN_GENCB *cb);
-        int RSA_generate_key_ex(SafeRSAHandle rsa, int bits, SafeBigNumberHandle e, bn_gencb_st cb);
+        int RSA_generate_key_ex(SafeRSAHandle rsa, int bits, SafeBigNumberHandle e, bn_gencb_st? cb);
         //int RSA_size(const RSA *rsa);
         int RSA_size(SafeRSAHandle rsa);
         //int RSA_check_key(RSA *rsa);
@@ -656,7 +658,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         int DH_up_ref(SafeDHHandle dh);
 
         //int DH_generate_parameters_ex(DH *dh, int prime_len,int generator, BN_GENCB *cb);
-        int DH_generate_parameters_ex(SafeDHHandle dh, int prime_len, int generator, bn_gencb_st cb);
+        int DH_generate_parameters_ex(SafeDHHandle dh, int prime_len, int generator, bn_gencb_st? cb);
         //int DH_generate_key(DH *dh);
         int DH_generate_key(SafeDHHandle dh);
         //int DH_compute_key(unsigned char *key, BIGNUM *pub_key, DH *dh);

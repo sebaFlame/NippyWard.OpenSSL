@@ -37,7 +37,7 @@ namespace OpenSSL.Core.Error
 	/// </summary>
 	public class OpenSslException : Exception
 	{
-		private List<BaseOpenSslError> errors = new List<BaseOpenSslError>();
+		private readonly List<BaseOpenSslError> errors = new List<BaseOpenSslError>();
 
 		private OpenSslException(List<BaseOpenSslError> context)
 			: base(GetErrorMessage(context))

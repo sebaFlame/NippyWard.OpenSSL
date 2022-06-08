@@ -39,7 +39,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
 
         internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
 
-        private static OPENSSL_sk_freefunc _FreeFunc;
+        private static readonly OPENSSL_sk_freefunc _FreeFunc;
 
         static SafeKeyHandle()
         {
@@ -80,9 +80,9 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto
             : base(ptr, takeOwnership)
         { }
 
-        public bool Equals(SafeKeyHandle other)
+        public bool Equals(SafeKeyHandle? other)
         {
-            return CryptoWrapper.EVP_PKEY_cmp(this, other) == 0;
+            return CryptoWrapper.EVP_PKEY_cmp(this, other ?? SafeKeyHandle.Zero) == 0;
         }
 
         internal override void AddReference()

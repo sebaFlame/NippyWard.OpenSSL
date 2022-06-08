@@ -11,43 +11,42 @@ using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop.SafeHandles.Crypto;
 using OpenSSL.Core.Interop.SafeHandles.X509;
 using OpenSSL.Core.Keys;
-using OpenSSL.Core.Interop.Wrappers;
+using OpenSSL.Core.Collections;
 
 namespace OpenSSL.Core.X509
 {
-    [Wrapper(typeof(X509CertificateRequestInternal))]
-    public class X509CertificateRequest : X509CertificateBase
+    public class X509CertificateRequest
+        : X509CertificateBase,
+            ISafeHandleWrapper<SafeX509RequestHandle>
     {
-        internal class X509CertificateRequestInternal : SafeHandleWrapper<SafeX509RequestHandle>
+        SafeX509RequestHandle ISafeHandleWrapper<SafeX509RequestHandle>.Handle
+            => this._Handle;
+        public override SafeHandle Handle
+            => this._Handle;
+
+        public override int Version
         {
-            internal X509CertificateRequestInternal(SafeX509RequestHandle safeHandle)
-                : base(safeHandle) { }
+            get => (int)CryptoWrapper.X509_REQ_get_version(this._Handle);
+            set => CryptoWrapper.X509_REQ_set_version(this._Handle, value);
         }
 
-        internal X509CertificateRequestInternal X509RequestWrapper { get; private set; }
-        internal override ISafeHandleWrapper HandleWrapper => this.X509RequestWrapper;
-
-        internal X509CertificateRequest(X509CertificateRequestInternal handleWrapper)
-            : base()
-        {
-            this.X509RequestWrapper = handleWrapper;
-        }
+        internal readonly SafeX509RequestHandle _Handle;
 
         internal X509CertificateRequest(SafeX509RequestHandle requestHandle)
             : base()
         {
-            this.X509RequestWrapper = new X509CertificateRequestInternal(requestHandle);
+            this._Handle = requestHandle;
         }
 
         //only use for CA?
         internal X509CertificateRequest(SafeX509RequestHandle x509RequestHandle, SafeKeyHandle keyHandle)
-            : base(keyHandle)
+            : this(x509RequestHandle)
         {
-            this.X509RequestWrapper = new X509CertificateRequestInternal(x509RequestHandle);
+            this.SetPublicKey(PrivateKey.GetCorrectKey(keyHandle));
         }
 
         public X509CertificateRequest(int bits)
-            : base(bits)
+            : this(Create509Request(CryptoWrapper.X509_REQ_new(), bits))
         {
             this.Version = 2;
         }
@@ -60,7 +59,7 @@ namespace OpenSSL.Core.X509
         }
 
         public X509CertificateRequest(PrivateKey privateKey)
-            : base(privateKey)
+            : this(Create509Request(CryptoWrapper.X509_REQ_new(), privateKey))
         {
             this.Version = 2;
         }
@@ -72,45 +71,48 @@ namespace OpenSSL.Core.X509
             this.Common = CN;
         }
 
-        public override int Version
+        private static SafeX509RequestHandle Create509Request(SafeX509RequestHandle handle, int bits)
         {
-            get => (int)CryptoWrapper.X509_REQ_get_version(this.X509RequestWrapper.Handle);
-            set => CryptoWrapper.X509_REQ_set_version(this.X509RequestWrapper.Handle, value);
+            using (RSAKey key = new RSAKey(bits))
+            {
+                return Create509Request(handle, key);
+            }
+        }
+
+        private static SafeX509RequestHandle Create509Request(SafeX509RequestHandle handle, PrivateKey key)
+        {
+            CryptoWrapper.X509_REQ_set_pubkey(handle, key._Handle);
+            return handle;
         }
 
         public override bool VerifyPrivateKey(PrivateKey key)
         {
-            return CryptoWrapper.X509_REQ_check_private_key(this.X509RequestWrapper.Handle, key.KeyWrapper.Handle) == 1;
+            return CryptoWrapper.X509_REQ_check_private_key(this._Handle, key._Handle) == 1;
         }
 
         public override bool VerifyPublicKey(IPublicKey key)
         {
-            return CryptoWrapper.X509_REQ_verify(this.X509RequestWrapper.Handle, ((Key)key).KeyWrapper.Handle) == 1;
-        }
-
-        internal override void CreateSafeHandle()
-        {
-            this.X509RequestWrapper = new X509CertificateRequestInternal(CryptoWrapper.X509_REQ_new());
+            return CryptoWrapper.X509_REQ_verify(this._Handle, ((Key)key)._Handle) == 1;
         }
 
         internal override PrivateKey GetPublicKey()
         {
-            return PrivateKey.GetCorrectKey(CryptoWrapper.X509_REQ_get0_pubkey(this.X509RequestWrapper.Handle));
+            return PrivateKey.GetCorrectKey(CryptoWrapper.X509_REQ_get0_pubkey(this._Handle));
         }
 
         internal override SafeX509NameHandle GetSubject()
         {
-            return CryptoWrapper.X509_REQ_get_subject_name(this.X509RequestWrapper.Handle);
+            return CryptoWrapper.X509_REQ_get_subject_name(this._Handle);
         }
 
         internal override void SetPublicKey(PrivateKey privateKey)
         {
-            CryptoWrapper.X509_REQ_set_pubkey(this.X509RequestWrapper.Handle, privateKey.KeyWrapper.Handle);
+            CryptoWrapper.X509_REQ_set_pubkey(this._Handle, privateKey._Handle);
         }
 
         internal override void Sign(SafeKeyHandle keyHandle, SafeMessageDigestHandle md)
         {
-            CryptoWrapper.X509_REQ_sign(this.X509RequestWrapper.Handle, keyHandle, md);
+            CryptoWrapper.X509_REQ_sign(this._Handle, keyHandle, md);
         }
 
         public static X509CertificateRequest Read(string filePath, string password, FileEncoding fileEncoding = FileEncoding.PEM)
@@ -167,16 +169,13 @@ namespace OpenSSL.Core.X509
 
         internal override void WriteCertificate(SafeBioHandle bioHandle, string password, CipherType cipherType, FileEncoding fileEncoding)
         {
-            if (this.X509RequestWrapper.Handle is null || this.X509RequestWrapper.Handle.IsInvalid)
-                throw new InvalidOperationException("Key has not been genrated yet");
-
             PasswordCallback callBack = new PasswordCallback(password);
             PasswordThunk pass = new PasswordThunk(callBack.OnPassword);
 
             if (fileEncoding == FileEncoding.PEM)
-                CryptoWrapper.PEM_write_bio_X509_REQ(bioHandle, this.X509RequestWrapper.Handle);
+                CryptoWrapper.PEM_write_bio_X509_REQ(bioHandle, this._Handle);
             else if (fileEncoding == FileEncoding.DER)
-                CryptoWrapper.i2d_X509_REQ_bio(bioHandle, this.X509RequestWrapper.Handle);
+                CryptoWrapper.i2d_X509_REQ_bio(bioHandle, this._Handle);
             else
                 throw new FormatException("Encoding not supported");
         }

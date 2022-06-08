@@ -7,66 +7,54 @@ using OpenSSL.Core.Keys;
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles;
 using OpenSSL.Core.Interop.SafeHandles.Crypto;
-
+using OpenSSL.Core.Collections;
 
 namespace OpenSSL.Core
 {
-    [Wrapper(typeof(CipherInternal))]
-    public abstract class Cipher : OpenSslWrapperBase
+    public abstract class Cipher
+        : OpenSslWrapperBase,
+            IStackableWrapper<SafeCipherHandle>
     {
-        internal class CipherInternal : SafeHandleWrapper<SafeCipherHandle>
-        {
-            internal CipherInternal(SafeCipherHandle safeHandle)
-                : base(safeHandle) { }
-        }
-
-        internal CipherInternal CipherWrapper { get; private set; }
-        internal override ISafeHandleWrapper HandleWrapper => this.CipherWrapper;
+        SafeCipherHandle ISafeHandleWrapper<SafeCipherHandle>.Handle
+            => this._Handle;
+        public override SafeHandle Handle
+            => this._Handle;
 
         internal SafeCipherContextHandle CipherContextHandle { get; private set; }
 
-        private bool finalized;
-
-        private static HashSet<string> supportedCiphers;
+        private static HashSet<string>? _SupportedCiphers;
         public static HashSet<string> SupportedCiphers
         {
             get
             {
-                if (!(supportedCiphers is null))
-                    return supportedCiphers;
+                if (!(_SupportedCiphers is null))
+                    return _SupportedCiphers;
 
                 NameCollector collector = new NameCollector(Native.OBJ_NAME_TYPE_CIPHER_METH, true);
-                return supportedCiphers = collector.Result;
+                return _SupportedCiphers = collector.Result;
             }
         }
 
-        internal Cipher(CipherInternal handleWarpper)
-            : base()
-        {
-            this.CipherWrapper = handleWarpper;
-        }
+        internal readonly SafeCipherHandle _Handle;
+
+        private bool _finalized;
 
         protected Cipher(CipherType cipherType)
             : base()
         {
-            this.CipherWrapper = new CipherInternal(CryptoWrapper.EVP_get_cipherbyname(cipherType.ShortNamePtr));
+            this._Handle = CryptoWrapper.EVP_get_cipherbyname(cipherType.ShortNamePtr);
             this.CipherContextHandle = CryptoWrapper.EVP_CIPHER_CTX_new();
-        }
-
-        ~Cipher()
-        {
-            this.Dispose();
         }
 
         public int GetOutputBufferLength(Span<byte> inputBuffer)
         {
-            return inputBuffer.Length + (CryptoWrapper.EVP_CIPHER_block_size(this.CipherWrapper.Handle) - 1);
+            return inputBuffer.Length + (CryptoWrapper.EVP_CIPHER_block_size(this._Handle) - 1);
         }
 
-        protected int GetIVLength() => CryptoWrapper.EVP_CIPHER_iv_length(this.CipherWrapper.Handle);
-        protected int GetKeyLength() => CryptoWrapper.EVP_CIPHER_key_length(this.CipherWrapper.Handle);
+        protected int GetIVLength() => CryptoWrapper.EVP_CIPHER_iv_length(this._Handle);
+        protected int GetKeyLength() => CryptoWrapper.EVP_CIPHER_key_length(this._Handle);
 
-        public int GetCipherBlockSize() => CryptoWrapper.EVP_CIPHER_block_size(this.CipherWrapper.Handle);
+        public int GetCipherBlockSize() => CryptoWrapper.EVP_CIPHER_block_size(this._Handle);
         public int GetMaximumOutputLength(int intputLength) => this.GetCipherBlockSize() + intputLength - 1;
 
         //padding is enabled by default
@@ -109,20 +97,22 @@ namespace OpenSSL.Core
 
             SafeMessageDigestHandle digestHandle = CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr);
 
-            CryptoWrapper.EVP_BytesToKey(
-                this.CipherWrapper.Handle,
+            CryptoWrapper.EVP_BytesToKey
+            (
+                this._Handle,
                 digestHandle,
                 salt.GetPinnableReference(),
                 data.GetPinnableReference(),
                 data.Length,
                 1,
                 ref keySpan.GetPinnableReference(),
-                ref ivSpan.GetPinnableReference());
+                ref ivSpan.GetPinnableReference()
+            );
         }
 
         public int Update(in Span<byte> inputBuffer, ref Span<byte> outputBuffer)
         {
-            if (this.finalized)
+            if (this._finalized)
                 throw new InvalidOperationException("Cipher has already been finalized");
 
             return this.UpdateInternal(in inputBuffer, ref outputBuffer);
@@ -130,11 +120,11 @@ namespace OpenSSL.Core
 
         public int Finalize(ref Span<byte> outputBuffer)
         {
-            if (this.finalized)
+            if (this._finalized)
                 throw new InvalidOperationException("Cipher has already been finalized");
 
             int ret = this.FinalizeInternal(ref outputBuffer);
-            this.finalized = true;
+            this._finalized = true;
             return ret;
         }
 
@@ -146,8 +136,13 @@ namespace OpenSSL.Core
 
         protected override void Dispose(bool disposing)
         {
-            if (!(this.CipherContextHandle is null) && !this.CipherContextHandle.IsInvalid)
-                this.CipherContextHandle.Dispose();
+            if (this.CipherContextHandle.IsClosed
+                || this.CipherContextHandle.IsInvalid)
+            {
+                return;
+            }
+
+            this.CipherContextHandle.Dispose();
         }
     }
 }

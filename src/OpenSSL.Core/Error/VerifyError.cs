@@ -9,11 +9,13 @@ namespace OpenSSL.Core.Error
 {
     public class VerifyError : BaseOpenSslError
     {
-        private string message;
+        private string? _message;
 
         public VerifyError(VerifyResult verifyResult)
             : base((ulong)verifyResult) { }
 
-        public override string Message => message ?? (message = Native.PtrToStringAnsi(Native.CryptoWrapper.X509_verify_cert_error_string((int)this.ErrorCode), false));
+        public override string Message
+            => this._message
+            ?? (_message = Native.PtrToStringAnsi(Native.CryptoWrapper.X509_verify_cert_error_string((int)this.ErrorCode), false));
     }
 }

@@ -33,8 +33,12 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
 	/// <summary>
 	/// Wraps the X509 object
 	/// </summary>
-	internal abstract class SafeX509CertificateHandle : BaseReference, IComparable<SafeX509CertificateHandle>, IStackable, IEquatable<SafeX509CertificateHandle>
-	{
+	internal abstract class SafeX509CertificateHandle
+        : BaseReference,
+            IComparable<SafeX509CertificateHandle>,
+            IEquatable<SafeX509CertificateHandle>,
+            IStackable
+    {
         public static SafeX509CertificateHandle Zero
             => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeX509CertificateHandle>(IntPtr.Zero);
 
@@ -44,7 +48,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
         /// </summary>
         internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
 
-        private static OPENSSL_sk_freefunc _FreeFunc;
+        private static readonly OPENSSL_sk_freefunc _FreeFunc;
 
         static SafeX509CertificateHandle()
         {
@@ -66,19 +70,18 @@ namespace OpenSSL.Core.Interop.SafeHandles.X509
             CryptoWrapper.X509_up_ref(this);
         }
 
-
 		#endregion
 
 		#region IComparable Members
 
-		public int CompareTo(SafeX509CertificateHandle other)
+		public int CompareTo(SafeX509CertificateHandle? other)
 		{
-			return CryptoWrapper.X509_cmp(this, other);
+			return CryptoWrapper.X509_cmp(this, other ?? SafeX509CertificateHandle.Zero);
 		}
 
-        public bool Equals(SafeX509CertificateHandle other)
+        public bool Equals(SafeX509CertificateHandle? other)
         {
-            return CryptoWrapper.X509_cmp(this, other) == 0;
+            return CryptoWrapper.X509_cmp(this, other ?? SafeX509CertificateHandle.Zero) == 0;
         }
 
         #endregion

@@ -328,7 +328,6 @@ namespace OpenSSL.Core.Tests
                 PipeWriter pipeWriter = target._pipeWriter;
                 SslState sslState;
                 int read, index;
-                byte[] buf;
                 ReadOnlyMemory<byte> writeBuf;
                 index = 0;
 

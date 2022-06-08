@@ -10,69 +10,46 @@ namespace OpenSSL.Core.Keys
 {
     public class ECKey : PrivateKey
     {
-        private SafeECKeyHandle ecHandle;
+        internal SafeECKeyHandle ECHandle
+            => CryptoWrapper.EVP_PKEY_get0_EC_KEY(this._Handle);
 
         public override KeyType KeyType => KeyType.EC;
 
-        private static List<string> supportedCurveTypes;
+        private static List<string>? _SupportedCurveTypes;
         public static List<string> SupportedCurveTypes
         {
             get
             {
-                if (supportedCurveTypes != null)
-                    return supportedCurveTypes;
+                if (_SupportedCurveTypes != null)
+                    return _SupportedCurveTypes;
 
                 BuiltinCurves curves = new BuiltinCurves();
-                return (supportedCurveTypes = curves.Result);
+                return (_SupportedCurveTypes = curves.Result);
             }
         }
 
-        internal ECKey(KeyInternal handleWrapper)
-            : base(handleWrapper) { }
-
         internal ECKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
-        {
-            this.ecHandle = CryptoWrapper.EVP_PKEY_get0_EC_KEY(this.KeyWrapper.Handle);
-        }
-
-        //TODO: more options?
-        public ECKey(string curveName)
-            : base()
-        {
-            int nid = CryptoWrapper.OBJ_txt2nid(curveName);
-            this.generateEC(nid);
-        }
+        { }
 
         public ECKey(ECCurveType curveType)
-            : base()
+            : this(GenerateECKey(curveType.NID))
+        { }
+
+        private static SafeKeyHandle GenerateECKey(int curveName)
         {
-            this.generateEC(curveType.NID);
-        }
+            using (SafeECKeyHandle handle = CryptoWrapper.EC_KEY_new_by_curve_name(curveName))
+            {
+                CryptoWrapper.EC_KEY_generate_key(handle);
 
-        private void generateEC(int curveName)
-        {
-            this.ecHandle = CryptoWrapper.EC_KEY_new_by_curve_name(curveName);
-            CryptoWrapper.EC_KEY_generate_key(this.ecHandle);
-        }
-
-        internal override KeyInternal GenerateKeyInternal()
-        {
-            if (this.ecHandle is null || this.ecHandle.IsInvalid)
-                throw new InvalidOperationException("RSA key has not been created yet");
-
-            CryptoWrapper.EC_KEY_check_key(this.ecHandle);
-
-            SafeKeyHandle keyHandle = CryptoWrapper.EVP_PKEY_new();
-            CryptoWrapper.EVP_PKEY_set1_EC_KEY(keyHandle, this.ecHandle);
-            return new KeyInternal(keyHandle);
+                SafeKeyHandle keyHandle = CryptoWrapper.EVP_PKEY_new();
+                CryptoWrapper.EVP_PKEY_set1_EC_KEY(keyHandle, handle);
+                return keyHandle;
+            }
         }
 
         protected override void Dispose(bool disposing)
         {
-            if (!(this.ecHandle is null) && !this.ecHandle.IsInvalid)
-                this.ecHandle.Dispose();
-
             base.Dispose(disposing);
         }
     }

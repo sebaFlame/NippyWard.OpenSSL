@@ -56,7 +56,6 @@ namespace OpenSSL.Core.Tests
 
             //needs 2048 bits for level2 strength
             RSAKey rsaKey = new RSAKey(2048);
-            rsaKey.GenerateKey();
 
             using (X509CertificateRequest req = new X509CertificateRequest(rsaKey, name, name))
             {

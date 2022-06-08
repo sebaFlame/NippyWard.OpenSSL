@@ -106,7 +106,7 @@ namespace OpenSSL.Core.SSL
         /// <summary>
         /// Gets the session for the current context
         /// </summary>
-        public SslSession Session
+        public SslSession? Session
         {
             get
             {
@@ -117,6 +117,11 @@ namespace OpenSSL.Core.SSL
                 }
 
                 ThrowInvalidOperationException_HandshakeNotCompleted(this._handshakeCompleted);
+
+                if(this._sslContext._sessionHandle is null)
+                {
+                    throw new NullReferenceException("Session has not been initialized yet");
+                }
 
                 return new SslSession(this._sslContext._sessionHandle);
             }
@@ -169,7 +174,9 @@ namespace OpenSSL.Core.SSL
         private int _infoState;
 
         //pinned delegate
+#pragma warning disable IDE0052 // Remove unread private members
         private readonly SslInfoCallback _infoCb;
+#pragma warning restore IDE0052 // Remove unread private members
 
         private const int _MaxUnencryptedLength = Native.SSL3_RT_MAX_PLAIN_LENGTH;
         //guarantee atleast 1 record (TLS1.3 has smaller packet size)
@@ -197,13 +204,13 @@ namespace OpenSSL.Core.SSL
         (
             SslStrength? sslStrength = null,
             SslProtocol? sslProtocol = null,
-            X509Store certificateStore = null,
-            X509Certificate certificate = null,
-            PrivateKey privateKey = null,
-            ClientCertificateCallbackHandler clientCertificateCallbackHandler = null,
-            RemoteCertificateValidationHandler remoteCertificateValidationHandler = null,
-            SslSession previousSession = null,
-            IEnumerable<string> ciphers = null
+            X509Store? certificateStore = null,
+            X509Certificate? certificate = null,
+            PrivateKey? privateKey = null,
+            ClientCertificateCallbackHandler? clientCertificateCallbackHandler = null,
+            RemoteCertificateValidationHandler? remoteCertificateValidationHandler = null,
+            SslSession? previousSession = null,
+            IEnumerable<string>? ciphers = null
         )
         {
             bool isServer = false;
@@ -247,13 +254,13 @@ namespace OpenSSL.Core.SSL
         (
             SslStrength? sslStrength = null,
             SslProtocol? sslProtocol = null,
-            X509Store certificateStore = null,
-            X509Certificate certificate = null,
-            PrivateKey privateKey = null,
-            ClientCertificateCallbackHandler clientCertificateCallbackHandler = null,
-            RemoteCertificateValidationHandler remoteCertificateValidationHandler = null,
-            SslSession previousSession = null,
-            IEnumerable<string> ciphers = null
+            X509Store? certificateStore = null,
+            X509Certificate? certificate = null,
+            PrivateKey? privateKey = null,
+            ClientCertificateCallbackHandler? clientCertificateCallbackHandler = null,
+            RemoteCertificateValidationHandler? remoteCertificateValidationHandler = null,
+            SslSession? previousSession = null,
+            IEnumerable<string>? ciphers = null
         )
         {
             bool isServer = true;
@@ -293,18 +300,15 @@ namespace OpenSSL.Core.SSL
             );
         }
 
-        private Ssl()
-        {
-            this._lock = new object();
-        }
-
         private Ssl
         (
             bool isServer,
             SslContext sslContext,
-            SslSession previousSession = null
-        ) : this()
+            SslSession? previousSession = null
+        )
         {
+            this._lock = new object();
+
             //add a (managed) reference, so the object can be reused
             bool success = true;
             sslContext._sslContextHandle.DangerousAddRef(ref success);
@@ -316,8 +320,8 @@ namespace OpenSSL.Core.SSL
                 throw new InvalidOperationException("Can not happen???");
             }
 
-            SafeBioHandle readHandle = null, writeHandle = null;
-            SafeSslHandle sslHandle = null;
+            SafeBioHandle? readHandle = null, writeHandle = null;
+            SafeSslHandle? sslHandle = null;
             try
             {
                 readHandle = CryptoWrapper.BIO_new(CryptoWrapper.BIO_s_mem());
@@ -365,7 +369,7 @@ namespace OpenSSL.Core.SSL
             //enable session reuse
             if (previousSession is not null)
             {
-                SSLWrapper.SSL_set_session(this._sslHandle, previousSession.SessionWrapper.Handle);
+                SSLWrapper.SSL_set_session(this._sslHandle, previousSession._Handle);
             }
 
             this._handshakeCompleted = false;
@@ -655,7 +659,7 @@ namespace OpenSSL.Core.SSL
         )
         {
             int readIndex = 0, writeIndex = 0;
-            int written = 0, read = 0;
+            int written, read = 0;
             SslState sslState;
 
             ReadOnlySpan<byte> readBuf;
@@ -740,7 +744,7 @@ namespace OpenSSL.Core.SSL
             out int totalWritten
         )
         {
-            int read = 0;
+            int read;
 
             //writeableBuffer CAN be empty, allow to force a "flush" of non-application data
 
@@ -788,7 +792,7 @@ namespace OpenSSL.Core.SSL
         )
         {
             int readIndex = 0;
-            int written = 0;
+            int written;
             SslState sslState;
             ReadOnlySpan<byte> readBuf;
 
@@ -890,7 +894,7 @@ namespace OpenSSL.Core.SSL
                 return sslState;
             }
 
-            int written = 0, totalIndex = 0;
+            int written, totalIndex = 0;
             ReadOnlySpan<byte> span;
             ReadOnlySequence<byte> s;
 
@@ -961,7 +965,7 @@ namespace OpenSSL.Core.SSL
             IBufferWriter<byte> bufferWriter
         )
         {
-            int read = 0, pending = 0;
+            int read;
             SslState sslState;
             Span<byte> writeBuffer;
 
@@ -992,7 +996,7 @@ namespace OpenSSL.Core.SSL
                 {
                     return sslState;
                 }
-            } while ((sslState = this.VerifyReadState(in sslState, out pending)).WantsRead());
+            } while ((sslState = this.VerifyReadState(in sslState, out _)).WantsRead());
 
             return sslState;
         }
@@ -1015,7 +1019,7 @@ namespace OpenSSL.Core.SSL
         )
         {
             int readIndex = 0, writeIndex = 0;
-            int written = 0, read = 0;
+            int written, read = 0;
             SslState sslState = SslState.NONE;
 
             ReadOnlySpan<byte> readBuf;
@@ -1116,7 +1120,7 @@ namespace OpenSSL.Core.SSL
             out int totalWritten
         )
         {
-            int written = 0;
+            int written;
 
             if (writableBuffer.IsEmpty)
             {
@@ -1160,7 +1164,7 @@ namespace OpenSSL.Core.SSL
         )
         {
             int readIndex = 0;
-            int written = 0;
+            int written;
             SslState sslState = SslState.NONE;
             ReadOnlySpan<byte> readBuf;
 
@@ -1260,7 +1264,7 @@ namespace OpenSSL.Core.SSL
                 return sslState;
             }
 
-            int written = 0, totalIndex = 0;
+            int written, totalIndex = 0;
             ReadOnlySpan<byte> span;
             ReadOnlySequence<byte> s;
 
@@ -1342,10 +1346,10 @@ namespace OpenSSL.Core.SSL
             in SslState sslState
         )
         {
-            int written = 0, pending = 0;
+            int written;
 
             //check if any more data is pending to be written
-            while ((pending = (int)CryptoWrapper.BIO_ctrl_pending(this._writeHandle)) > 0)
+            while (CryptoWrapper.BIO_ctrl_pending(this._writeHandle) > 0)
             {
                 //get a buffer from the IBufferWriter with the correct frame size
                 Span<byte> writeBuffer = bufferWriter.GetSpan(1);
@@ -1607,44 +1611,39 @@ namespace OpenSSL.Core.SSL
         public void Dispose()
         {
             this.Dispose(true);
+
+            GC.SuppressFinalize(this);
         }
 
         public void Dispose(bool isDisposing)
         {
             try
             {
-                this._sslHandle?.Dispose();
+                this._sslHandle.Dispose();
             }
-            catch (Exception)
+            catch
             { }
 
             try
             {
-                this._readHandle?.Dispose();
+                this._readHandle.Dispose();
             }
-            catch (Exception)
+            catch
             { }
 
             try
             {
-                this._writeHandle?.Dispose();
+                this._writeHandle.Dispose();
             }
-            catch (Exception)
+            catch
             { }
 
             try
             {
-                this._sslContext?._sslContextHandle.DangerousRelease();
+                this._sslContext._sslContextHandle.DangerousRelease();
             }
-            catch (Exception)
+            catch
             { }
-
-            if (!isDisposing)
-            {
-                return;
-            }
-
-            GC.SuppressFinalize(this);
         }
     }
 }

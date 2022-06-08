@@ -65,7 +65,7 @@ namespace OpenSSL.Core.SSL.Buffer
             }
             else
             {
-                ArrayPool<byte>.Shared.Return(_array);
+                ArrayPool<byte>.Shared.Return(_array!);
                 _array = null;
             }
 
@@ -96,7 +96,7 @@ namespace OpenSSL.Core.SSL.Buffer
 
             segment = this;
 
-            while (segment.Next != null)
+            while (segment.NextSegment != null)
             {
                 segment.NextSegment.RunningIndex = segment.RunningIndex + segment.Length;
                 segment = segment.NextSegment;

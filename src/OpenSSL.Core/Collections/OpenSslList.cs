@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Reflection;
 using System.Linq.Expressions;
+using System.Runtime.InteropServices;
 
 using OpenSSL.Core.Interop.SafeHandles;
 using System.Collections;
@@ -8,108 +9,147 @@ using System.Collections.Generic;
 
 namespace OpenSSL.Core.Collections
 {
-    public class OpenSslList<T> : OpenSslEnumerable<T>, IList<T>
-        where T : OpenSslWrapperBase
+    internal class OpenSslList<TOuter, TInner>
+        : OpenSslWrapperBase,
+            IList<TOuter>,
+            IOpenSslReadOnlyCollection<TOuter>,
+            ISafeHandleWrapper<SafeStackHandle<TInner>>
+        where TInner : SafeBaseHandle, IStackable
+        where TOuter : OpenSslWrapperBase, ISafeHandleWrapper<TInner>
     {
-        internal static Func<IOpenSslIList<T>> CreateInternalList;
-        internal static Func<object, IOpenSslIList<T>> CreateSafeStackInternalList;
+        public int Count => this._Handle.Count;
+        public bool IsReadOnly => this._Handle.IsReadOnly;
 
-        public int Count => this.InternalList.Count;
-        public bool IsReadOnly => this.InternalList.IsReadOnly;
-        public T this[int index]
-        {
-            get => this.InternalList[index];
-            set => this.InternalList[index] = value;
-        }
+        SafeStackHandle<TInner> ISafeHandleWrapper<SafeStackHandle<TInner>>.Handle
+            => this._Handle;
+        public override SafeHandle Handle
+            => this._Handle;
 
-        internal override IOpenSslIEnumerable<T> InternalEnumerable => this.InternalList;
-
-        private IOpenSslIList<T> InternalList;
+        static readonly Func<TInner, TOuter> _CreateWrapperInstance;
 
         static OpenSslList()
         {
-            Type type = typeof(T);
+            Type outerType = typeof(TOuter);
+            Type innerType = typeof(TInner);
 
-            WrapperAttribute attr = type.GetCustomAttribute<WrapperAttribute>();
-            if (attr is null)
-                throw new NullReferenceException("Wrapper type not found");
-
-            Type wrapperType = attr.WrapperType;
-            if (!wrapperType.BaseType.IsGenericType)
-                throw new InvalidOperationException("Invalid base type");
-            Type safeHandleType = wrapperType.BaseType.GetGenericArguments()[0];
-
-            //new list
-            Type stackType = typeof(OpenSslListWrapper<,,>).GetGenericTypeDefinition();
-            Type constructedWrapperType = stackType.MakeGenericType(type, wrapperType, safeHandleType);
-
-            ConstructorInfo newCtor = constructedWrapperType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
-            Expression newConstruction = Expression.New(newCtor);
-            CreateInternalList = Expression.Lambda<Func<IOpenSslIList<T>>>(newConstruction).Compile();
-
-            //from existing list
-            Type constructedStackType = typeof(SafeStackHandle<>).MakeGenericType(safeHandleType);
-            ConstructorInfo existingCtor = constructedWrapperType.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { constructedStackType }, null);
-            ParameterExpression parameterExpression = Expression.Parameter(typeof(object));
-            Expression castExpression = Expression.TypeAs(parameterExpression, constructedStackType);
-            Expression existingConstruction = Expression.New(existingCtor, castExpression);
-            CreateSafeStackInternalList = Expression.Lambda<Func<object, IOpenSslIList<T>>>(existingConstruction, parameterExpression).Compile();
+            ConstructorInfo? newCtor = outerType.GetConstructor
+            (
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                null,
+                new Type[]
+                {
+                    innerType
+                },
+                null
+            );
+            
+            if(newCtor is null)
+            {
+                throw new NullReferenceException($"{outerType} does not have a constructor with a single {innerType}");
+            }
+            
+            ParameterExpression parameterExpression = Expression.Parameter(typeof(TInner));
+            Expression newConstruction = Expression.New(newCtor, parameterExpression);
+            _CreateWrapperInstance = Expression.Lambda<Func<TInner, TOuter>>(newConstruction, parameterExpression).Compile();
         }
 
-        public OpenSslList()
+        public TOuter this[int index]
         {
-            this.InternalList = CreateInternalList();
+            get => CreateStackableWrapperItem(this._Handle[index]);
+            set => this._Handle[index] = (value as ISafeHandleWrapper<TInner>).Handle!;
         }
 
-        private OpenSslList(object stackHandle)
+        internal readonly SafeStackHandle<TInner> _Handle;
+
+        public OpenSslList(SafeStackHandle<TInner> stackHandle)
         {
-            this.InternalList = CreateSafeStackInternalList(stackHandle);
+            this._Handle = stackHandle;
         }
 
-        internal static OpenSslList<T> CreateFromSafeHandle<THandle>(SafeStackHandle<THandle> stackHandle)
-            where THandle : SafeBaseHandle, IStackable
+        public int IndexOf(TOuter item)
         {
-            return new OpenSslList<T>(stackHandle);
+            return this._Handle.IndexOf((item as ISafeHandleWrapper<TInner>).Handle!);
         }
 
-        public int IndexOf(T item)
+        public void Insert(int index, TOuter item)
         {
-            return this.InternalList.IndexOf(item);
-        }
-
-        public void Insert(int index, T item)
-        {
-            this.InternalList.Insert(index, item);
+            this._Handle.Insert(index, (item as ISafeHandleWrapper<TInner>).Handle!);
         }
 
         public void RemoveAt(int index)
         {
-            this.InternalList.RemoveAt(index);
+            this._Handle.RemoveAt(index);
         }
 
-        public void Add(T item)
+        public void Add(TOuter item)
         {
-            this.InternalList.Add(item);
+            this._Handle.Add((item as ISafeHandleWrapper<TInner>).Handle!);
         }
 
         public void Clear()
         {
-            this.InternalList.Clear();
+            this._Handle.Clear();
         }
 
-        public bool Contains(T item)
+        public bool Contains(TOuter item)
         {
-            return this.InternalList.Contains(item);
+            return this._Handle.Contains((item as ISafeHandleWrapper<TInner>).Handle!);
         }
 
-        public void CopyTo(T[] array, int arrayIndex)
+        public void CopyTo(TOuter[] array, int arrayIndex)
         {
             throw new NotImplementedException();
         }
 
-        public bool Remove(T item)
+        public bool Remove(TOuter item)
         {
-            return this.InternalList.Remove(item);
+            return this._Handle.Remove((item as ISafeHandleWrapper<TInner>).Handle!);
+        }
+
+        public IEnumerator<TOuter> GetEnumerator()
+        {
+            return new Enumerator(this);
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return new Enumerator(this);
+        }
+
+        internal static TOuter CreateStackableWrapperItem(TInner item)
+        {
+            TOuter t = _CreateWrapperInstance(item);
+            return t;
+        }
+
+        #region Enumerator
+        private class Enumerator : IEnumerator<TOuter>
+        {
+            private readonly IEnumerator<TInner> _enumerator;
+
+            public Enumerator(OpenSslList<TOuter, TInner> list)
+            {
+                this._enumerator = list._Handle.GetEnumerator();
+            }
+
+            public TOuter Current
+                => CreateStackableWrapperItem(this._enumerator.Current);
+            object IEnumerator.Current => this.Current;
+
+            public bool MoveNext()
+                => this._enumerator.MoveNext();
+
+            public void Reset()
+                => this._enumerator.Reset();
+
+            public void Dispose()
+                => this._enumerator.Dispose();
+        }
+        #endregion
+
+        protected override void Dispose(bool disposing)
+        {
+            //NOP
         }
     }
 }

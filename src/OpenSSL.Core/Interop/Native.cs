@@ -364,7 +364,7 @@ namespace OpenSSL.Core.Interop
 
         internal unsafe static void Free(IntPtr ptr)
         {
-            ReadOnlySpan<char> span = Assembly.GetEntryAssembly().FullName.AsSpan();
+            ReadOnlySpan<char> span = Assembly.GetEntryAssembly()!.FullName.AsSpan();
 
             fixed (char* c = span)
             {

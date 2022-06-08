@@ -37,7 +37,7 @@ namespace OpenSSL.Core.Tests
 {
 	public class TestSHA512 : TestBase
 	{
-		private static byte[][] app = {
+		private static readonly byte[][] _App = {
 			new byte[] {
 				0xdd,0xaf,0x35,0xa1,0x93,0x61,0x7a,0xba,
 				0xcc,0x41,0x73,0x49,0xae,0x20,0x41,0x31,
@@ -70,7 +70,7 @@ namespace OpenSSL.Core.Tests
 			},
 		};
 
-        private static byte[][] addenum = {
+        private static readonly byte[][] _Addenum = {
 			new byte[] {
 				0xcb,0x00,0x75,0x3f,0x45,0xa3,0x5e,0x8b,
 				0xb5,0xa0,0x3d,0x69,0x9a,0xc6,0x50,0x07,
@@ -100,8 +100,8 @@ namespace OpenSSL.Core.Tests
         public static IEnumerable<object[]> GetDigestVerification =>
             new List<object[]>
             {
-                        new object[]{ DigestType.SHA512, app, 288 },
-                        new object[]{ DigestType.SHA384, addenum, 64 }
+                        new object[]{ DigestType.SHA512, _App, 288 },
+                        new object[]{ DigestType.SHA384, _Addenum, 64 }
             };
 
         public TestSHA512(ITestOutputHelper outputHelper)
@@ -111,6 +111,7 @@ namespace OpenSSL.Core.Tests
 
         [Theory]
         [MemberData(nameof(GetDigestVerification))]
+#pragma warning disable xUnit1026, IDE0060 // Theory methods should use all of their parameters
         public void TestSingleUpdate(DigestType digestType, byte[][] results, int alen)
         {
             string str1, str2;
@@ -130,6 +131,7 @@ namespace OpenSSL.Core.Tests
         [Theory]
         [MemberData(nameof(GetDigestVerification))]
         public void TestSingleUpdate_2(DigestType digestType, byte[][] results, int alen)
+#pragma warning restore xUnit1026, IDE0060 // Remove unused parameter
         {
             string str1, str2;
             using (Digest ctx = new Digest(digestType))

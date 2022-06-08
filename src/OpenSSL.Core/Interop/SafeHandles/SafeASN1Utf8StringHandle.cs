@@ -12,7 +12,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
 
         internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
 
-        private static OPENSSL_sk_freefunc _FreeFunc;
+        private static readonly OPENSSL_sk_freefunc _FreeFunc;
 
         static SafeASN1Utf8StringHandle()
         {

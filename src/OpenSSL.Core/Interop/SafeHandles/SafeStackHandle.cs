@@ -38,14 +38,11 @@ namespace OpenSSL.Core.Interop.SafeHandles
 	public interface IStackable
 	{ }
 
-	internal interface IStack
-	{ }
-
 	/// <summary>
 	/// Encapsulates the sk_* functions
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
-	internal abstract class SafeStackHandle<T> : BaseValue, IStack, IList<T>
+	internal abstract class SafeStackHandle<T> : BaseValue, IList<T>
 		where T : SafeBaseHandle, IStackable
 	{
         internal static SafeStackHandle<T> Zero
@@ -63,7 +60,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
 
         private readonly OPENSSL_sk_freefunc _freeFunc;
         //ensures fucntion stays pinned
-        private static OPENSSL_sk_freefunc _ItemFreeFunc;
+        private static readonly OPENSSL_sk_freefunc _ItemFreeFunc;
 
         static SafeStackHandle()
         {
@@ -71,11 +68,11 @@ namespace OpenSSL.Core.Interop.SafeHandles
 
             //get the OPENSSL_sk_freefunc from the Zero instance
             //this instance property should reference a static method
-            PropertyInfo zero = itemType.GetProperty(nameof(SafeBioHandle.Zero), BindingFlags.Static | BindingFlags.Public);
-            PropertyInfo func = itemType.GetProperty(nameof(SafeBioHandle.FreeFunc), BindingFlags.Instance | BindingFlags.NonPublic);
+            PropertyInfo zero = itemType.GetProperty(nameof(SafeStackHandle<T>.Zero), BindingFlags.Static | BindingFlags.Public)!;
+            PropertyInfo func = itemType.GetProperty(nameof(SafeStackHandle<T>.FreeFunc), BindingFlags.Instance | BindingFlags.NonPublic)!;
 
-            object zeroSafeHandle = zero.GetValue(null);
-            _ItemFreeFunc = (OPENSSL_sk_freefunc)func.GetValue(zeroSafeHandle);
+            object zeroSafeHandle = zero.GetValue(null)!;
+            _ItemFreeFunc = (OPENSSL_sk_freefunc)func.GetValue(zeroSafeHandle)!;
         }
 
         internal SafeStackHandle(bool takeOwnership)
@@ -162,33 +159,33 @@ namespace OpenSSL.Core.Interop.SafeHandles
         }
 
         #region Enumerator
-        private struct Enumerator : IEnumerator<T>
+        internal class Enumerator : IEnumerator<T>
         {
-            private SafeStackHandle<T> stackHandle;
-            private int position;
+            private readonly SafeStackHandle<T> _stackHandle;
+            private int _position;
 
             public Enumerator(SafeStackHandle<T> stackHandle)
             {
-                this.stackHandle = stackHandle;
-                this.position = -1;
+                this._stackHandle = stackHandle;
+                this._position = -1;
             }
 
-            public T Current => StackWrapper.OPENSSL_sk_value(this.stackHandle, position);
+            public T Current => StackWrapper.OPENSSL_sk_value(this._stackHandle, this._position);
             object IEnumerator.Current => this.Current;
 
             public bool MoveNext()
             {
-                return ++position < this.stackHandle.Count;
+                return ++_position < this._stackHandle.Count;
             }
 
             public void Reset()
             {
-                this.position = -1;
+                this._position = -1;
             }
 
             public void Dispose()
             {
-
+                this._position = -2;
             }
         }
         #endregion

@@ -38,7 +38,7 @@ namespace OpenSSL.Core.Generator
                         (
                             SyntaxFactory.SeparatedList<TypeSyntax>
                             (
-                                interfaceMethod.TypeParameterList.Parameters
+                                interfaceMethod.TypeParameterList!.Parameters
                                     .Select(x => SyntaxFactory.IdentifierName(x.WithoutTrivia().Identifier))
                                     .ToArray()
                             )

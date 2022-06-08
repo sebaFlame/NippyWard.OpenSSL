@@ -39,7 +39,7 @@ namespace OpenSSL.Core.Interop
         //Minimum TLS1.3 version
         public static Version MinimumOpenSslTLS13Version = new Version(0x10101000L);
 
-        private ulong raw;
+        private readonly ulong raw;
         private static Version currentVersion;
         private static Version ZERO = new Version(0);
 
@@ -236,7 +236,7 @@ namespace OpenSSL.Core.Interop
 			return Native.PtrToStringAnsi(Native.CryptoWrapper.OpenSSL_version((int)format), false);
 		}
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return base.Equals(obj);
         }

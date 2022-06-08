@@ -10,34 +10,23 @@ namespace OpenSSL.Core.Digests
 {
     public class Digest : DigestBase
     {
-        private bool finalized;
-
-        internal Digest(DigestInternal handleWarpper)
-            : base(handleWarpper) { }
-
         public Digest(DigestType digestType)
             : base(digestType)
         {
-            CryptoWrapper.EVP_DigestInit(this.digestCtxHandle, this.DigestWrapper.Handle);
+            CryptoWrapper.EVP_DigestInit(this.DigestCtxHandle, this._Handle);
         }
 
         public void Update(Span<byte> buffer)
         {
-            if (this.finalized)
-                throw new InvalidOperationException("Digest has already been finalized");
-
-            CryptoWrapper.EVP_DigestUpdate(this.digestCtxHandle, buffer.GetPinnableReference(), (uint)buffer.Length);
+            CryptoWrapper.EVP_DigestUpdate(this.DigestCtxHandle, buffer.GetPinnableReference(), (uint)buffer.Length);
         }
 
         public void Finalize(out Span<byte> digest)
         {
-            if (this.finalized)
-                throw new InvalidOperationException("Digest has already been finalized");
-
             byte[] digestBuf = new byte[Native.EVP_MAX_MD_SIZE];
             Span<byte> digestSpan = new Span<byte>(digestBuf);
 
-            CryptoWrapper.EVP_DigestFinal(this.digestCtxHandle, ref digestSpan.GetPinnableReference(), out uint length);
+            CryptoWrapper.EVP_DigestFinal(this.DigestCtxHandle, ref digestSpan.GetPinnableReference(), out uint length);
             digest = digestSpan.Slice(0, (int)length);
         }
     }

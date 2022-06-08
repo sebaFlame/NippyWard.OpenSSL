@@ -14,31 +14,20 @@ namespace OpenSSL.Core.Ciphers
         public byte[] Key { get; private set; }
         public byte[] IV { get; private set; }
 
-        private int ivLength;
-
-        //public CipherDecryption(CipherType cipherType, Key key, byte[] iv)
-        //    : this(cipherType, GetBufferFromKey(key))
-        //{ }
-
-        internal CipherDecryption(CipherInternal handleWarpper)
-            : base(handleWarpper) { }
+        private readonly int _ivLength;
 
         public CipherDecryption(CipherType cipherType, byte[] key, byte[] iv)
             : base(cipherType)
         {
             this.Key = key;
 
-            if ((this.ivLength = this.GetIVLength()) > 0 && !(iv is null))
+            if ((this._ivLength = this.GetIVLength()) > 0 && !(iv is null))
                 this.IV = iv;
             else
                 this.IV = Array.Empty<byte>();
 
             this.Initialize();
         }
-
-        //public CipherDecryption(CipherType cipherType, Key key)
-        //    : this(cipherType, GetBufferFromKey(key))
-        //{ }
 
         public CipherDecryption(CipherType cipherType, byte[] key)
             : base(cipherType)
@@ -61,7 +50,7 @@ namespace OpenSSL.Core.Ciphers
             this.Key = key;
             this.IV = iv;
 
-            this.ivLength = this.IV.Length;
+            this._ivLength = this.IV.Length;
 
             this.Initialize();
         }
@@ -70,13 +59,13 @@ namespace OpenSSL.Core.Ciphers
         {
             Span<byte> key = new Span<byte>(this.Key);
             
-            if (this.ivLength > 0 && !(this.IV is null))
+            if (this._ivLength > 0 && !(this.IV is null))
             {
                 Span<byte> iv = new Span<byte>(this.IV);
-                CryptoWrapper.EVP_DecryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), iv.GetPinnableReference());
+                CryptoWrapper.EVP_DecryptInit(this.CipherContextHandle, this._Handle, key.GetPinnableReference(), iv.GetPinnableReference());
             }
             else
-                CryptoWrapper.EVP_DecryptInit(this.CipherContextHandle, this.CipherWrapper.Handle, key.GetPinnableReference(), IntPtr.Zero);
+                CryptoWrapper.EVP_DecryptInit(this.CipherContextHandle, this._Handle, key.GetPinnableReference(), IntPtr.Zero);
         }
 
         protected override int UpdateInternal(in Span<byte> inputBuffer, ref Span<byte> outputBuffer)

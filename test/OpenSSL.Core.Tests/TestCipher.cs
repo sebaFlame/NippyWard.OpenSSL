@@ -16,8 +16,8 @@ namespace OpenSSL.Core.Tests
 {
 	public class TestCipher : TestBase
 	{
-        private static List<object[]> lstCiphers;
-        public static IEnumerable<object[]> GetCiphers() => lstCiphers ?? (lstCiphers = ConstructCipherList());
+        private static List<object[]>? _LstCiphers;
+        public static IEnumerable<object[]> GetCiphers() => _LstCiphers ??= ConstructCipherList();
 
         private static List<object[]> ConstructCipherList()
         {
@@ -35,7 +35,7 @@ namespace OpenSSL.Core.Tests
 
             foreach (FieldInfo field in currentFields)
             {
-                lstCiphers.Add(new object[] { field.GetValue(null) });
+                lstCiphers.Add(new object[] { field.GetValue(null)! });
             }
 
             return lstCiphers;
@@ -174,7 +174,6 @@ namespace OpenSSL.Core.Tests
             for (int i = 0; i < keyCount; i++)
             {
                 keys[i] = new RSAKey(1024);
-                keys[i].GenerateKey();
             }
 
             string inputMsg = "This is a message";
@@ -201,7 +200,7 @@ namespace OpenSSL.Core.Tests
                 System.Buffer.BlockCopy(tempBuf, 0, encrypted, 0, encryptedLength);
                 System.Buffer.BlockCopy(finalBuf, 0, encrypted, encryptedLength, finalEncryptedLength);
 
-                encryptionKeys = envelopeSeal.EncryptionKeys;
+                encryptionKeys = envelopeSeal.EncryptionKeys!;
                 iv = envelopeSeal.IV;
             }
 

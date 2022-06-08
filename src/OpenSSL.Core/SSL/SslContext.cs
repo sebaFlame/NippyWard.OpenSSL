@@ -20,18 +20,18 @@ namespace OpenSSL.Core.SSL
     public class SslContext : OpenSslBase, IDisposable
     {
         //pin callback delegates
-        private readonly SessionCallback _sessionCallback;
-        private readonly VerifyCertificateCallback _verifyCertificateCallback;
-        private readonly ClientCertificateCallback _clientCertificateCallback;
+        private readonly SessionCallback? _sessionCallback;
+        private readonly VerifyCertificateCallback? _verifyCertificateCallback;
+        private readonly ClientCertificateCallback? _clientCertificateCallback;
 
         #region native handles
         internal readonly SafeSslContextHandle _sslContextHandle;
-        internal SafeSslSessionHandle _sessionHandle;
+        internal SafeSslSessionHandle? _sessionHandle;
         #endregion
 
         #region managed callbacks
-        private RemoteCertificateValidationHandler _remoteCertificateValidationHandler;
-        private ClientCertificateCallbackHandler _clientCertificateCallbackHandler;
+        private readonly RemoteCertificateValidationHandler? _remoteCertificateValidationHandler;
+        private readonly ClientCertificateCallbackHandler? _clientCertificateCallbackHandler;
         #endregion
 
         private readonly bool _isServer;
@@ -58,16 +58,16 @@ namespace OpenSSL.Core.SSL
         (
             SslStrength sslStrength,
             SslProtocol sslProtocol,
-            X509Store certificateStore,
-            X509Certificate certificate,
-            PrivateKey privateKey,
-            ClientCertificateCallbackHandler clientCertificateCallbackHandler,
-            RemoteCertificateValidationHandler remoteCertificateValidationHandler,
-            IEnumerable<string> ciphers,
+            X509Store? certificateStore,
+            X509Certificate? certificate,
+            PrivateKey? privateKey,
+            ClientCertificateCallbackHandler? clientCertificateCallbackHandler,
+            RemoteCertificateValidationHandler? remoteCertificateValidationHandler,
+            IEnumerable<string>? ciphers,
             bool isServer
         )
         {
-            SafeSslContextHandle sslContextHandle = null;
+            SafeSslContextHandle? sslContextHandle = null;
 
             try
             {
@@ -102,8 +102,8 @@ namespace OpenSSL.Core.SSL
         (
             bool isServer,
             SafeSslContextHandle sslContextHandle,
-            ClientCertificateCallbackHandler clientCertificateCallbackHandler = null,
-            RemoteCertificateValidationHandler remoteCertificateValidationHandler = null
+            ClientCertificateCallbackHandler? clientCertificateCallbackHandler = null,
+            RemoteCertificateValidationHandler? remoteCertificateValidationHandler = null
         )
         {
             //enable session caching
@@ -177,10 +177,10 @@ namespace OpenSSL.Core.SSL
         (
             SslStrength sslStrength,
             SslProtocol sslProtocol,
-            X509Store certificateStore,
-            X509Certificate certificate,
-            PrivateKey privateKey,
-            IEnumerable<string> ciphers,
+            X509Store? certificateStore,
+            X509Certificate? certificate,
+            PrivateKey? privateKey,
+            IEnumerable<string>? ciphers,
             bool isServer = false
         )
         {
@@ -248,7 +248,7 @@ namespace OpenSSL.Core.SSL
             //set the security level
             SSLWrapper.SSL_CTX_set_security_level(sslContextHandle, (int)sslStrength);
 
-            if (!(ciphers is null))
+            if (ciphers is not null)
             {
                 string allowedCiphers = string.Join(":", ciphers);
                 unsafe
@@ -274,17 +274,17 @@ namespace OpenSSL.Core.SSL
             if(certificateStore is not null)
             {
                 //add an extra reference to the store, so it does not get GC'd
-                CryptoWrapper.X509_STORE_up_ref(certificateStore.StoreWrapper.Handle);
-                SSLWrapper.SSL_CTX_set_cert_store(sslContextHandle, certificateStore.StoreWrapper.Handle);
+                CryptoWrapper.X509_STORE_up_ref(certificateStore._Handle);
+                SSLWrapper.SSL_CTX_set_cert_store(sslContextHandle, certificateStore._Handle);
 
                 if(isServer)
                 {
                     //add the certificates for client certificate validation
-                    using(OpenSslReadOnlyCollection<X509Certificate> certList = certificateStore.GetCertificates())
+                    using(IOpenSslReadOnlyCollection<X509Certificate> certList = certificateStore.GetCertificates())
                     {
                         foreach (X509Certificate cert in certList)
                         {
-                            SSLWrapper.SSL_CTX_add_client_CA(sslContextHandle, cert.X509Wrapper.Handle);
+                            SSLWrapper.SSL_CTX_add_client_CA(sslContextHandle, cert._Handle);
                         }
                     }
                 }
@@ -309,8 +309,8 @@ namespace OpenSSL.Core.SSL
                     throw new InvalidOperationException("Public and private key do not match");
                 }
 
-                SSLWrapper.SSL_CTX_use_certificate(sslContextHandle, certificate.X509Wrapper.Handle);
-                SSLWrapper.SSL_CTX_use_PrivateKey(sslContextHandle, privateKey.KeyWrapper.Handle);
+                SSLWrapper.SSL_CTX_use_certificate(sslContextHandle, certificate._Handle);
+                SSLWrapper.SSL_CTX_use_PrivateKey(sslContextHandle, privateKey._Handle);
             }
 
             return sslContextHandle;
@@ -336,7 +336,7 @@ namespace OpenSSL.Core.SSL
             SafeSslHandle sslhandle = Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeSslHandle>(sslPtr);
 
             //session has already been defined, free session
-            if (!(this._sessionHandle is null)
+            if (this._sessionHandle is not null
                 || SSLWrapper.SSL_session_reused(sslhandle) == 1)
             {
                 return 0;
@@ -353,13 +353,19 @@ namespace OpenSSL.Core.SSL
         //when in client mode: the server certificate
         private int RemoteCertificateValidationCallback(int preVerify, IntPtr x509_store_ctx_ptr)
         {
+            //do not throw an exception
+            if(this._remoteCertificateValidationHandler is null)
+            {
+                return 0;
+            }
+
             SafeX509StoreContextHandle x509_store_ctx = Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeX509StoreContextHandle>(x509_store_ctx_ptr);
 
             using (X509Certificate remoteCertificate = new X509Certificate(CryptoWrapper.X509_STORE_CTX_get_current_cert(x509_store_ctx)))
             {
                 using (X509Store store = new X509Store(CryptoWrapper.X509_STORE_CTX_get0_store(x509_store_ctx)))
                 {
-                    using (OpenSslReadOnlyCollection<X509Certificate> certList = store.GetCertificates())
+                    using (IOpenSslReadOnlyCollection<X509Certificate> certList = store.GetCertificates())
                     {
                         return this._remoteCertificateValidationHandler(preVerify == 1, remoteCertificate, certList) ? 1 : 0;
                     }
@@ -369,6 +375,14 @@ namespace OpenSSL.Core.SSL
 
         private int ClientCertificateRequestCallback(IntPtr sslPtr, out IntPtr x509Ptr, out IntPtr pkeyPtr)
         {
+            //do not throw an exception
+            if(this._clientCertificateCallbackHandler is null)
+            {
+                x509Ptr = IntPtr.Zero;
+                pkeyPtr = IntPtr.Zero;
+                return 0;
+            }
+
             SafeSslHandle ssl = Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeSslHandle>(sslPtr);
 
             bool succes = false;
@@ -377,7 +391,7 @@ namespace OpenSSL.Core.SSL
 
             SafeStackHandle<SafeX509NameHandle> nameStackHandle = SSLWrapper.SSL_get_client_CA_list(ssl);
 
-            using (OpenSslReadOnlyCollection<X509Name> nameList = OpenSslReadOnlyCollection<X509Name>.CreateFromSafeHandle(nameStackHandle))
+            using (OpenSslList<X509Name, SafeX509NameHandle> nameList = new OpenSslList<X509Name, SafeX509NameHandle>(nameStackHandle))
             {
                 if (succes = this._clientCertificateCallbackHandler
                 (
@@ -386,10 +400,10 @@ namespace OpenSSL.Core.SSL
                     out PrivateKey privateKey
                 ))
                 {
-                    certificate.X509Wrapper.Handle.AddReference(); //add reference, so SSL doesn't free our objects
-                    x509Ptr = certificate.X509Wrapper.Handle.DangerousGetHandle();
-                    privateKey.KeyWrapper.Handle.AddReference(); //add reference, so SSL doesn't free our objects
-                    pkeyPtr = privateKey.KeyWrapper.Handle.DangerousGetHandle();
+                    certificate._Handle.AddReference(); //add reference, so SSL doesn't free our objects
+                    x509Ptr = certificate._Handle.DangerousGetHandle();
+                    privateKey._Handle.AddReference(); //add reference, so SSL doesn't free our objects
+                    pkeyPtr = privateKey._Handle.DangerousGetHandle();
                 }
             }
 
@@ -400,15 +414,17 @@ namespace OpenSSL.Core.SSL
         public void Dispose()
         {
             this.Dispose(true);
+
+            GC.SuppressFinalize(this);
         }
 
-        public void Dispose(bool isDisposing)
+        public void Dispose(bool _)
         {
             try
             {
                 this._sessionHandle?.Dispose();
             }
-            catch (Exception)
+            catch
             { }
             finally
             {
@@ -417,17 +433,10 @@ namespace OpenSSL.Core.SSL
 
             try
             {
-                this._sslContextHandle?.Dispose();
+                this._sslContextHandle.Dispose();
             }
-            catch (Exception)
+            catch
             { }
-
-            if(isDisposing)
-            {
-                return;
-            }
-
-            GC.SuppressFinalize(this);
         }
     }
 }

@@ -85,7 +85,27 @@ namespace OpenSSL.Core.Generator
                     .NormalizeWhitespace()
                     .AddMembers
                     (
-                        SyntaxFactory.NamespaceDeclaration(ns)
+                        SyntaxFactory.NamespaceDeclaration
+                        (
+                            SyntaxFactory.Token(SyntaxKind.NamespaceKeyword)
+                                .WithLeadingTrivia
+                                (
+                                    SyntaxFactory.TriviaList
+                                    (
+                                        SyntaxFactory.Trivia
+                                        (
+                                            SyntaxFactory.NullableDirectiveTrivia(SyntaxFactory.Token(SyntaxKind.EnableKeyword), true)
+                                        )
+                                    )
+                                ),
+                            ns,
+                            SyntaxFactory.Token(SyntaxKind.OpenBraceToken),
+                            default,
+                            default,
+                            default,
+                            SyntaxFactory.Token(SyntaxKind.CloseBraceToken),
+                            default
+                        )
                             .AddMembers(classDeclaration)
                     )
                     .NormalizeWhitespace(),
@@ -234,14 +254,14 @@ namespace OpenSSL.Core.Generator
                                     ? CreateConcreteSafeHandleType
                                     (
                                         interfaceMethod,
-                                        x.Type,
+                                        x.Type!,
                                         x.AttributeLists,
                                         safeHandles,
                                         true,
                                         false
                                     )
                                     .WithoutTrivia()
-                                    : x.Type.WithoutTrivia(),
+                                    : x.Type!.WithoutTrivia(),
                                 ContainsGenericTypeParameter(x.Type, interfaceMethod.TypeParameterList, out _)
                                     ? SyntaxFactory.Identifier
                                     (
@@ -360,14 +380,14 @@ namespace OpenSSL.Core.Generator
                                     ? CreateConcreteSafeHandleType
                                     (
                                         interfaceMethod,
-                                        x.Type,
+                                        x.Type!,
                                         x.AttributeLists,
                                         safeHandles,
                                         true,
                                         true
                                     )
                                     .WithoutTrivia()
-                                    : x.Type.WithoutTrivia(),
+                                    : x.Type!.WithoutTrivia(),
                                 ContainsGenericTypeParameter(x.Type, interfaceMethod.TypeParameterList, out _)
                                     ? SyntaxFactory.Identifier
                                     (
@@ -418,7 +438,7 @@ namespace OpenSSL.Core.Generator
                                     x.AttributeLists
                                 ),
                                 x.Modifiers,
-                                x.Type.WithoutTrivia(),
+                                x.Type!.WithoutTrivia(),
                                 x.Identifier.WithoutTrivia(),
                                 null
                             )
@@ -445,9 +465,9 @@ namespace OpenSSL.Core.Generator
         )
         {
             BlockSyntax blockSyntax = SyntaxFactory.Block();
-            InvocationExpressionSyntax verificationExpression, postConstructionExpression;
-            TypeSyntax concreteReturnType = null;
-            InvocationExpressionSyntax winInvocation = null;
+            InvocationExpressionSyntax? verificationExpression;
+            TypeSyntax? concreteReturnType = null;
+            InvocationExpressionSyntax? winInvocation = null;
 
             SyntaxList<AttributeListSyntax> methodAttributes = interfaceMethod.AttributeLists;
 
@@ -649,7 +669,7 @@ namespace OpenSSL.Core.Generator
                     continue;
                 }
 
-                string name = GetSafeHandleTypeNameWithoutGenericTypeList(parameter.Type);
+                string name = GetSafeHandleTypeNameWithoutGenericTypeList(parameter.Type!);
 
                 if (!safeHandles.Any(x => x.IsAbsract && x.Name.Equals(name)))
                 {
@@ -665,7 +685,7 @@ namespace OpenSSL.Core.Generator
                             CreateConcreteSafeHandleType
                             (
                                 interfaceMethod,
-                                parameter.Type,
+                                parameter.Type!,
                                 parameter.AttributeLists,
                                 safeHandles,
                                 true,
@@ -690,7 +710,8 @@ namespace OpenSSL.Core.Generator
             }
 
             //create windows condition
-            if (needsWindowsOverride)
+            if (needsWindowsOverride
+                && winInvocation is not null)
             {
                 BlockSyntax windowsBlock = SyntaxFactory.Block
                 (
@@ -823,7 +844,7 @@ namespace OpenSSL.Core.Generator
                 .NormalizeWhitespace();
             }
 
-            LocalDeclarationStatementSyntax localDeclarationStatementSyntax;
+            LocalDeclarationStatementSyntax? localDeclarationStatementSyntax;
 
             //check if a return type should be constructed
             if (AssignConcreteTypeFromPointer
@@ -836,7 +857,8 @@ namespace OpenSSL.Core.Generator
                 safeHandles,
                 interfaceMethod,
                 out localDeclarationStatementSyntax
-            ))
+            )
+                && localDeclarationStatementSyntax is not null)
             {
                 blockSyntax = blockSyntax.AddStatements
                 (
@@ -855,14 +877,15 @@ namespace OpenSSL.Core.Generator
                 if (AssignConcreteTypeFromPointer
                 (
                     interfaceMethod,
-                    parameter.Type,
+                    parameter.Type!,
                     SyntaxFactory.Identifier(GenerateOutArgumentName(interfaceMethod, parameter, false, false)),
                     SyntaxFactory.Identifier(GenerateOutArgumentName(interfaceMethod, parameter, true, false)),
                     methodAttributes,
                     safeHandles,
                     interfaceMethod,
                     out localDeclarationStatementSyntax
-                ))
+                )
+                    && localDeclarationStatementSyntax is not null)
                 {
                     blockSyntax = blockSyntax.AddStatements
                     (
@@ -883,7 +906,8 @@ namespace OpenSSL.Core.Generator
                         SyntaxFactory.IdentifierName(_ReturnValueLocalName),
                         safeHandles,
                         out verificationExpression
-                    ))
+                    )
+                    && verificationExpression is not null)
                 {
                     blockSyntax = blockSyntax.AddStatements
                     (
@@ -908,11 +932,12 @@ namespace OpenSSL.Core.Generator
                 if (!HasSupportedVerificationType
                 (
                     interfaceMethod,
-                    parameter.Type,
+                    parameter.Type!,
                     SyntaxFactory.IdentifierName(GenerateOutArgumentName(interfaceMethod, parameter, false, false)),
                     safeHandles,
                     out verificationExpression
-                ))
+                )
+                    || verificationExpression is null)
                 {
                     continue;
                 }
@@ -931,7 +956,7 @@ namespace OpenSSL.Core.Generator
             foreach (ParameterSyntax parameter in interfaceMethod.ParameterList.Parameters.Where
             (
                 x => x.Modifiers.Any(x => x.WithoutTrivia().ValueText.Equals("out"))
-                    && safeHandles.Any(y => y.IsAbsract && y.Name.Equals(GetSafeHandleTypeNameWithoutGenericTypeList(x.Type)))
+                    && safeHandles.Any(y => y.IsAbsract && y.Name.Equals(GetSafeHandleTypeNameWithoutGenericTypeList(x.Type!)))
             ))
             {
                 blockSyntax = blockSyntax.AddStatements
@@ -1002,7 +1027,7 @@ namespace OpenSSL.Core.Generator
             bool isWindowsCall
         )
         {
-            string name = GetSafeHandleTypeNameWithoutGenericTypeList(parameterSyntax.Type);
+            string name = GetSafeHandleTypeNameWithoutGenericTypeList(parameterSyntax.Type!);
 
             //parameter contains an abstract safe handle type
             //declare a local
@@ -1027,7 +1052,7 @@ namespace OpenSSL.Core.Generator
                         CreateWindowsNativeLongType
                         (
                             interfaceMethod,
-                            parameterSyntax.Type,
+                            parameterSyntax.Type!,
                             parameterSyntax.AttributeLists,
                             false
                         ),
@@ -1058,8 +1083,6 @@ namespace OpenSSL.Core.Generator
             bool isWindowsCall
         )
         {
-            string name = GetSafeHandleTypeNameWithoutGenericTypeList(parameterSyntax.Type);
-
             //if the parameter is a SafeStackhandle
             //or a generic type parameter
             //return pointer out name
@@ -1127,7 +1150,7 @@ namespace OpenSSL.Core.Generator
                         CreateWindowsNativeLongType
                         (
                             interfaceMethod,
-                            parameterSyntax.Type,
+                            parameterSyntax.Type!,
                             parameterSyntax.AttributeLists,
                             false
                         ),
@@ -1154,7 +1177,7 @@ namespace OpenSSL.Core.Generator
             SyntaxList<AttributeListSyntax> symbolAttributes,
             ICollection<SafeHandleModel> safeHandles,
             MethodDeclarationSyntax interfaceMethod,
-            out LocalDeclarationStatementSyntax localDeclaration
+            out LocalDeclarationStatementSyntax? localDeclaration
         )
         {
             //a new (concrete) safe handle should be created

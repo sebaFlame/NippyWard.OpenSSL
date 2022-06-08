@@ -138,7 +138,7 @@ namespace OpenSSL.Core.Interop.Wrappers
         void SSL_CTX_set_client_cert_cb(SafeSslContextHandle ctx, ClientCertificateCallback callback);
 
         //void SSL_CTX_set_verify(SSL_CTX *ctx, int mode, int (* verify_callback) (int, X509_STORE_CTX*));
-        void SSL_CTX_set_verify(SafeSslContextHandle ctx, int mode, VerifyCertificateCallback callback);
+        void SSL_CTX_set_verify(SafeSslContextHandle ctx, int mode, VerifyCertificateCallback? callback);
         #endregion
 
         #region STACK_OF(SSL_CIPHER)

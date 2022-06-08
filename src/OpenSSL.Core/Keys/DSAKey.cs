@@ -7,54 +7,38 @@ namespace OpenSSL.Core.Keys
 {
     public class DSAKey : PrivateKey
     {
-        private SafeDSAHandle dsaHandle;
+        internal SafeDSAHandle DSAHandle
+            => CryptoWrapper.EVP_PKEY_get0_DSA(this._Handle);
 
         public override KeyType KeyType => KeyType.DSA;
 
-        internal DSAKey(KeyInternal handleWrapper)
-            : base(handleWrapper) { }
-
         internal DSAKey(SafeKeyHandle keyHandle)
             : base(keyHandle)
-        {
-            this.dsaHandle = CryptoWrapper.EVP_PKEY_get0_DSA(this.KeyWrapper.Handle);
-        }
+        { }
 
         public DSAKey(int bits, Span<byte> seed)
-            : base()
-        {
-            this.generateDSA(bits, seed);
-        }
+            : this(GenerateDSAKey(bits, seed))
+        { }
 
         public DSAKey(int bits)
-            : base()
-        {
-            byte[] buffer = Array.Empty<byte>();
-            this.generateDSA(bits, new Span<byte>(buffer));
-        }
+            : this(GenerateDSAKey(bits, Span<byte>.Empty))
+        { }
 
-        private void generateDSA(int bits, Span<byte> seed)
+        private static SafeKeyHandle GenerateDSAKey(int bits, Span<byte> seed)
         {
-            this.dsaHandle = CryptoWrapper.DSA_new();
-            CryptoWrapper.DSA_generate_parameters_ex(this.dsaHandle, bits, seed.GetPinnableReference(), seed.Length, out int counter_ret, out ulong h_ret, null);
-            CryptoWrapper.DSA_generate_key(this.dsaHandle);
-        }
+            using (SafeDSAHandle handle = CryptoWrapper.DSA_new())
+            {
+                CryptoWrapper.DSA_generate_parameters_ex(handle, bits, seed.GetPinnableReference(), seed.Length, out int counter_ret, out ulong h_ret, null);
+                CryptoWrapper.DSA_generate_key(handle);
 
-        internal override KeyInternal GenerateKeyInternal()
-        {
-            if (this.dsaHandle is null || this.dsaHandle.IsInvalid)
-                throw new InvalidOperationException("RSA key has not been created yet");
-
-            SafeKeyHandle keyHandle = CryptoWrapper.EVP_PKEY_new();
-            CryptoWrapper.EVP_PKEY_set1_DSA(keyHandle, this.dsaHandle);
-            return new KeyInternal(keyHandle);
+                SafeKeyHandle keyHandle = CryptoWrapper.EVP_PKEY_new();
+                CryptoWrapper.EVP_PKEY_set1_DSA(keyHandle, handle);
+                return keyHandle;
+            }
         }
 
         protected override void Dispose(bool disposing)
         {
-            if (!(this.dsaHandle is null) && !this.dsaHandle.IsInvalid)
-                this.dsaHandle.Dispose();
-
             base.Dispose(disposing);
         }
     }

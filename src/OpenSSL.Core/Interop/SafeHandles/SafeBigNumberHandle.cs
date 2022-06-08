@@ -29,11 +29,13 @@ using OpenSSL.Core.Interop.Wrappers;
 
 namespace OpenSSL.Core.Interop.SafeHandles
 {
-	/// <summary>
-	/// Wraps the BN_* set of functions.
-	/// </summary>
-	internal abstract class SafeBigNumberHandle : BaseValue, IComparable<SafeBigNumberHandle>, IEquatable<SafeBigNumberHandle>
-	{
+    /// <summary>
+    /// Wraps the BN_* set of functions.
+    /// </summary>
+#pragma warning disable CA1067 // Override Object.Equals(object) when implementing IEquatable<T>
+    internal abstract class SafeBigNumberHandle : BaseValue, IComparable<SafeBigNumberHandle>, IEquatable<SafeBigNumberHandle>
+#pragma warning restore CA1067 // Override Object.Equals(object) when implementing IEquatable<T>
+    {
         public static SafeBigNumberHandle Zero
             => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeBigNumberHandle>(IntPtr.Zero);
 
@@ -42,7 +44,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
         /// </summary>
         internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
 
-        private static OPENSSL_sk_freefunc _FreeFunc;
+        private static readonly OPENSSL_sk_freefunc _FreeFunc;
 
         static SafeBigNumberHandle()
         {
@@ -53,7 +55,9 @@ namespace OpenSSL.Core.Interop.SafeHandles
         /// <summary>
         /// Creates a BigNumber object by calling BN_value_one()
         /// </summary>
+#pragma warning disable IDE1006 // Naming Styles
         public static SafeBigNumberHandle One = Native.CryptoWrapper.BN_value_one();
+#pragma warning restore IDE1006 // Naming Styles
 
         #endregion
 
@@ -74,14 +78,14 @@ namespace OpenSSL.Core.Interop.SafeHandles
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
-        public int CompareTo(SafeBigNumberHandle other)
+        public int CompareTo(SafeBigNumberHandle? other)
 		{
-			return Native.CryptoWrapper.BN_cmp(this, other);
+			return Native.CryptoWrapper.BN_cmp(this, other ?? SafeBigNumberHandle.Zero);
 		}
 
-        public bool Equals(SafeBigNumberHandle other)
+        public bool Equals(SafeBigNumberHandle? other)
         {
-            return Native.CryptoWrapper.BN_cmp(this, other) == 0;
+            return Native.CryptoWrapper.BN_cmp(this, other ?? SafeBigNumberHandle.Zero) == 0;
         }
 
         #endregion

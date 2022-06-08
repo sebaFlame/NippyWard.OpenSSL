@@ -750,7 +750,10 @@ namespace OpenSSL.Core.Tests
             }
 
             //save session
-            SslSession previousSession = clientContext.Session;
+            SslSession? previousSession = clientContext.Session;
+
+            Assert.NotNull(previousSession);
+
             //create new server context using old ssl context
             Ssl newServerContext = Ssl.CreateServerSsl
             (

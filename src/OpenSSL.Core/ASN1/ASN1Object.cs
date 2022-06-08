@@ -1,73 +1,64 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Runtime.InteropServices;
 
 using OpenSSL.Core.Interop;
 using OpenSSL.Core.Interop.SafeHandles;
+using OpenSSL.Core.Collections;
 
 namespace OpenSSL.Core.ASN1
 {
-    [Wrapper(typeof(ASN1ObjectInternal))]
-    public class ASN1Object : OpenSslWrapperBase
+    public class ASN1Object
+        : OpenSslWrapperBase,
+            IStackableWrapper<SafeAsn1ObjectHandle>
     {
-        internal class ASN1ObjectInternal : SafeHandleWrapper<SafeAsn1ObjectHandle>
-        {
-            internal ASN1ObjectInternal(SafeAsn1ObjectHandle safeHandle)
-                : base(safeHandle) { }
-        }
+        SafeAsn1ObjectHandle ISafeHandleWrapper<SafeAsn1ObjectHandle>.Handle
+            => this._Handle;
+        public override SafeHandle Handle
+            => this._Handle;
 
-        internal ASN1ObjectInternal ASN1ObjectWrapper { get; private set; }
-        internal override ISafeHandleWrapper HandleWrapper => this.ASN1ObjectWrapper;
-
-        private int nid;
+        private int _nid;
         public int NID
         {
             get
             {
-                return nid == 0  
-                    ? (nid = CryptoWrapper.OBJ_obj2nid(this.ASN1ObjectWrapper.Handle))
-                    : nid;
+                return _nid == 0  
+                    ? (_nid = CryptoWrapper.OBJ_obj2nid(this._Handle))
+                    : _nid;
             }
         }
 
-        private string longName;
+        private string? _longName;
         public string LongName
         {
             get
             {
-                return string.IsNullOrEmpty(longName)
-                    ? longName = Native.PtrToStringAnsi(CryptoWrapper.OBJ_nid2ln(this.NID), false)
-                    : longName;
+                return string.IsNullOrEmpty(_longName)
+                    ? _longName = Native.PtrToStringAnsi(CryptoWrapper.OBJ_nid2ln(this.NID), false)
+                    : _longName;
             }
         }
 
-        public string shortName;
+        private string? _shortName;
         public string ShortName
         {
             get
             {
-                return string.IsNullOrEmpty(shortName)
-                    ? shortName = Native.PtrToStringAnsi(CryptoWrapper.OBJ_nid2sn(this.NID), false)
-                    : shortName;
+                return string.IsNullOrEmpty(_shortName)
+                    ? _shortName = Native.PtrToStringAnsi(CryptoWrapper.OBJ_nid2sn(this.NID), false)
+                    : _shortName;
             }
         }
 
-        internal IntPtr ShortNamePtr => this.ASN1ObjectWrapper.Handle.ShortName;
+        internal IntPtr ShortNamePtr => this._Handle.ShortName;
 
-        private ASN1Object()
-            : base()
-        { }
-
-        internal ASN1Object(ASN1ObjectInternal handleWarpper)
-            : this()
-        {
-            this.ASN1ObjectWrapper = handleWarpper;
-        }
+        internal readonly SafeAsn1ObjectHandle _Handle;
 
         internal ASN1Object(SafeAsn1ObjectHandle asn1Handle)
-            : this()
+            : base()
         {
-            this.ASN1ObjectWrapper = new ASN1ObjectInternal(asn1Handle);
+            this._Handle = asn1Handle;
         }
 
         public ASN1Object(int nid)
@@ -78,44 +69,23 @@ namespace OpenSSL.Core.ASN1
             : this(CreateHandle(name))
         { }
 
-        ~ASN1Object()
-        {
-            this.Dispose();
-        }
-
         internal static SafeAsn1ObjectHandle CreateHandle(int nid)
-        {
-            try
-            {
-                return Native.CryptoWrapper.OBJ_nid2obj(nid);
-            }
-            catch (Exception ex)
-            {
-                throw;
-            }
-        }
+            => Native.CryptoWrapper.OBJ_nid2obj(nid);
 
         internal static SafeAsn1ObjectHandle CreateHandle(string name)
         {
-            try
+            ReadOnlySpan<char> nameSpan = name.AsSpan();
+            unsafe
             {
-                ReadOnlySpan<char> nameSpan = name.AsSpan();
-                unsafe
+                fixed (char* ch = nameSpan)
                 {
-                    fixed (char* ch = nameSpan)
-                    {
-                        int count = Encoding.ASCII.GetEncoder().GetByteCount(ch, nameSpan.Length, false);
-                        //+ 1 to allow for null terminator
-                        byte* b = stackalloc byte[count + 1];
-                        Encoding.ASCII.GetEncoder().GetBytes(ch, nameSpan.Length, b, count, true);
-                        Span<byte> buf = new Span<byte>(b, count + 1);
-                        return Native.CryptoWrapper.OBJ_txt2obj(buf.GetPinnableReference(), 0);
-                    }
+                    int count = Encoding.ASCII.GetEncoder().GetByteCount(ch, nameSpan.Length, false);
+                    //+ 1 to allow for null terminator
+                    byte* b = stackalloc byte[count + 1];
+                    Encoding.ASCII.GetEncoder().GetBytes(ch, nameSpan.Length, b, count, true);
+                    Span<byte> buf = new Span<byte>(b, count + 1);
+                    return Native.CryptoWrapper.OBJ_txt2obj(buf.GetPinnableReference(), 0);
                 }
-            }
-            catch (Exception ex)
-            {
-                throw;
             }
         }
 

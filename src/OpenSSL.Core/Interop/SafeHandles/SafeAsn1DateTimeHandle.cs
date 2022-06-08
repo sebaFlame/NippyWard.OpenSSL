@@ -33,12 +33,12 @@ namespace OpenSSL.Core.Interop.SafeHandles
 {
 	internal abstract class SafeAsn1DateTimeHandle : SafeAsn1StringHandle
     {
-        public static SafeAsn1DateTimeHandle Zero
+        public new static SafeAsn1DateTimeHandle Zero
             => Native.SafeHandleFactory.CreateWrapperSafeHandle<SafeAsn1DateTimeHandle>(IntPtr.Zero);
 
         internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
 
-        private static OPENSSL_sk_freefunc _FreeFunc;
+        private static readonly OPENSSL_sk_freefunc _FreeFunc;
 
         static SafeAsn1DateTimeHandle()
         {

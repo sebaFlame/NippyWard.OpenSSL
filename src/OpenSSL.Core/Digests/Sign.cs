@@ -10,34 +10,23 @@ namespace OpenSSL.Core.Digests
 {
     public class Sign : DigestBase
     {
-        private bool finalized;
-
-        internal Sign(DigestInternal handleWarpper)
-            : base(handleWarpper) { }
-
         public Sign(DigestType digestType)
             : base(digestType)
         {
-            CryptoWrapper.EVP_SignInit(this.digestCtxHandle, this.DigestWrapper.Handle);
+            CryptoWrapper.EVP_SignInit(this.DigestCtxHandle, this._Handle);
         }
 
         public void Update(Span<byte> buffer)
         {
-            if (this.finalized)
-                throw new InvalidOperationException("Sign has already been finalized");
-
-            CryptoWrapper.EVP_SignUpdate(this.digestCtxHandle, buffer.GetPinnableReference(), (uint)buffer.Length);
+            CryptoWrapper.EVP_SignUpdate(this.DigestCtxHandle, buffer.GetPinnableReference(), (uint)buffer.Length);
         }
 
         public void Finalize(Key key, out Span<byte> signature)
         {
-            if (this.finalized)
-                throw new InvalidOperationException("Sign has already been finalized");
-
-            byte[] signBuf = new byte[CryptoWrapper.EVP_PKEY_size(key.KeyWrapper.Handle)];
+            byte[] signBuf = new byte[CryptoWrapper.EVP_PKEY_size(key._Handle)];
             Span<byte> signSpan = new Span<byte>(signBuf);
 
-            CryptoWrapper.EVP_SignFinal(this.digestCtxHandle, ref signSpan.GetPinnableReference(), out uint length, key.KeyWrapper.Handle);
+            CryptoWrapper.EVP_SignFinal(this.DigestCtxHandle, ref signSpan.GetPinnableReference(), out uint length, key._Handle);
             signature = signSpan.Slice(0, (int)length);
         }
     }

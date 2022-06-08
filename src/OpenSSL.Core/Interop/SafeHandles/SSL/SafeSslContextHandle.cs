@@ -41,7 +41,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.SSL
         /// </summary>
         internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
 
-        private static OPENSSL_sk_freefunc _FreeFunc;
+        private static readonly OPENSSL_sk_freefunc _FreeFunc;
 
         static SafeSslContextHandle()
         {

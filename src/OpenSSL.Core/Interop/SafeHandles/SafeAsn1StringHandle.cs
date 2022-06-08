@@ -42,7 +42,7 @@ namespace OpenSSL.Core.Interop.SafeHandles
         /// </summary>
         internal override OPENSSL_sk_freefunc FreeFunc => _FreeFunc;
 
-        private static OPENSSL_sk_freefunc _FreeFunc;
+        private static readonly OPENSSL_sk_freefunc _FreeFunc;
 
         static SafeAsn1StringHandle()
         {
@@ -89,9 +89,9 @@ namespace OpenSSL.Core.Interop.SafeHandles
 
 		#region IComparable<Asn1String> Members
 
-		public int CompareTo(SafeAsn1StringHandle other)
+		public int CompareTo(SafeAsn1StringHandle? other)
 		{
-			return CryptoWrapper.ASN1_STRING_cmp(this, other);
+			return CryptoWrapper.ASN1_STRING_cmp(this, other ?? SafeAsn1StringHandle.Zero);
 		}
 
 		#endregion

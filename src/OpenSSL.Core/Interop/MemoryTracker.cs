@@ -43,11 +43,11 @@ namespace OpenSSL.Core.Interop
 		/// <summary>
 		///
 		/// </summary>
-		public StackTrace StackTrace { get; set; }
+		public StackTrace? StackTrace { get; set; }
 		/// <summary>
 		///
 		/// </summary>
-		public string File { get; set; }
+		public string? File { get; set; }
 		/// <summary>
 		///
 		/// </summary>
@@ -61,7 +61,7 @@ namespace OpenSSL.Core.Interop
 		/// <returns></returns>
 		public override string ToString()
 		{
-			return string.Format($"{this.Type}: {this.Size} bytes, {this.FreeCount} count, {this.File}:{this.Line}\n{this.StackTrace.ToString()}");
+			return string.Format($"{this.Type}: {this.Size} bytes, {this.FreeCount} count, {this.File!}:{this.Line}\n{this.StackTrace!.ToString()}");
 		}
 	}
 
@@ -72,9 +72,9 @@ namespace OpenSSL.Core.Interop
 	{
 		private class Block
 		{
-			public string file;
+			public string? file;
 			public int line;
-			public StackTrace stack;
+			public StackTrace? stack;
 			public uint bytes;
 			public IntPtr ptr;
 			public bool skip;
@@ -87,21 +87,21 @@ namespace OpenSSL.Core.Interop
 		}
 
 		// These are used to pin the functions down so they don't get yanked while in use
-		static MallocFunctionPtr _ptrMalloc = malloc;
-		static ReallocFunctionPtr _ptrRealloc = realloc;
-		static FreeFunctionPtr _ptrFree = free;
+		static MallocFunctionPtr _PtrMalloc = malloc;
+		static ReallocFunctionPtr _PtrRealloc = realloc;
+		static FreeFunctionPtr _PtrFree = free;
 
-		static bool _tracking = false;
-		static Dictionary<IntPtr, Block> _memory = new Dictionary<IntPtr, Block>();
-        static bool initialized;
+		static bool _Tracking = false;
+		static Dictionary<IntPtr, Block> _Memory = new Dictionary<IntPtr, Block>();
+        static bool _Initialized;
 
 		/// <summary>
 		/// Initialize memory routines
 		/// </summary>
 		public static void Init()
 		{
-            Native.CryptoWrapper.CRYPTO_set_mem_functions(_ptrMalloc, _ptrRealloc, _ptrFree);
-            initialized = true;
+            Native.CryptoWrapper.CRYPTO_set_mem_functions(_PtrMalloc, _PtrRealloc, _PtrFree);
+            _Initialized = true;
 		}
 
 		/// <summary>
@@ -109,13 +109,13 @@ namespace OpenSSL.Core.Interop
 		/// </summary>
 		public static void Start()
 		{
-            if (!initialized)
+            if (!_Initialized)
                 return;
 
-			lock (_memory)
+			lock (_Memory)
 			{
-				_tracking = true;
-				foreach (var item in _memory)
+				_Tracking = true;
+				foreach (var item in _Memory)
 				{
 					item.Value.skip = true;
 				}
@@ -127,14 +127,14 @@ namespace OpenSSL.Core.Interop
 		/// </summary>
 		public static List<MemoryProblem> Finish()
 		{
-            if (!initialized)
+            if (!_Initialized)
                 return Enumerable.Empty<MemoryProblem>().ToList();
 
             GC.Collect();
 			GC.WaitForPendingFinalizers();
 			GC.Collect();
 
-			_tracking = false;
+			_Tracking = false;
 
 			return Flush();
 		}
@@ -143,11 +143,11 @@ namespace OpenSSL.Core.Interop
 		{
 			var problems = new List<MemoryProblem>();
 
-			lock (_memory)
+			lock (_Memory)
 			{
 				var frees = new List<Block>();
 
-				foreach (var item in _memory)
+				foreach (var item in _Memory)
 				{
 					var block = item.Value;
 					if (block.skip)
@@ -179,7 +179,7 @@ namespace OpenSSL.Core.Interop
 				foreach (var block in frees)
 				{
 					Marshal.FreeHGlobal(block.ptr);
-					_memory.Remove(block.ptr);
+					_Memory.Remove(block.ptr);
 				}
 			}
 
@@ -188,7 +188,7 @@ namespace OpenSSL.Core.Interop
 
 		static IntPtr malloc(nuint num, IntPtr file, int line)
 		{
-			lock (_memory)
+			lock (_Memory)
 			{
                 var block = new Block
                 {
@@ -197,29 +197,29 @@ namespace OpenSSL.Core.Interop
                     stack = new StackTrace(true),
                     bytes = (uint)num,
                     ptr = Marshal.AllocHGlobal((int)num),
-                    count = _tracking ? 0 : 1
+                    count = _Tracking ? 0 : 1
 				};
-				_memory.Add(block.ptr, block);
+				_Memory.Add(block.ptr, block);
 				return block.ptr;
 			}
 		}
 
         static IntPtr free(IntPtr addr, IntPtr file, int line)
 		{
-			lock (_memory)
+			lock (_Memory)
 			{
-				Block block;
-				if (!_memory.TryGetValue(addr, out block))
+				Block? block;
+				if (!_Memory.TryGetValue(addr, out block))
 					return addr;
 
-                if (_tracking)
+                if (_Tracking)
 				{
 					block.count++;
 				}
 				else
 				{
 					Marshal.FreeHGlobal(addr);
-					_memory.Remove(addr);
+					_Memory.Remove(addr);
 				}
 
                 return block.ptr;
@@ -228,9 +228,9 @@ namespace OpenSSL.Core.Interop
 
 		static IntPtr realloc(IntPtr addr, nuint num, IntPtr file, int line)
 		{
-			lock (_memory)
+			lock (_Memory)
 			{
-				if (!_memory.Remove(addr))
+				if (!_Memory.Remove(addr))
 					return malloc(num, file, line);
 
 				var block = new Block
@@ -240,10 +240,10 @@ namespace OpenSSL.Core.Interop
 					line = line,
 					bytes = (uint)num,
 					ptr = Marshal.ReAllocHGlobal(addr, (IntPtr)((int)num)),
-                    count = _tracking ? 0 : 1
+                    count = _Tracking ? 0 : 1
                 };
 
-				_memory.Add(block.ptr, block);
+				_Memory.Add(block.ptr, block);
 				return block.ptr;
 			}
 		}

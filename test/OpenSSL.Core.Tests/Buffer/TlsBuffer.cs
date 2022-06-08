@@ -69,7 +69,7 @@ namespace OpenSSL.Core.SSL.Buffer
             this._unconsumedBytes += count;
             this._writingHeadMemory = this._writingHeadMemory.Slice(count);
 
-            this._writingHead.End += count;
+            this._writingHead!.End += count;
 
             // Always move the read tail to the write head
             this._readTail = this._writingHead;
@@ -277,14 +277,16 @@ namespace OpenSSL.Core.SSL.Buffer
         {
             // No need to read end if there is no head
             TlsBufferSegment? head = this._readHead;
-            if (head != null)
+            TlsBufferSegment? tail = this._readTail;
+            if (head != null
+                && tail != null)
             {
                 // Reading commit head shared with writer
                 readOnlySequence = new ReadOnlySequence<byte>
                 (
                     head,
                     this._readHeadIndex,
-                    this._readTail,
+                    tail,
                     this._readTailIndex
                 );
             }

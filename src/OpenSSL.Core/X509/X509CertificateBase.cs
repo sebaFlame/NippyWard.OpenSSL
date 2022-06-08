@@ -17,11 +17,11 @@ namespace OpenSSL.Core.X509
 {
     public abstract class X509CertificateBase : OpenSslWrapperBase, IFile
     {
-        private X509Name x509name;
-        internal X509Name X509Name => x509name ?? (x509name = new X509Name(this.GetSubject()));
+        private X509Name? _x509name;
+        internal X509Name X509Name => _x509name ?? (_x509name = new X509Name(this.GetSubject()));
 
-        private PrivateKey publicKey;
-        public PrivateKey PublicKey => this.publicKey ?? (this.publicKey = this.GetPublicKey());
+        private PrivateKey? _publicKey;
+        public PrivateKey PublicKey => this._publicKey ?? (this._publicKey = this.GetPublicKey());
 
         #region Properties
 
@@ -115,25 +115,6 @@ namespace OpenSSL.Core.X509
             : base()
         { }
 
-        public X509CertificateBase(int bits)
-            : this()
-        {
-            using (RSAKey key = new RSAKey(1024))
-            {
-                key.GenerateKey();
-
-                this.CreateSafeHandle();
-                this.SetPublicKey(key);
-            }
-        }
-
-        public X509CertificateBase(PrivateKey privateKey)
-            : this()
-        {
-            this.CreateSafeHandle();
-            this.SetPublicKey(privateKey);
-        }
-
         #region Methods
 
         public void Sign(Key key, DigestType digestType)
@@ -141,7 +122,7 @@ namespace OpenSSL.Core.X509
             SafeMessageDigestHandle md;
             using (md = CryptoWrapper.EVP_get_digestbyname(digestType.ShortNamePtr))
             {
-                this.Sign(key.KeyWrapper.Handle, md);
+                this.Sign(key._Handle, md);
             }
         }
 
@@ -196,7 +177,6 @@ namespace OpenSSL.Core.X509
 
         #region Abstract method overrides
 
-        internal abstract void CreateSafeHandle();
         internal abstract PrivateKey GetPublicKey();
         internal abstract void SetPublicKey(PrivateKey privateKey);
 
@@ -207,8 +187,8 @@ namespace OpenSSL.Core.X509
 
         protected override void Dispose(bool disposing)
         {
-            if (!(this.x509name is null))
-                this.x509name.Dispose();
+            //not needed, should never take ownership
+            this._x509name?.Dispose();
         }
     }
 }

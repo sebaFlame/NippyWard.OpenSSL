@@ -45,26 +45,26 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
 			public IntPtr comment;
 		}
 
-        private List<string> list;
-        private List<ECCurveType> curves;
+        private readonly List<string> _list;
+        private readonly List<ECCurveType> _curves;
 
-        public List<string> Result { get { return list; } }
+        public List<string> Result { get { return _list; } }
 
         public BuiltinCurves()
         {
-            this.Get();
-            this.list = this.curves.Select(x => x.ShortName).ToList();
+            this._curves = this.Get();
+            this._list = this._curves.Select(x => x.ShortName).ToList();
         }
 
         /// <summary>
         /// Calls EC_get_builtin_curves()
         /// </summary>
         /// <returns></returns>
-        private void Get()
+        private List<ECCurveType> Get()
 		{
             nuint count = Native.CryptoWrapper.EC_get_builtin_curves(IntPtr.Zero, 0);
             IntPtr ptr = Marshal.AllocHGlobal(Marshal.SizeOf<EC_builtin_curve>() * (int)count);
-            curves = new List<ECCurveType>();
+            List<ECCurveType> curves = new List<ECCurveType>();
 
             try
             {
@@ -74,7 +74,7 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
                 for (int i = 0; i < (int)count; i++)
                 {
                     var raw = Marshal.PtrToStructure<EC_builtin_curve>(pItem);
-                    curves.Add(new ECCurveType(Marshal.ReadInt32(pItem)));
+                    _curves.Add(new ECCurveType(Marshal.ReadInt32(pItem)));
                     pItem = new IntPtr(pItem.ToInt64() + Marshal.SizeOf<EC_builtin_curve>());
                 }
             }
@@ -82,6 +82,8 @@ namespace OpenSSL.Core.Interop.SafeHandles.Crypto.EC
             {
                 Marshal.FreeHGlobal(ptr);
             }
+
+            return curves;
         }
 	}
 }

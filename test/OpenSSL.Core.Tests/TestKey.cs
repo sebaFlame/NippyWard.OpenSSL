@@ -98,14 +98,12 @@ namespace OpenSSL.Core.Tests
 		{
 			using (RSAKey lhs = new RSAKey(1024))
 			{
-				lhs.GenerateKey();
-				using (Key rhs = PrivateKey.GetCorrectKey(lhs.KeyWrapper.Handle))
+				using (Key rhs = PrivateKey.GetCorrectKey(lhs._Handle))
 				{
 					Assert.Equal(lhs, rhs);
 
 					using (RSAKey rsa2 = new RSAKey(1024))
 					{
-						rsa2.GenerateKey();
 						Assert.NotEqual(lhs, rsa2);
 					}
 				}
@@ -119,8 +117,6 @@ namespace OpenSSL.Core.Tests
         {
             using (RSAKey key = new RSAKey(1024))
             {
-                key.GenerateKey();
-
                 EncryptDecrypt(key, str);
             }
         }
@@ -130,14 +126,12 @@ namespace OpenSSL.Core.Tests
 		{
 			using (DSAKey lhs = new DSAKey(1024))
             {
-                lhs.GenerateKey();
-                using (Key rhs = PrivateKey.GetCorrectKey(lhs.KeyWrapper.Handle))
+                using (Key rhs = PrivateKey.GetCorrectKey(lhs._Handle))
                 {
                     Assert.Equal(lhs, rhs);
 
                     using(DSAKey dsa2 = new DSAKey(1024))
                     {
-                        dsa2.GenerateKey();
                         Assert.NotEqual(lhs, dsa2);
                     }
                 }
@@ -149,14 +143,12 @@ namespace OpenSSL.Core.Tests
 		{
             using (DHKey lhs = new DHKey(32, 2))
             {
-                lhs.GenerateKey();
-                using (Key rhs = PrivateKey.GetCorrectKey(lhs.KeyWrapper.Handle))
+                using (Key rhs = PrivateKey.GetCorrectKey(lhs._Handle))
                 {
                     Assert.Equal(lhs, rhs);
 
                     using (DHKey dsa2 = new DHKey(32, 2))
                     {
-                        dsa2.GenerateKey();
                         Assert.NotEqual(lhs, dsa2);
                     }
                 }
@@ -168,15 +160,12 @@ namespace OpenSSL.Core.Tests
 		{
 			using (ECKey lhs = new ECKey(ECCurveType.prime256v1))
 			{
-				lhs.GenerateKey();
-
-                using (Key rhs = PrivateKey.GetCorrectKey(lhs.KeyWrapper.Handle))
+                using (Key rhs = PrivateKey.GetCorrectKey(lhs._Handle))
                 {
                     Assert.Equal(lhs, rhs);
 
                     using (ECKey ec2 = new ECKey(ECCurveType.prime256v1))
                     {
-                        ec2.GenerateKey();
                         Assert.NotEqual(lhs, ec2);
                     }
                 }
@@ -188,8 +177,6 @@ namespace OpenSSL.Core.Tests
         {
             using (RSAKey key = new RSAKey(1024))
             {
-                key.GenerateKey();
-
                 using (MemoryStream ms = new MemoryStream())
                 {
                     //TODO: verify
@@ -203,8 +190,6 @@ namespace OpenSSL.Core.Tests
         {
             using (RSAKey key = new RSAKey(1024))
             {
-                key.GenerateKey();
-
                 using (MemoryStream ms = new MemoryStream())
                 {
                     //TODO: verify
