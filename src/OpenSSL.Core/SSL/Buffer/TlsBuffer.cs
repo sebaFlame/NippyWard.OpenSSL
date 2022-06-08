@@ -34,6 +34,8 @@ namespace OpenSSL.Core.SSL.Buffer
         private TlsBufferSegment? _writingHead;
         private Memory<byte> _writingHeadMemory;
 
+        private readonly object _lock;
+
         private const int _MinimumSegmentSize = 4096;
         private const int _MaxSegmentPoolSize = 256;
         private const int _InitialSegmentPoolSize = 4;
@@ -43,6 +45,7 @@ namespace OpenSSL.Core.SSL.Buffer
             this._pool = pool ?? MemoryPool<byte>.Shared;            
             this._bufferSegmentPool = new TlsBufferSegmentStack(_InitialSegmentPoolSize);
             this._isDefaultSharedMemoryPool = pool == MemoryPool<byte>.Shared;
+            this._lock = new object();
         }
 
         public TlsBuffer()
@@ -66,14 +69,17 @@ namespace OpenSSL.Core.SSL.Buffer
 
         public void Advance(int count)
         {
-            this._unconsumedBytes += count;
-            this._writingHeadMemory = this._writingHeadMemory.Slice(count);
+            lock (this._lock)
+            {
+                this._unconsumedBytes += count;
+                this._writingHeadMemory = this._writingHeadMemory.Slice(count);
 
-            this._writingHead!.End += count;
+                this._writingHead!.End += count;
 
-            // Always move the read tail to the write head
-            this._readTail = this._writingHead;
-            this._readTailIndex = this._writingHead.End;
+                // Always move the read tail to the write head
+                this._readTail = this._writingHead;
+                this._readTailIndex = this._writingHead.End;
+            }
         }
         #endregion
 
@@ -88,25 +94,28 @@ namespace OpenSSL.Core.SSL.Buffer
 
         private void AllocateWriteHeadSynchronized(int sizeHint)
         {
-            if (this._writingHead == null)
+            lock(this._lock)
             {
-                // We need to allocate memory to write since nobody has written before
-                TlsBufferSegment newSegment = this.AllocateSegment(sizeHint);
-
-                // Set all the pointers
-                this._writingHead = this._readHead = this._readTail = newSegment;
-                this._lastExaminedIndex = 0;
-            }
-            else
-            {
-                int bytesLeftInBuffer = this._writingHeadMemory.Length;
-
-                if (bytesLeftInBuffer == 0 || bytesLeftInBuffer < sizeHint)
+                if (this._writingHead == null)
                 {
+                    // We need to allocate memory to write since nobody has written before
                     TlsBufferSegment newSegment = this.AllocateSegment(sizeHint);
 
-                    this._writingHead.SetNext(newSegment);
-                    this._writingHead = newSegment;
+                    // Set all the pointers
+                    this._writingHead = this._readHead = this._readTail = newSegment;
+                    this._lastExaminedIndex = 0;
+                }
+                else
+                {
+                    int bytesLeftInBuffer = this._writingHeadMemory.Length;
+
+                    if (bytesLeftInBuffer == 0 || bytesLeftInBuffer < sizeHint)
+                    {
+                        TlsBufferSegment newSegment = this.AllocateSegment(sizeHint);
+
+                        this._writingHead.SetNext(newSegment);
+                        this._writingHead = newSegment;
+                    }
                 }
             }
         }
@@ -185,60 +194,68 @@ namespace OpenSSL.Core.SSL.Buffer
             TlsBufferSegment? returnStart = null;
             TlsBufferSegment? returnEnd = null;
 
-            bool examinedEverything = false;
-            if (examinedSegment == this._readTail)
+            lock(this._lock)
             {
-                examinedEverything = examinedIndex == this._readTailIndex;
-            }
-
-            if (examinedSegment != null && _lastExaminedIndex >= 0)
-            {
-                long examinedBytes = TlsBufferSegment.GetLength(_lastExaminedIndex, examinedSegment, examinedIndex);
-                long oldLength = this._unconsumedBytes;
-
-                if (examinedBytes < 0)
+                bool examinedEverything = false;
+                if (examinedSegment == this._readTail)
                 {
-                    throw new InvalidOperationException("Invalid examined position");
+                    examinedEverything = examinedIndex == this._readTailIndex;
                 }
 
-                this._unconsumedBytes -= examinedBytes;
-
-                // Store the absolute position
-                this._lastExaminedIndex = examinedSegment.RunningIndex + examinedIndex;
-            }
-
-            if (consumedSegment != null)
-            {
-                if (this._readHead == null)
+                if (examinedSegment != null && _lastExaminedIndex >= 0)
                 {
-                    throw new InvalidOperationException("Advanced to invalid cursor");
-                }
+                    long examinedBytes = TlsBufferSegment.GetLength(_lastExaminedIndex, examinedSegment, examinedIndex);
+                    long oldLength = this._unconsumedBytes;
 
-                returnStart = _readHead;
-                returnEnd = consumedSegment;
-
-                void MoveReturnEndToNextBlock()
-                {
-                    TlsBufferSegment? nextBlock = returnEnd!.NextSegment;
-                    if (this._readTail == returnEnd)
+                    if (examinedBytes < 0)
                     {
-                        this._readTail = nextBlock;
-                        this._readTailIndex = 0;
+                        throw new InvalidOperationException("Invalid examined position");
                     }
 
-                    this._readHead = nextBlock;
-                    this._readHeadIndex = 0;
+                    this._unconsumedBytes -= examinedBytes;
 
-                    returnEnd = nextBlock;
+                    // Store the absolute position
+                    this._lastExaminedIndex = examinedSegment.RunningIndex + examinedIndex;
                 }
 
-                if (consumedIndex == returnEnd.Length)
+                if (consumedSegment != null)
                 {
-                    // If the writing head isn't block we're about to return, then we can move to the next one
-                    // and return this block safely
-                    if (this._writingHead != returnEnd)
+                    if (this._readHead == null)
                     {
-                        MoveReturnEndToNextBlock();
+                        throw new InvalidOperationException("Advanced to invalid cursor");
+                    }
+
+                    returnStart = _readHead;
+                    returnEnd = consumedSegment;
+
+                    void MoveReturnEndToNextBlock()
+                    {
+                        TlsBufferSegment? nextBlock = returnEnd!.NextSegment;
+                        if (this._readTail == returnEnd)
+                        {
+                            this._readTail = nextBlock;
+                            this._readTailIndex = 0;
+                        }
+
+                        this._readHead = nextBlock;
+                        this._readHeadIndex = 0;
+
+                        returnEnd = nextBlock;
+                    }
+
+                    if (consumedIndex == returnEnd.Length)
+                    {
+                        // If the writing head isn't block we're about to return, then we can move to the next one
+                        // and return this block safely
+                        if (this._writingHead != returnEnd)
+                        {
+                            MoveReturnEndToNextBlock();
+                        }
+                        else
+                        {
+                            this._readHead = consumedSegment;
+                            this._readHeadIndex = consumedIndex;
+                        }
                     }
                     else
                     {
@@ -246,19 +263,14 @@ namespace OpenSSL.Core.SSL.Buffer
                         this._readHeadIndex = consumedIndex;
                     }
                 }
-                else
-                {
-                    this._readHead = consumedSegment;
-                    this._readHeadIndex = consumedIndex;
-                }
-            }
 
-            while (returnStart != null && returnStart != returnEnd)
-            {
-                TlsBufferSegment? next = returnStart.NextSegment;
-                returnStart.ResetMemory();
-                this.ReturnSegmentUnsynchronized(returnStart);
-                returnStart = next;
+                while (returnStart != null && returnStart != returnEnd)
+                {
+                    TlsBufferSegment? next = returnStart.NextSegment;
+                    returnStart.ResetMemory();
+                    this.ReturnSegmentUnsynchronized(returnStart);
+                    returnStart = next;
+                }
             }
         }
 
@@ -275,24 +287,24 @@ namespace OpenSSL.Core.SSL.Buffer
         /// </summary>
         public void CreateReadOnlySequence(out ReadOnlySequence<byte> readOnlySequence)
         {
-            // No need to read end if there is no head
-            TlsBufferSegment? head = this._readHead;
-            TlsBufferSegment? tail = this._readTail;
-            if (head != null
-                && tail != null)
+            lock(this._lock)
             {
-                // Reading commit head shared with writer
-                readOnlySequence = new ReadOnlySequence<byte>
-                (
-                    head,
-                    this._readHeadIndex,
-                    tail,
-                    this._readTailIndex
-                );
-            }
-            else
-            {
-                readOnlySequence = default;
+                if (this._readHead != null
+                    && this._readTail != null)
+                {
+                    // Reading commit head shared with writer
+                    readOnlySequence = new ReadOnlySequence<byte>
+                    (
+                        this._readHead,
+                        this._readHeadIndex,
+                        this._readTail,
+                        this._readTailIndex
+                    );
+                }
+                else
+                {
+                    readOnlySequence = default;
+                }
             }
         }
     }
