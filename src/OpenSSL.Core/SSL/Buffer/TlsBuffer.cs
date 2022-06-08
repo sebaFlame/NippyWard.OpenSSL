@@ -40,7 +40,7 @@ namespace OpenSSL.Core.SSL.Buffer
         private const int _MaxSegmentPoolSize = 256;
         private const int _InitialSegmentPoolSize = 4;
 
-        public TlsBuffer(MemoryPool<byte> pool)
+        public TlsBuffer(MemoryPool<byte>? pool)
         {
             this._pool = pool ?? MemoryPool<byte>.Shared;            
             this._bufferSegmentPool = new TlsBufferSegmentStack(_InitialSegmentPoolSize);
