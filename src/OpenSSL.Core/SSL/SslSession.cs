@@ -19,6 +19,11 @@ namespace OpenSSL.Core.SSL
 
         internal SslSession(SafeSslSessionHandle sessionHandle)
         {
+            //add extra reference for multiple uses (each SslSession instance)
+            //to this unique SafeSslSessionHandle, to allow for clean disposal
+            sessionHandle.AddReference();
+
+            //create a new safe handle which owns the ptr
             this._Handle = Native.SafeHandleFactory.CreateTakeOwnershipSafeHandle<SafeSslSessionHandle>(sessionHandle.DangerousGetHandle());
         }
 
