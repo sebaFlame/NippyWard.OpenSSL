@@ -11,6 +11,14 @@
 	<!--<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>-->
   </PropertyGroup>
 
+  <!-- nupkg -->
+  <ItemGroup>
+	  <Content Include="Directory.Build.props">
+	    <PackagePath>build/net6.0/OpenSSL.Core.props</PackagePath>
+	    <Pack>true</Pack>
+	  </Content>
+  </ItemGroup>
+
   <!-- Source Generator -->
   <ItemGroup>
 	  <ProjectReference Include="..\OpenSSL.Core.Generator\OpenSSL.Core.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
