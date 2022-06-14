@@ -1,0 +1,10 @@
+<Project TreatAsLocalProperty="TaskFolder;TaskAssembly">
+  <PropertyGroup>
+    <TaskFolder Condition=" '$(MSBuildRuntimeType)' == 'Core' ">netstandard2.0</TaskFolder>
+    <TaskFolder Condition=" '$(MSBuildRuntimeType)' != 'Core' ">net46</TaskFolder>
+    <TaskAssembly>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\$(TaskFolder)\NippyWard.OpenSSL.Tasks.dll</TaskAssembly>
+  </PropertyGroup>
+
+  <UsingTask TaskName="NippyWard.OpenSSL.Tasks.WebDownload" AssemblyFile="$(TaskAssembly)" />
+  <UsingTask TaskName="NippyWard.OpenSSL.Tasks.Unzip" AssemblyFile="$(TaskAssembly)" />
+</Project>

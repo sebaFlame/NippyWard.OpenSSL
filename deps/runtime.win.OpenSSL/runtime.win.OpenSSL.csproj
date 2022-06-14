@@ -16,10 +16,10 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <ProjectReference Include="..\OpenSSL.Core.Tasks\OpenSSL.Core.Tasks.csproj" PrivateAssets="All" />
+    <ProjectReference Include="..\NippyWard.OpenSSL.Tasks\NippyWard.OpenSSL.Tasks.csproj" PrivateAssets="All" />
   </ItemGroup>
 
-  <Import Project="..\OpenSSL.Core.Tasks\build\OpenSSL.Core.Tasks.props" />
+  <Import Project="..\NippyWard.OpenSSL.Tasks\build\NippyWard.OpenSSL.Tasks.props" />
   
   <Target Name="DownloadAndExtractNativeLibraries" BeforeTargets="ResolveReferences" Condition="!Exists('x64\libcrypto-1_1-x64.dll')">
     <MakeDir Directories="x64" />

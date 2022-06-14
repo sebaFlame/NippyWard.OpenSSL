@@ -1,3 +1,0 @@
-<Project>
-  <Import Project="..\build\OpenSSL.Core.Tasks.props" />
-</Project>

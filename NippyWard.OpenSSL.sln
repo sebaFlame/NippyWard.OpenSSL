@@ -1,0 +1,67 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32112.339
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{CF69F85A-EE31-4C07-961D-59FD74D5164F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{86056B93-52B4-454D-88AD-D87E5244CF01}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "deps", "deps", "{CE9EFD69-1B4E-43FE-B095-B05922BE6B4C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NippyWard.OpenSSL", "src\NippyWard.OpenSSL\NippyWard.OpenSSL.csproj", "{3C43E9DD-033F-42BD-8F76-BCB7272EBBDD}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NippyWard.OpenSSL.Tests", "test\NippyWard.OpenSSL.Tests\NippyWard.OpenSSL.Tests.csproj", "{45792643-02E9-49BB-9622-D6401DC2B045}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NippyWard.OpenSSL.Tasks", "deps\NippyWard.OpenSSL.Tasks\NippyWard.OpenSSL.Tasks.csproj", "{FEA4B0F2-97F6-4D49-811F-49011F1C52C9}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "runtime.win.OpenSSL", "deps\runtime.win.OpenSSL\runtime.win.OpenSSL.csproj", "{C90FD21E-658D-4F85-8109-3F96DD87A3E2}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NippyWard.OpenSSL.Generator", "src\NippyWard.OpenSSL.Generator\NippyWard.OpenSSL.Generator.csproj", "{62D1A4B5-9BDC-4FF4-88CE-7033EC3F707F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2393BF84-28D1-404A-A3A9-E054B6CD5369}"
+	ProjectSection(SolutionItems) = preProject
+		Directory.Build.props = Directory.Build.props
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3C43E9DD-033F-42BD-8F76-BCB7272EBBDD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3C43E9DD-033F-42BD-8F76-BCB7272EBBDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3C43E9DD-033F-42BD-8F76-BCB7272EBBDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3C43E9DD-033F-42BD-8F76-BCB7272EBBDD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{45792643-02E9-49BB-9622-D6401DC2B045}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45792643-02E9-49BB-9622-D6401DC2B045}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45792643-02E9-49BB-9622-D6401DC2B045}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45792643-02E9-49BB-9622-D6401DC2B045}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FEA4B0F2-97F6-4D49-811F-49011F1C52C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FEA4B0F2-97F6-4D49-811F-49011F1C52C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FEA4B0F2-97F6-4D49-811F-49011F1C52C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FEA4B0F2-97F6-4D49-811F-49011F1C52C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C90FD21E-658D-4F85-8109-3F96DD87A3E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C90FD21E-658D-4F85-8109-3F96DD87A3E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C90FD21E-658D-4F85-8109-3F96DD87A3E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C90FD21E-658D-4F85-8109-3F96DD87A3E2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{62D1A4B5-9BDC-4FF4-88CE-7033EC3F707F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{62D1A4B5-9BDC-4FF4-88CE-7033EC3F707F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{62D1A4B5-9BDC-4FF4-88CE-7033EC3F707F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{62D1A4B5-9BDC-4FF4-88CE-7033EC3F707F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{3C43E9DD-033F-42BD-8F76-BCB7272EBBDD} = {CF69F85A-EE31-4C07-961D-59FD74D5164F}
+		{45792643-02E9-49BB-9622-D6401DC2B045} = {86056B93-52B4-454D-88AD-D87E5244CF01}
+		{FEA4B0F2-97F6-4D49-811F-49011F1C52C9} = {CE9EFD69-1B4E-43FE-B095-B05922BE6B4C}
+		{C90FD21E-658D-4F85-8109-3F96DD87A3E2} = {CE9EFD69-1B4E-43FE-B095-B05922BE6B4C}
+		{62D1A4B5-9BDC-4FF4-88CE-7033EC3F707F} = {CF69F85A-EE31-4C07-961D-59FD74D5164F}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7147BF76-CA95-43FE-A81E-F24865F20FD8}
+	EndGlobalSection
+EndGlobal

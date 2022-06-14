@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <DebugType>portable</DebugType>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>NippyWard.OpenSSL.Tests</AssemblyName>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NippyWard.OpenSSL\NippyWard.OpenSSL.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1" />
+    <PackageReference Include="xunit" Version="2.4.1" />
+    <PackageReference Include="System.IO.Pipelines" Version="6.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="certs/*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- Disable multi-threaded test run -->
+  <ItemGroup Condition="'$(EnableMemoryTracker)' == 'true'">
+    <None Update="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- Remove multi-threaded tests -->
+    <Compile Remove="TestSSLBufferThreading.cs" />
+  </ItemGroup>
+
+</Project>
