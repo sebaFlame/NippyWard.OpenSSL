@@ -54,6 +54,7 @@ namespace NippyWard.OpenSSL.Interop.SafeHandles.X509
             public IntPtr crl;
             public IntPtr db_meth;
             public IntPtr db;
+            public IntPtr issuer_pkey;
         }
         #endregion
     }

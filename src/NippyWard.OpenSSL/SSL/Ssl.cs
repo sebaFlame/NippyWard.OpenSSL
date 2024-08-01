@@ -1538,7 +1538,7 @@ namespace NippyWard.OpenSSL.SSL
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static ReadOnlySpan<byte> SliceReadableSpan
         (
-            in ReadOnlySpan<byte> readableBuffer,
+            ReadOnlySpan<byte> readableBuffer,
             int index,
             int maxLength
         )
@@ -1557,7 +1557,7 @@ namespace NippyWard.OpenSSL.SSL
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Span<byte> SliceSpan
         (
-            in Span<byte> writableBuffer,
+            Span<byte> writableBuffer,
             int index,
             int maxLength
         )

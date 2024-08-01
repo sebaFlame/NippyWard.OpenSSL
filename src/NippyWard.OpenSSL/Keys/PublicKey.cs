@@ -9,7 +9,7 @@ namespace NippyWard.OpenSSL.Keys
 {
     public class PublicKey : Key, IPublicKey
     {
-        public override KeyType KeyType => (KeyType)CryptoWrapper.EVP_PKEY_base_id(this._Handle);
+        public override KeyType KeyType => (KeyType)CryptoWrapper.EVP_PKEY_get_base_id(this._Handle);
 
         internal PublicKey(SafeKeyHandle keyHandle)
             : base(keyHandle)

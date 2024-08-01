@@ -65,7 +65,7 @@ namespace NippyWard.OpenSSL.Ciphers
             for (int i = 0; i < this.publicKeys.Length; i++)
             {
                 keyHandles[i] = (this.publicKeys[i] as Key)!._Handle.DangerousGetHandle();
-                ek[i] = Marshal.AllocHGlobal(CryptoWrapper.EVP_PKEY_size((this.publicKeys[i] as Key)!._Handle));
+                ek[i] = Marshal.AllocHGlobal(CryptoWrapper.EVP_PKEY_get_size((this.publicKeys[i] as Key)!._Handle));
             }
 
             Span<int> lenSpan = new Span<int>(keyLengths);

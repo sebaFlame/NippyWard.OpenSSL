@@ -141,13 +141,13 @@ namespace NippyWard.OpenSSL.Tests
         [Fact]
 		public void CanCompareDH()
 		{
-            using (DHKey lhs = new DHKey(32, 2))
+            using (DHKey lhs = new DHKey(1024, 2))
             {
                 using (Key rhs = PrivateKey.GetCorrectKey(lhs._Handle))
                 {
                     Assert.Equal(lhs, rhs);
 
-                    using (DHKey dsa2 = new DHKey(32, 2))
+                    using (DHKey dsa2 = new DHKey(1024, 2))
                     {
                         Assert.NotEqual(lhs, dsa2);
                     }

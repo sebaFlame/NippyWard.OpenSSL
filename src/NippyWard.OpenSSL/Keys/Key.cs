@@ -27,8 +27,8 @@ namespace NippyWard.OpenSSL.Keys
 
         public abstract KeyType KeyType { get; }
 
-        public int Bits => CryptoWrapper.EVP_PKEY_bits(this._Handle);
-        public int Size => CryptoWrapper.EVP_PKEY_size(this._Handle);
+        public int Bits => CryptoWrapper.EVP_PKEY_get_bits(this._Handle);
+        public int Size => CryptoWrapper.EVP_PKEY_get_size(this._Handle);
 
         internal readonly SafeKeyHandle _Handle;
 

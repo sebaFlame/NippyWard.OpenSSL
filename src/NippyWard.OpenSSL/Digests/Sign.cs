@@ -23,7 +23,7 @@ namespace NippyWard.OpenSSL.Digests
 
         public void Finalize(Key key, out Span<byte> signature)
         {
-            byte[] signBuf = new byte[CryptoWrapper.EVP_PKEY_size(key._Handle)];
+            byte[] signBuf = new byte[CryptoWrapper.EVP_PKEY_get_size(key._Handle)];
             Span<byte> signSpan = new Span<byte>(signBuf);
 
             CryptoWrapper.EVP_SignFinal(this.DigestCtxHandle, ref signSpan.GetPinnableReference(), out uint length, key._Handle);

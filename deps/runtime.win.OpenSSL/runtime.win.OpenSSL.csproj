@@ -2,17 +2,17 @@
 
   <PropertyGroup>
     <Description>A toolkit implementing SSL v2/v3 and TLS protocols with full-strength cryptography world-wide.</Description>
-    <VersionPrefix>1.1.1-n</VersionPrefix>
+    <VersionPrefix>3.3.1</VersionPrefix>
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageId>runtime.win.OpenSSL</PackageId>
     <PackageTags>openssl;cryptography</PackageTags>
-	  <IncludeBuildOutput>false</IncludeBuildOutput>
-	  <RuntimeIdentifiers>win7-x86;win7-x64;win8-x86;win8-x64;win81-x86;win81-x64;win10-x86;win10-x64</RuntimeIdentifiers>
+	<IncludeBuildOutput>false</IncludeBuildOutput>
+	<RuntimeIdentifiers>win7-x86;win7-x64;win8-x86;win8-x64;win81-x86;win81-x64;win10-x86;win10-x64;win11-x64;win-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <PropertyGroup>
-    <x86FileName>openssl-1.1.1n-win32.zip</x86FileName>
-    <x64FileName>openssl-1.1.1n-win64.zip</x64FileName>
+    <x86FileName>openssl-3.3.1-win32.zip</x86FileName>
+    <x64FileName>openssl-3.3.1-win64.zip</x64FileName>
   </PropertyGroup>
   
   <ItemGroup>
@@ -21,17 +21,17 @@
 
   <Import Project="..\NippyWard.OpenSSL.Tasks\build\NippyWard.OpenSSL.Tasks.props" />
   
-  <Target Name="DownloadAndExtractNativeLibraries" BeforeTargets="ResolveReferences" Condition="!Exists('x64\libcrypto-1_1-x64.dll')">
+  <Target Name="DownloadAndExtractNativeLibraries" BeforeTargets="ResolveReferences" Condition="!Exists('x64\libcrypto-3-x64.dll')">
     <MakeDir Directories="x64" />
     <MakeDir Directories="x86" />
 	
     <WebDownload FileUri="http://wiki.overbyte.eu/arch/$(x64FileName)" FileName="x64/$(x64FileName)" />
     <WebDownload FileUri="http://wiki.overbyte.eu/arch/$(x86FileName)" FileName="x86/$(x86FileName)" />
     
-    <Unzip ZipFileName="x64/$(x64FileName)" ExtractFile="libcrypto-1_1-x64.dll" TargetDirectory="x64" />
-    <Unzip ZipFileName="x64/$(x64FileName)" ExtractFile="libssl-1_1-x64.dll" TargetDirectory="x64" />
-    <Unzip ZipFileName="x86/$(x86FileName)" ExtractFile="libcrypto-1_1.dll" TargetDirectory="x86" />
-    <Unzip ZipFileName="x86/$(x86FileName)" ExtractFile="libssl-1_1.dll" TargetDirectory="x86" />
+    <Unzip ZipFileName="x64/$(x64FileName)" ExtractFile="libcrypto-3-x64.dll" TargetDirectory="x64" />
+    <Unzip ZipFileName="x64/$(x64FileName)" ExtractFile="libssl-3-x64.dll" TargetDirectory="x64" />
+    <Unzip ZipFileName="x86/$(x86FileName)" ExtractFile="libcrypto-3.dll" TargetDirectory="x86" />
+    <Unzip ZipFileName="x86/$(x86FileName)" ExtractFile="libssl-3.dll" TargetDirectory="x86" />
   </Target>
   
   <Target Name="IncludeDownloadedFiles" AfterTargets="DownloadAndExtractNativeLibraries">

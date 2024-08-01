@@ -187,8 +187,7 @@ namespace NippyWard.OpenSSL.X509
 
         protected override void Dispose(bool disposing)
         {
-            //not needed, should never take ownership
-            this._x509name?.Dispose();
+
         }
     }
 }

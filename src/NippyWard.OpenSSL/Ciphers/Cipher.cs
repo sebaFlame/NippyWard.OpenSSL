@@ -48,13 +48,13 @@ namespace NippyWard.OpenSSL
 
         public int GetOutputBufferLength(Span<byte> inputBuffer)
         {
-            return inputBuffer.Length + (CryptoWrapper.EVP_CIPHER_block_size(this._Handle) - 1);
+            return inputBuffer.Length + (CryptoWrapper.EVP_CIPHER_get_block_size(this._Handle) - 1);
         }
 
-        protected int GetIVLength() => CryptoWrapper.EVP_CIPHER_iv_length(this._Handle);
-        protected int GetKeyLength() => CryptoWrapper.EVP_CIPHER_key_length(this._Handle);
+        protected int GetIVLength() => CryptoWrapper.EVP_CIPHER_get_iv_length(this._Handle);
+        protected int GetKeyLength() => CryptoWrapper.EVP_CIPHER_get_key_length(this._Handle);
 
-        public int GetCipherBlockSize() => CryptoWrapper.EVP_CIPHER_block_size(this._Handle);
+        public int GetCipherBlockSize() => CryptoWrapper.EVP_CIPHER_get_block_size(this._Handle);
         public int GetMaximumOutputLength(int intputLength) => this.GetCipherBlockSize() + intputLength - 1;
 
         //padding is enabled by default

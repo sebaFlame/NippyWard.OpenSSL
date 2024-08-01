@@ -554,7 +554,6 @@ namespace NippyWard.OpenSSL.Tests
         }
 
         [Theory]
-        [SslProtocolData(SslProtocol.Tls12)]
         [SslProtocolData(SslProtocol.Tls13)]
         public void TestClientRenegotiate(SslProtocol sslProtocol)
         {

@@ -33,8 +33,8 @@ namespace NippyWard.OpenSSL.Interop
 	/// </summary>
 	public struct Version
 	{
-        // Minimum 1.1 Release
-        public static Version MinimumOpenSslVersion = new Version(0x10100000L);
+        // Minimum 3.0 Release
+        public static Version MinimumOpenSslVersion = new Version(0x30000000L);
 
         //Minimum TLS1.3 version
         public static Version MinimumOpenSslTLS13Version = new Version(0x10101000L);

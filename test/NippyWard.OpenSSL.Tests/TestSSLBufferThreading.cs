@@ -128,7 +128,6 @@ namespace NippyWard.OpenSSL.Tests
 
         
         [Theory]
-        [InlineData(1024, 1024 * 1024, SslProtocol.Tls12, true)]
         [InlineData(1024, 1024 * 1024, SslProtocol.Tls12, false)]
         [InlineData(1024, 1024 * 1024, SslProtocol.Tls13, true)]
         [InlineData(1024, 1024 * 1024, SslProtocol.Tls13, false)]

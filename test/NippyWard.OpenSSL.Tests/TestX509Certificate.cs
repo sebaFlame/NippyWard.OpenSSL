@@ -151,11 +151,13 @@ namespace NippyWard.OpenSSL.Tests
                 using (X509Certificate cert = new X509Certificate(key, "localhost", "Root", start, end))
                 {
                     cert.SerialNumber = 101;
+                    cert.SelfSign(key, DigestType.SHA256);
                     Assert.Equal(cert, cert);
 
                     using (X509Certificate cert2 = new X509Certificate(key, "localhost", "Root", start, end))
                     {
                         cert.SerialNumber = 101;
+                        cert2.SelfSign(key, DigestType.SHA256);
                         Assert.NotEqual(cert, cert2);
                     }
                 }
@@ -240,7 +242,7 @@ namespace NippyWard.OpenSSL.Tests
                 {
                     Assert.True(cert.VerifyPrivateKey(key));
 
-                    using (DSAKey other = new DSAKey(32))
+                    using (ECKey other = new ECKey(ECCurveType.prime192v3))
                     {
                         Assert.Throws<OpenSslException>(() => cert.VerifyPrivateKey(other));
                     }
@@ -274,13 +276,15 @@ namespace NippyWard.OpenSSL.Tests
             var start = DateTime.Now;
             var end = start + TimeSpan.FromMinutes(10);
 
-            X509CertificateAuthority ca = X509CertificateAuthority.CreateX509CertificateAuthority(
+            X509CertificateAuthority ca = X509CertificateAuthority.CreateX509CertificateAuthority
+            (
                 1024,
                 "root",
                 "root",
                 start,
                 end,
-                out X509Certificate caCert);
+                out X509Certificate caCert
+            );
 
             //verify if correct CA
             caCert.VerifyPrivateKey(ca.Key);

@@ -82,22 +82,22 @@ namespace NippyWard.OpenSSL.Interop
                 case "win8-x64":
                 case "win81-x64":
                 case "win10-x64":
-                    DLLNAME = "libcrypto-1_1-x64";
-                    SSLDLLNAME = "libssl-1_1-x64";
+                case "win11-x64":
+                case "win-x64":
+                    DLLNAME = "libcrypto-3-x64";
+                    SSLDLLNAME = "libssl-3-x64";
                     break;
                 case "win7-x86":
                 case "win8-x86":
                 case "win81-x86":
                 case "win10-x86":
-                    DLLNAME = "libcrypto-1_1";
-                    SSLDLLNAME = "libssl-1_1";
+                case "win-x86":
+                    DLLNAME = "libcrypto-3";
+                    SSLDLLNAME = "libssl-3";
                     break;
-                case "ubuntu.16.04-x64":
-                case "debian.8-x64":
-                case "debian.9-x64":
                 default:
-                    DLLNAME = "libcrypto.so.1.1";
-                    SSLDLLNAME = "libssl.so.1.1";
+                    DLLNAME = "libcrypto.so";
+                    SSLDLLNAME = "libssl.so";
                     break;
             }
 

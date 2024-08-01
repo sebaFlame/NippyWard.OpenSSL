@@ -354,6 +354,9 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
         //X509_NAME *X509_get_subject_name(const X509 *x);
         SafeX509NameHandle X509_get_subject_name(SafeX509CertificateHandle a);
 
+        //unsigned long X509_subject_name_hash(X509 *x);
+        ulong X509_subject_name_hash(SafeX509CertificateHandle x);
+
         //const ASN1_TIME *X509_get0_notBefore(const X509 *x);
         SafeAsn1DateTimeHandle X509_get0_notBefore(SafeX509CertificateHandle x);
         //const ASN1_TIME* X509_get0_notAfter(const X509* x);
@@ -401,7 +404,7 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
         SafeX509ExtensionHandle X509_get_ext(SafeX509CertificateHandle x, int loc);
 
         //void X509_get0_signature(const ASN1_BIT_STRING **psig, const X509_ALGOR** palg, const X509* x);
-        void X509_get0_signature(out SafeASN1BitStringHandle psig, IntPtr palg, SafeX509CertificateHandle x);
+        void X509_get0_signature(out SafeASN1BitStringHandle psig, out IntPtr palg, SafeX509CertificateHandle x);
 
         //int X509_print_ex(BIO *bp, X509 *x, unsigned long nmflag, unsigned long cflag);
         int X509_print_ex(SafeBioHandle bp, SafeX509CertificateHandle x, [NativeLong] ulong nmflag, [NativeLong] ulong cflag);
@@ -449,6 +452,8 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
         #region X509_EXT_CTX
         //void X509V3_set_ctx(X509V3_CTX *ctx, X509 *issuer, X509 *subj, X509_REQ *req, X509_CRL* crl, int flags)
         void X509V3_set_ctx(SafeX509ExtensionContextHandle ctx, IntPtr issuer, IntPtr subj, IntPtr req, IntPtr crl, int flags);
+        //int X509V3_set_issuer_pkey(X509V3_CTX *ctx, EVP_PKEY *pkey);
+        int X509V3_set_issuer_pkey(SafeX509ExtensionContextHandle ctx, SafeKeyHandle pkey);
         //X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX* ctx, int ext_nid, const char* value)
         [return: TakeOwnership]
         SafeX509ExtensionHandle X509V3_EXT_conf_nid(IntPtr conf, SafeX509ExtensionContextHandle ctx, int ext_nid, in byte value);
@@ -970,11 +975,11 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
         int EVP_CIPHER_type(SafeCipherHandle ctx);
         //int EVP_CIPHER_iv_length(const EVP_CIPHER *e);
         [return: DontVerifyType]
-        int EVP_CIPHER_iv_length(SafeCipherHandle e);
+        int EVP_CIPHER_get_iv_length(SafeCipherHandle e);
         //int EVP_CIPHER_key_length(const EVP_CIPHER *e);
-        int EVP_CIPHER_key_length(SafeCipherHandle e);
+        int EVP_CIPHER_get_key_length(SafeCipherHandle e);
         //int EVP_CIPHER_block_size(const EVP_CIPHER *e);
-        int EVP_CIPHER_block_size(SafeCipherHandle e);
+        int EVP_CIPHER_get_block_size(SafeCipherHandle e);
         
         //int EVP_BytesToKey(const EVP_CIPHER *type,const EVP_MD *md, const unsigned char* salt, const unsigned char* data, int datal, int count, unsigned char* key, unsigned char* iv);
         int EVP_BytesToKey(SafeCipherHandle type, SafeMessageDigestHandle md, in byte salt, in byte data, int datal, int count, ref byte key, ref byte iv);
@@ -1054,7 +1059,7 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
         int EVP_PKEY_cmp(SafeKeyHandle a, SafeKeyHandle b);
 
         //int EVP_PKEY_base_id(const EVP_PKEY *pkey);
-        int EVP_PKEY_base_id(SafeKeyHandle pkey);
+        int EVP_PKEY_get_base_id(SafeKeyHandle pkey);
 
         //int EVP_PKEY_decrypt_old(unsigned char* dec_key, const unsigned char* enc_key, int enc_key_len, EVP_PKEY *private_key);
         int EVP_PKEY_decrypt_old(ref byte dec_key, in byte enc_key, int enc_key_len, SafeKeyHandle private_key);
@@ -1063,9 +1068,9 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
         //int EVP_PKEY_type(int type);
         int EVP_PKEY_type(int type);
         //int EVP_PKEY_bits(EVP_PKEY *pkey);
-        int EVP_PKEY_bits(SafeKeyHandle pkey);
+        int EVP_PKEY_get_bits(SafeKeyHandle pkey);
         //int EVP_PKEY_size(EVP_PKEY *pkey);
-        int EVP_PKEY_size(SafeKeyHandle pkey);
+        int EVP_PKEY_get_size(SafeKeyHandle pkey);
         //int EVP_PKEY_assign(EVP_PKEY *pkey, int type, void *key);
         int EVP_PKEY_assign(SafeKeyHandle pkey, int type, IntPtr key);
 

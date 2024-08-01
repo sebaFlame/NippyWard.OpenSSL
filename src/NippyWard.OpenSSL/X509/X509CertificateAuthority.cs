@@ -100,7 +100,7 @@ namespace NippyWard.OpenSSL.X509
             caCert.AddExtension(caCert, null, X509ExtensionType.KeyUsage, keyUsage);
 
             //sign certificate
-            caCert.Sign(rsaKey, signHash ?? DigestType.SHA256);
+            caCert.SelfSign(rsaKey, signHash ?? DigestType.SHA256);
 
             return new X509CertificateAuthority(caCert, rsaKey, serialGenerator ?? new SimpleSerialNumber());
         }

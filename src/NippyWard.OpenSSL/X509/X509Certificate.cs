@@ -286,13 +286,17 @@ namespace NippyWard.OpenSSL.X509
         {
             using (SafeX509ExtensionContextHandle ctx = SafeX509ExtensionContextHandle.CreateInstance())
             {
-                CryptoWrapper.X509V3_set_ctx(
+                CryptoWrapper.X509V3_set_ctx
+                (
                     ctx,
                     issuer is null ? IntPtr.Zero : issuer._Handle.DangerousGetHandle(),
                     this._Handle.DangerousGetHandle(),
                     request is null ? IntPtr.Zero : request._Handle.DangerousGetHandle(),
                     IntPtr.Zero,
-                    0);
+                    0
+                );
+
+                CryptoWrapper.X509V3_set_issuer_pkey(ctx, this.PublicKey._Handle);
 
                 this.AddExtension(ctx, type, internalValue);
             }
@@ -429,9 +433,7 @@ namespace NippyWard.OpenSSL.X509
                 return this._hashCode;
             }
 
-            IntPtr algorithm = new IntPtr();
-
-            CryptoWrapper.X509_get0_signature(out SafeASN1BitStringHandle stringHandle, algorithm, this._Handle);
+            CryptoWrapper.X509_get0_signature(out SafeASN1BitStringHandle stringHandle, out IntPtr algorithm, this._Handle);
             Span<byte> sig = stringHandle.Value;
             this._hashCode = sig.GetHashCode();
 

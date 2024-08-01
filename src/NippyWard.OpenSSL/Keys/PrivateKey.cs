@@ -21,7 +21,7 @@ namespace NippyWard.OpenSSL.Keys
 
         internal static PrivateKey GetCorrectKey(SafeKeyHandle keyHandle)
         {
-            KeyType keyType = (KeyType)Native.CryptoWrapper.EVP_PKEY_base_id(keyHandle);
+            KeyType keyType = (KeyType)Native.CryptoWrapper.EVP_PKEY_get_base_id(keyHandle);
 
             switch (keyType)
             {
