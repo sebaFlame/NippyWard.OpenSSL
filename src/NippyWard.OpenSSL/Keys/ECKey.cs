@@ -34,7 +34,12 @@ namespace NippyWard.OpenSSL.Keys
 
         public ECKey(ECCurveType curveType)
             : this(GenerateECKey(curveType.NID))
-        { }
+        {
+            //when loading from file for usage in SSL
+            //https://wiki.openssl.org/index.php/Elliptic_Curve_Cryptography
+
+            SafeKeyHandle.CryptoWrapper.EC_KEY_set_asn1_flag(this.ECHandle, 0x001);
+        }
 
         private static SafeKeyHandle GenerateECKey(int curveName)
         {
