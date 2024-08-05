@@ -1433,7 +1433,7 @@ namespace NippyWard.OpenSSL.SSL
             }
 
             //check last platform error
-            int errno = Marshal.GetLastSystemError();
+            int errno = Marshal.GetLastWin32Error();
             if (errno > 0)
             {
                 throw new System.IO.IOException($"Platform IO error (errno {errno})");

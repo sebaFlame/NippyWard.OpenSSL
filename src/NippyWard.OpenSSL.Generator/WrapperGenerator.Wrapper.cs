@@ -163,7 +163,7 @@ namespace NippyWard.OpenSSL.Generator
             out string nativeMethodName
         )
         {
-            nativeMethodName = $"{nativeLibrary}_{interfaceMethod.Identifier.ValueText}";
+            nativeMethodName = $"native_{interfaceMethod.Identifier.ValueText}";
 
             return SyntaxFactory.MethodDeclaration
             (
@@ -768,8 +768,26 @@ namespace NippyWard.OpenSSL.Generator
                             SyntaxFactory.MemberAccessExpression
                             (
                                 SyntaxKind.SimpleMemberAccessExpression,
-                                SyntaxFactory.IdentifierName("OperatingSystem"),
-                                SyntaxFactory.IdentifierName("IsWindows")
+                                SyntaxFactory.IdentifierName("RuntimeInformation"),
+                                SyntaxFactory.IdentifierName("IsOSPlatform")
+                            ),
+                            SyntaxFactory.ArgumentList
+                            (
+                                SyntaxFactory.SeparatedList
+                                (
+                                    new ArgumentSyntax[]
+                                    {
+                                        SyntaxFactory.Argument
+                                        (
+                                            SyntaxFactory.MemberAccessExpression
+                                            (
+                                                SyntaxKind.SimpleMemberAccessExpression,
+                                                SyntaxFactory.IdentifierName("OSPlatform"),
+                                                SyntaxFactory.IdentifierName("Windows")
+                                            )
+                                        )
+                                    }
+                                )
                             )
                         ),
                         //windows

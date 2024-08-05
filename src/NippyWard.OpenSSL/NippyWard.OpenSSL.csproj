@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <DebugType>portable</DebugType>
     <AssemblyName>NippyWard.OpenSSL</AssemblyName>
     <PackageId>NippyWard.OpenSSL</PackageId>
@@ -9,13 +9,13 @@
     <LangVersion>9.0</LangVersion>
     <Nullable>enable</Nullable>
     <VersionPrefix>1.1.0</VersionPrefix>
-	<!--<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>-->
+	  <!--<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>-->
   </PropertyGroup>
 
   <!-- nupkg -->
   <ItemGroup>
 	  <Content Include="Directory.Build.props">
-	    <PackagePath>build/net8.0/NippyWard.OpenSSL.props</PackagePath>
+	    <PackagePath>build/netstandard2.1/NippyWard.OpenSSL.props</PackagePath>
 	    <Pack>true</Pack>
 	  </Content>
   </ItemGroup>

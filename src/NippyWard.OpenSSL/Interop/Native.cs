@@ -52,16 +52,6 @@ namespace NippyWard.OpenSSL.Interop
     /// </summary>
     internal class Native
     {
-        /// <summary>
-        /// This is the name of the DLL that P/Invoke loads and tries to bind all of
-        /// these native functions to.
-        /// </summary>
-        internal static string DLLNAME { get; private set; }
-        internal static string SSLDLLNAME { get; private set; }
-
-        private const string _BaseCryptoName = "libcrypto";
-        private const string _BaseSslName = "libssl";
-
         internal readonly static ILibCryptoWrapper CryptoWrapper;
         internal readonly static ILibSSLWrapper SSLWrapper;
         internal readonly static IStackWrapper StackWrapper;
@@ -76,44 +66,43 @@ namespace NippyWard.OpenSSL.Interop
             //while(!Debugger.IsAttached) Thread.Sleep(500);
 
             //get correct dll name
-            switch (RuntimeInformation.RuntimeIdentifier)
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                case "win7-x64":
-                case "win8-x64":
-                case "win81-x64":
-                case "win10-x64":
-                case "win11-x64":
-                case "win-x64":
-                    DLLNAME = "libcrypto-3-x64";
-                    SSLDLLNAME = "libssl-3-x64";
-                    break;
-                case "win7-x86":
-                case "win8-x86":
-                case "win81-x86":
-                case "win10-x86":
-                case "win-x86":
-                    DLLNAME = "libcrypto-3";
-                    SSLDLLNAME = "libssl-3";
-                    break;
-                default:
-                    DLLNAME = "libcrypto.so";
-                    SSLDLLNAME = "libssl.so";
-                    break;
+                if(RuntimeInformation.OSArchitecture == Architecture.X86)
+                {
+                    CryptoWrapper = new LibCryptoWrapper_winx86();
+                    SSLWrapper = new LibSSLWrapper_winx86();
+                    StackWrapper = new StackWrapper_winx86();
+                }
+                else if(RuntimeInformation.OSArchitecture == Architecture.X64)
+                {
+                    CryptoWrapper = new LibCryptoWrapper_winx64();
+                    SSLWrapper = new LibSSLWrapper_winx64();
+                    StackWrapper = new StackWrapper_winx64();
+                }
+                else
+                {
+                    throw new PlatformNotSupportedException();
+                }
+            }
+            else if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                CryptoWrapper = new LibCryptoWrapper_linux();
+                SSLWrapper = new LibSSLWrapper_linux();
+                StackWrapper = new StackWrapper_linux();
+            }
+            else
+            {
+                throw new PlatformNotSupportedException();
             }
 
-            //initialize dll resolver
-            NativeLibrary.SetDllImportResolver(Assembly.GetExecutingAssembly(), DllImportResolver);
-
             //assign interfaces implementations
-            CryptoWrapper = new LibCryptoWrapper();
-            SSLWrapper = new LibSSLWrapper();
-            StackWrapper = new StackWrapper();
             SafeHandleFactory = new SafeHandleFactory();
 
             //check for >= 1.1 or change config (SSLEnum, deprecated functions and whatnot)
             if (Version.Library < Version.MinimumOpenSslVersion)
             {
-                throw new Exception(string.Format("Invalid version of {0}, expecting {1}, got: {2}", DLLNAME, Version.MinimumOpenSslVersion, Version.Library));
+                throw new Exception(string.Format("Invalid version of OpenSSL, expecting {1}, got: {2}", Version.MinimumOpenSslVersion, Version.Library));
             }
 
             _FreeShimFunc = new OPENSSL_sk_freefunc(FreeShim);
@@ -147,20 +136,6 @@ namespace NippyWard.OpenSSL.Interop
 
             //initialize SSL_CTX static context
             SSLWrapper.SSL_get_ex_data_X509_STORE_CTX_idx();
-        }
-
-        //Resolved dll's get retried when IntPtr.Zero and get cached further up the chain
-        private static IntPtr DllImportResolver(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
-        {
-            switch (libraryName)
-            {
-                case _BaseCryptoName:
-                    return NativeLibrary.Load(DLLNAME, assembly, searchPath);
-                case _BaseSslName:
-                    return NativeLibrary.Load(SSLDLLNAME, assembly, searchPath);
-                default:
-                    return IntPtr.Zero;
-            }
         }
 
         #endregion

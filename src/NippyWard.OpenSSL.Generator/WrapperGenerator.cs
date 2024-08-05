@@ -142,7 +142,13 @@ namespace NippyWard.OpenSSL.Generator
             (
                 wrapperInterfaces
                     .Combine(abstractAllSafeHandles.Collect()),
-                ExecuteWrapperInterfaceGenerator
+                (ctx, s) => ExecuteWrapperInterfaceGenerator
+                (
+                    ctx,
+                    s,
+                    new (string, string)[] { ("libcrypto-3", "winx86"), ("libcrypto-3-x64", "winx64"), ("libcrypto.so", "linux") },
+                    new (string, string)[] { ("libssl-3", "winx86"), ("libssl-3-x64", "winx64"), ("libssl.so", "linux") }
+                )
             );
         }
 
@@ -458,7 +464,9 @@ namespace NippyWard.OpenSSL.Generator
         private static void ExecuteWrapperInterfaceGenerator
         (
             SourceProductionContext sourceProductionContext,
-            (InterfaceDeclarationSyntax, ImmutableArray<SafeHandleModel>) tpl
+            (InterfaceDeclarationSyntax, ImmutableArray<SafeHandleModel>) tpl,
+            IEnumerable<(string, string)> libCrypto,
+            IEnumerable<(string, string)> libSsl
         )
         {
             SourceText? sourceText = null;
@@ -468,58 +476,64 @@ namespace NippyWard.OpenSSL.Generator
 
             if (string.Equals(_SslWrapperInterfaceName, @interface.Identifier.Text))
             {
-                sourceText = GenerateInterfaceWrapper
-                (
-                    _SslWrapperName,
-                    _SslNativeLibrary,
-                    @interface,
-                    safeHandles,
-                    "NippyWard.OpenSSL.Interop.SafeHandles",
-                    "NippyWard.OpenSSL.Interop.SafeHandles.SSL",
-                    "NippyWard.OpenSSL.Interop.SafeHandles.Crypto",
-                    "NippyWard.OpenSSL.Interop.SafeHandles.X509"
-                );
+                foreach((string, string) s in libSsl)
+                {
+                    sourceText = GenerateInterfaceWrapper
+                    (
+                        $"{_SslWrapperName}_{s.Item2}",
+                        s.Item1,
+                        @interface,
+                        safeHandles,
+                        "NippyWard.OpenSSL.Interop.SafeHandles",
+                        "NippyWard.OpenSSL.Interop.SafeHandles.SSL",
+                        "NippyWard.OpenSSL.Interop.SafeHandles.Crypto",
+                        "NippyWard.OpenSSL.Interop.SafeHandles.X509"
+                    );
 
-                hintName = $"{_SslWrapperName}.g.cs";
+                    hintName = $"{_SslWrapperName}.{s.Item2}.g.cs";
+
+                    sourceProductionContext.AddSource(hintName, sourceText);
+                }
             }
             else if (string.Equals(_CryptoWrapperInterfaceName, @interface.Identifier.Text))
             {
-                sourceText = GenerateInterfaceWrapper
-                (
-                    _CryptoWrapperName,
-                    _CryptoNativeLibrary,
-                    @interface,
-                    safeHandles,
-                    "NippyWard.OpenSSL.Interop.SafeHandles",
-                    "NippyWard.OpenSSL.Interop.SafeHandles.X509",
-                    "NippyWard.OpenSSL.Interop.SafeHandles.Crypto",
-                    "NippyWard.OpenSSL.Interop.SafeHandles.Crypto.EC"
-                );
+                foreach ((string, string) s in libCrypto)
+                {
+                    sourceText = GenerateInterfaceWrapper
+                    (
+                        $"{_CryptoWrapperName}_{s.Item2}",
+                        s.Item1,
+                        @interface,
+                        safeHandles,
+                        "NippyWard.OpenSSL.Interop.SafeHandles",
+                        "NippyWard.OpenSSL.Interop.SafeHandles.X509",
+                        "NippyWard.OpenSSL.Interop.SafeHandles.Crypto",
+                        "NippyWard.OpenSSL.Interop.SafeHandles.Crypto.EC"
+                    );
 
-                hintName = $"{_CryptoWrapperName}.g.cs";
+                    hintName = $"{_CryptoWrapperName}.{s.Item2}.g.cs";
+
+                    sourceProductionContext.AddSource(hintName, sourceText);
+                }
             }
             else if (string.Equals(_StackWrapperInterfaceName, @interface.Identifier.Text))
             {
-                sourceText = GenerateInterfaceWrapper
-                (
-                    _StackWrapperClassName,
-                    _CryptoNativeLibrary,
-                    @interface,
-                    safeHandles,
-                    "NippyWard.OpenSSL.Interop.SafeHandles"
-                );
+                foreach ((string, string) s in libCrypto)
+                {
+                    sourceText = GenerateInterfaceWrapper
+                    (
+                        $"{_StackWrapperClassName}_{s.Item2}",
+                        s.Item1,
+                        @interface,
+                        safeHandles,
+                        "NippyWard.OpenSSL.Interop.SafeHandles"
+                    );
 
-                hintName = $"StackWrapper.g.cs";
+                    hintName = $"{_StackWrapperClassName}.{s.Item2}.g.cs";
+
+                    sourceProductionContext.AddSource(hintName, sourceText);
+                }
             }
-
-            if (sourceText is null)
-            {
-                return;
-            }
-
-            //string src = sourceText.ToString();
-
-            sourceProductionContext.AddSource(hintName, sourceText);
         }
 
         internal static NamespaceDeclarationSyntax FindParentNamespace(SyntaxNode? node)
