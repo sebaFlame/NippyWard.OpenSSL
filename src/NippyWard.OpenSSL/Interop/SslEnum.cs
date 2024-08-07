@@ -307,4 +307,12 @@ namespace NippyWard.OpenSSL.Interop
         Handshake = 0x16,
         Application = 0x17,
     }
+
+    [Flags]
+    internal enum SslShutdown
+    {
+        NONE = 0,
+        SSL_SENT_SHUTDOWN = 1,
+        SSL_RECEIVED_SHUTDOWN = 2
+    }
 }

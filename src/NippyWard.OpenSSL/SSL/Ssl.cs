@@ -146,6 +146,14 @@ namespace NippyWard.OpenSSL.SSL
             }
         }
 
+        public SslState IsShutdown
+        {
+            get
+            {
+                return (SslState)SSLWrapper.SSL_get_shutdown(this._sslHandle);
+            }
+        }
+
         public bool IsServer => this._isServer;
         /// <summary>
         /// Reusable SSL context. Eg for session reuse between multiple clients on a server.

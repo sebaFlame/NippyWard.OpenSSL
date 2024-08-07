@@ -42,7 +42,15 @@ namespace NippyWard.OpenSSL.SSL
         /// <summary>
         /// An empty buffer has been passed, no data can be written/read
         /// </summary>
-        EMPTYBUFFER = 1 << 4
+        EMPTYBUFFER = 1 << 4,
+        /// <summary>
+        /// Shutdown has been received
+        /// </summary>
+        SHUTDOWN_RECEIVED = 1 << 5,
+        /// <summary>
+        /// Shutdown has been sent
+        /// </summary>
+        SHUTDOWN_SENT = 1 << 6
     }
 
     public static class SslStateExtensions
