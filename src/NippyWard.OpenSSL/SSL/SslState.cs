@@ -31,26 +31,17 @@ namespace NippyWard.OpenSSL.SSL
         /// </summary>
         WANTWRITE = 1 << 1,
         /// <summary>
+        /// There is data available
+        /// Please use <see cref="Ssl.ReadSsl(ReadOnlySpan{byte}, Span{byte}, out int, out int)"/>
+        /// Please use <see cref="Ssl.ReadSsl(in System.Buffers.ReadOnlySequence{byte}, System.Buffers.IBufferWriter{byte}, out SequencePosition)"/>
+        /// Please use <see cref="Ssl.ReadSsl(ReadOnlySpan{byte}, System.Buffers.IBufferWriter{byte}, out int)"/>
+        /// With an empty read data buffer
+        /// </summary>
+        READ_DATA_AVAILABLE = 1 << 3,
+        /// <summary>
         /// Shutdown has been called from peer, stop reading/writing to allow clean shutdown
         /// </summary>
-        SHUTDOWN = 1 << 2,
-        /// <summary>
-        /// A handshake has completed (either during <see cref="Ssl.DoHandshake(out SslState)"/> or <see cref="Ssl.DoRenegotiate"/>)
-        /// Useful to call any callbacks.
-        /// </summary>
-        HANDSHAKECOMPLETE = 1 << 3,
-        /// <summary>
-        /// An empty buffer has been passed, no data can be written/read
-        /// </summary>
-        EMPTYBUFFER = 1 << 4,
-        /// <summary>
-        /// Shutdown has been received
-        /// </summary>
-        SHUTDOWN_RECEIVED = 1 << 5,
-        /// <summary>
-        /// Shutdown has been sent
-        /// </summary>
-        SHUTDOWN_SENT = 1 << 6
+        SHUTDOWN = 1 << 4
     }
 
     public static class SslStateExtensions
@@ -64,15 +55,11 @@ namespace NippyWard.OpenSSL.SSL
             => (sslState & SslState.WANTREAD) > 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool HandshakeCompleted(this SslState sslState)
-            => (sslState & SslState.HANDSHAKECOMPLETE) > 0;
+        public static bool IsDataAvailable(this SslState sslState)
+            => (sslState & SslState.READ_DATA_AVAILABLE) > 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsShutdown(this SslState sslState)
             => (sslState & SslState.SHUTDOWN) > 0;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool ReceivedEmptyBuffer(this SslState sslState)
-            => (sslState & SslState.EMPTYBUFFER) > 0;
     }
 }

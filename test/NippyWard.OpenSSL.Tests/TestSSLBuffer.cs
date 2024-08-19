@@ -99,35 +99,10 @@ namespace NippyWard.OpenSSL.Tests
         )
         {
             SslState clientState, serverState;
-            bool clientComplete = false, serverComplete = false;
 
-            Assert.False(serverContext.DoHandshake(out serverState));
-            Assert.False(clientContext.DoHandshake(out clientState));
-            Assert.True(clientState.WantsWrite());
-
-            void CheckHandshakeCompleted()
+            while (!serverContext.DoHandshake(out serverState)
+                | !clientContext.DoHandshake(out clientState))
             {
-                if (clientState.HandshakeCompleted())
-                {
-                    //should be true even though a write is still needed
-                    Assert.True(clientContext.DoHandshake(out _));
-
-                    clientComplete = true;
-                }
-
-                if (serverState.HandshakeCompleted())
-                {
-                    //should be true even though a write is still needed
-                    Assert.True(serverContext.DoHandshake(out _));
-
-                    serverComplete = true;
-                }
-            }
-
-            do
-            {
-                CheckHandshakeCompleted();
-
                 if (clientState.WantsWrite())
                 {
                     WriteReadCycle
@@ -139,7 +114,9 @@ namespace NippyWard.OpenSSL.Tests
                         serverReader,
                         ref serverState
                     );
-                }else if (serverState.WantsWrite())
+                }
+
+                if (serverState.WantsWrite())
                 {
                     WriteReadCycle
                     (
@@ -151,13 +128,7 @@ namespace NippyWard.OpenSSL.Tests
                         ref clientState
                     );
                 }
-
-                CheckHandshakeCompleted();
-            } while (clientState.WantsWrite()
-                || serverState.WantsWrite());
-
-            Assert.True(clientComplete);
-            Assert.True(serverComplete);
+            }
 
             Assert.True(serverContext.DoHandshake(out serverState));
             Assert.Equal(SslState.NONE, serverState);
@@ -196,11 +167,6 @@ namespace NippyWard.OpenSSL.Tests
                     );
                 }
 
-                if (serverState.IsShutdown())
-                {
-                    serverContext.DoShutdown(out serverState);
-                }
-
                 if (serverState.WantsWrite())
                 {
                     WriteReadCycle
@@ -215,9 +181,6 @@ namespace NippyWard.OpenSSL.Tests
                 }
             } while (!serverContext.DoShutdown(out serverState)
                 | !clientContext.DoShutdown(out clientState));
-
-            Assert.Equal(SslState.NONE, serverState);
-            Assert.Equal(SslState.NONE, clientState);
         }
 
         private static void DoRenegotiate
@@ -231,23 +194,9 @@ namespace NippyWard.OpenSSL.Tests
         )
         {
             SslState client1State = SslState.NONE, client2State = SslState.NONE;
-            bool renegotiateCompleted = false;
 
-            //force new handshake with a writable buffer
-            client1State = client1.DoRenegotiate();
-
-            Assert.True(client1State.WantsWrite());
-
-            //only check the initiator
-            void CheckHandshakeCompleted()
+            while (!client1.DoRenegotiate(out client1State))
             {
-                renegotiateCompleted |= client1State.HandshakeCompleted();
-            }
-
-            do 
-            {
-                CheckHandshakeCompleted();
-
                 if (client1State.WantsWrite())
                 {
                     WriteReadCycle
@@ -259,7 +208,9 @@ namespace NippyWard.OpenSSL.Tests
                         client2Reader,
                         ref client2State
                     );
-                }else if (client2State.WantsWrite())
+                }
+                
+                if (client2State.WantsWrite())
                 {
                     WriteReadCycle
                     (
@@ -271,12 +222,7 @@ namespace NippyWard.OpenSSL.Tests
                         ref client1State
                     );
                 }
-                //renegotiate can be complete after the read
-                CheckHandshakeCompleted();
-            } while (client1State.WantsWrite()
-                || client2State.WantsWrite());
-
-            Assert.True(renegotiateCompleted);
+            }
         }
 
         [Theory]
@@ -677,31 +623,29 @@ namespace NippyWard.OpenSSL.Tests
                 //get write sequence to write to client
                 this._serverWriteBuffer.CreateReadOnlySequence(out writeBuffer);
 
-                //write in 2 parts to test jitter
+                //write in multiple parts to test jitter
                 bufSize = (int)(writeBuffer.Length / 2);
 
                 //write first encrypted buffer to client
                 buf = writeBuffer.Slice(0, bufSize);
-                clientState = clientContext.ReadSsl(in buf, this._clientReadBuffer, out totalRead);
-                Assert.Equal(buf.End, totalRead);
 
-                if (bufSize > 0)
+                do
                 {
-                    //check if it has the correct state
-                    //this should not always be the case as it could get sliced on the end of a frame
-                    Assert.True(clientState.WantsRead());
-
-                    //write second encrypted buffer to client
-                    buf = writeBuffer.Slice(bufSize);
                     clientState = clientContext.ReadSsl(in buf, this._clientReadBuffer, out totalRead);
-                    Assert.Equal(buf.End, totalRead);
 
-                    Assert.Equal(SslState.NONE, clientState);
-                }
-                else
-                {
-                    Assert.Equal(SslState.EMPTYBUFFER, clientState);
-                }
+                    try
+                    {
+                        buf = writeBuffer.Slice(totalRead, bufSize);
+                    }
+                    catch(ArgumentOutOfRangeException)
+                    {
+                        buf = writeBuffer.Slice(totalRead, writeBuffer.End);
+                    }
+                    
+                } while (!buf.IsEmpty);
+
+                Assert.Equal(SslState.NONE, clientState);
+                Assert.Equal(writeBuffer.End, totalRead);
 
                 //get read sequence
                 this._clientReadBuffer.CreateReadOnlySequence(out readBuffer);

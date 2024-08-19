@@ -1501,9 +1501,6 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
         //long BIO_int_ctrl(BIO *bp, int cmd, long larg, int iarg);
         [return: NativeLong, DontVerifyType]
         long BIO_int_ctrl(SafeBioHandle bp, int cmd, [NativeLong] long larg, int iarg);
-        //# define BIO_flush(b)            (int)BIO_ctrl(b,BIO_CTRL_FLUSH,0,NULL)
-        [return: NativeLong]
-        long BIO_flush(SafeBioHandle b);
         //void *BIO_get_data(BIO *a);
         IntPtr BIO_get_data(SafeBioHandle a);
 
@@ -1515,6 +1512,9 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
         //int BIO_read(BIO* b, void* data, int dlen);
         [return: DontVerifyType]
         int BIO_read(SafeBioHandle b, ref byte buf, int len);
+        //int BIO_read_ex(BIO *b, void *data, size_t dlen, size_t *readbytes);
+        [return: DontVerifyType]
+        int BIO_read_ex(SafeBioHandle b, ref byte buf, nuint dlen, out nuint readbytes);
         //int BIO_write(BIO *b, const void *data, int dlen);
         [return: DontVerifyType]
         int BIO_write(SafeBioHandle b, in byte buf, int len);
@@ -1539,6 +1539,20 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
         //size_t BIO_ctrl_pending(BIO* b);
         [return: DontVerifyType]
         nuint BIO_ctrl_pending(SafeBioHandle bio);
+
+        //int BIO_new_bio_pair(BIO** bio1, size_t writebuf1, BIO** bio2, size_t writebuf2);
+        int BIO_new_bio_pair([TakeOwnership] out SafeBioHandle bio1, nuint writebuf1, [TakeOwnership] out SafeBioHandle bio2, nuint writebuf2);
+        //size_t BIO_ctrl_get_read_request(BIO *b);
+        [return: DontVerifyType]
+        nuint BIO_ctrl_get_read_request(SafeBioHandle b);
+        //int BIO_test_flags(const BIO *b, int flags);
+        [return: DontVerifyType]
+        int BIO_test_flags(SafeBioHandle b, int flags);
+        //size_t BIO_ctrl_get_write_guarantee(BIO *bio)
+        [return: DontVerifyType]
+        nuint BIO_ctrl_get_write_guarantee(SafeBioHandle bio);
+        //int BIO_ctrl_reset_read_request(BIO *b);
+        int BIO_ctrl_reset_read_request(SafeBioHandle b);
         #endregion
 
         #region ERR

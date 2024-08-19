@@ -246,7 +246,7 @@ namespace NippyWard.OpenSSL.Interop
          * This used to be 0x000FFFFFL before 0.9.7.
          * This used to be 0x80000BFFU before 1.1.1.
          */
-        SSL_OP_ALL = (SSL_OP_CRYPTOPRO_TLSEXT_BUG|SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS|SSL_OP_LEGACY_SERVER_CONNECT|SSL_OP_TLSEXT_PADDING|SSL_OP_SAFARI_ECDHE_ECDSA_BUG)
+        SSL_OP_ALL = (SSL_OP_CRYPTOPRO_TLSEXT_BUG|SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS|SSL_OP_TLSEXT_PADDING|SSL_OP_SAFARI_ECDHE_ECDSA_BUG)
 	}
 
     [Flags]
@@ -275,7 +275,12 @@ namespace NippyWard.OpenSSL.Interop
 		/// <summary>
 		/// Don't attempt to automatically build certificate chain
 		/// </summary>
-		SSL_MODE_NO_AUTO_CHAIN = 0x00000008
+		SSL_MODE_NO_AUTO_CHAIN = 0x00000008,
+
+        /// <summary>
+        /// Support Asynchronous operation
+        /// </summary>
+        SSL_MODE_ASYNC = 0x00000100
 	}
 
     internal enum SslError

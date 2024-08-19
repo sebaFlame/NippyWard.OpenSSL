@@ -2,7 +2,10 @@
 {
     public abstract class BaseOpenSslError
     {
-        protected ulong ErrorCode { get; private set; }
+        public ulong ErrorCode { get; private set; }
+
+        public int Reason => (int)(this.ErrorCode & 0X7FFFFF);
+        public int Library => (int)((this.ErrorCode >> 23) & 0xFF);
 
         public BaseOpenSslError(ulong errorCode)
         {

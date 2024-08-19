@@ -129,6 +129,16 @@ namespace NippyWard.OpenSSL.SSL
                     (this._verifyCertificateCallback = new VerifyCertificateCallback(this.RemoteCertificateValidationCallback))
                 );
             }
+            else
+            {
+                //this should be default, but set it anyways
+                SSLWrapper.SSL_CTX_set_verify
+                (
+                    sslContextHandle,
+                    (int)VerifyMode.SSL_VERIFY_NONE,
+                    null
+                );
+            }
 
             //enable client certificate request
             if (clientCertificateCallbackHandler is not null)
@@ -201,16 +211,6 @@ namespace NippyWard.OpenSSL.SSL
             {
                 sslContextHandle = SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultClientMethod);
             }
-
-            //do not enable SSL_MODE_ENABLE_PARTIAL_WRITE this causes writes (to socket) not to be 1-1
-            //enabling SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER should help with moving arrays (GC / physical memory)
-            SSLWrapper.SSL_CTX_ctrl
-            (
-                sslContextHandle,
-                Native.SSL_CTRL_MODE,
-                (int)SslMode.SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER,
-                IntPtr.Zero
-            );
 
             //set default SSL options
             Interop.SslOptions protocolOptions = Interop.SslOptions.SSL_OP_ALL;

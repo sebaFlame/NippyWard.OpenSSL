@@ -69,29 +69,7 @@ namespace NippyWard.OpenSSL.Tests
             Native.CryptoWrapper.OPENSSL_thread_stop();
 
             List<MemoryProblem> lstMemoryProblem = MemoryTracker.Finish();
-            foreach (var mem in lstMemoryProblem.ToList())
-            {
-                //this.OutputHelper.WriteLine("MEMORY: {0}", mem);
 
-                //per thread allocations (these get deallocated when the threads exit on windows)
-                if (mem.File.Contains(@"err.c"))
-                {
-                    lstMemoryProblem.Remove(mem);
-                }
-
-                //per thread allocations (these get deallocated when the threads exit on windows)
-                if (mem.File.Contains(@"init.c"))
-                {
-                    lstMemoryProblem.Remove(mem);
-                }
-
-                //memory leak on linux (in RSAKey ctor RSA_generate_key_ex)!!!
-                if (mem.File.Contains(@"evp_enc.c")
-                    && mem.Line == 129)
-                {
-                    lstMemoryProblem.Remove(mem);
-                }
-            }
             Assert.Empty(lstMemoryProblem);
 #endif
         }

@@ -239,6 +239,7 @@ namespace NippyWard.OpenSSL.Interop
         public const int SSL_CTRL_MODE = 33;
         public const int SSL_CTRL_SET_READ_AHEAD = 41;
         public const int SSL_CTRL_SET_SESS_CACHE_MODE = 44;
+        public const int SSL_CTRL_CLEAR_MODE = 78;
 
         public const int SSL_SESS_CACHE_OFF = 0x0000;
         public const int SSL_SESS_CACHE_CLIENT = 0x0001;
@@ -363,7 +364,14 @@ namespace NippyWard.OpenSSL.Interop
         {
             if (handle.IsInvalid)
             {
-                throw new OpenSslException();
+                try
+                {
+                    throw new OpenSslException();
+                }
+                finally
+                {
+                    CryptoWrapper.ERR_clear_error();
+                }
             }
         }
 
@@ -373,7 +381,14 @@ namespace NippyWard.OpenSSL.Interop
         {
             if (ret <= 0)
             {
-                throw new OpenSslException();
+                try
+                { 
+                    throw new OpenSslException();
+                }
+                finally
+                {
+                    CryptoWrapper.ERR_clear_error();
+                }
             }
         }
 
@@ -383,7 +398,14 @@ namespace NippyWard.OpenSSL.Interop
         {
             if (ret <= 0)
             {
-                throw new OpenSslException();
+                try
+                {
+                    throw new OpenSslException();
+                }
+                finally
+                {
+                    CryptoWrapper.ERR_clear_error();
+                }
             }
         }
 

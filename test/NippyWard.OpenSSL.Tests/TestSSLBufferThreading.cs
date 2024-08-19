@@ -15,6 +15,7 @@ using NippyWard.OpenSSL.X509;
 using NippyWard.OpenSSL.Keys;
 using NippyWard.OpenSSL.SSL;
 using NippyWard.OpenSSL.SSL.Buffer;
+using NippyWard.OpenSSL.Error;
 
 namespace NippyWard.OpenSSL.Tests
 {
@@ -48,7 +49,7 @@ namespace NippyWard.OpenSSL.Tests
             await client.Connect(target, cancellationToken);
 
             byte[] writeArr = new byte[bufferSize];
-            long read = 0;
+            long totalRead = 0;
             int size;
             Memory<byte> writeMemory;
             int renegotiate = testSize / 2;
@@ -58,65 +59,127 @@ namespace NippyWard.OpenSSL.Tests
 
             async Task ReadThread(CancellationToken cancellationToken)
             {
-                byte[] res;
                 while(true)
                 {
+                    SslState sslState;
+
                     try
                     {
-                        res = await client.Read
+                        sslState = await client.Read
                         (
                             target,
                             cancellationToken
                         );
+
+                        if (sslState.IsShutdown())
+                        {
+                            if (client._ssl.DoShutdown(out sslState))
+                            {
+                                return;
+                            }
+                        }
+
+                        if (sslState.WantsWrite())
+                        {
+                            (sslState, _) = await client.Write
+                            (
+                                target,
+                                ReadOnlyMemory<byte>.Empty,
+                                cancellationToken
+                            );
+                        }
+
+                        if (sslState.IsShutdown())
+                        {
+                            if (client._ssl.DoShutdown(out sslState))
+                            {
+                                return;
+                            }
+                        }
                     }
-                    //throws InvalidOperationException when PipeWriter completed
-                    //throws InvalidOperationException when SslState.Shutdown
-                    catch (InvalidOperationException)
+                    catch(OpenSslException ex) when (ex.Errors.Any(x => x.Library == 20 && x.Reason == 207)) //protocol is shutdown
                     {
                         break;
                     }
                 }
             }
 
-            Task readThread = ReadThread(cancellationToken);
-
-            while (!doRenegotiate
-                || read < testSize)
+            async Task WriteThread(CancellationToken cancellationToken)
             {
-                size = RandomNumberGenerator.GetInt32(4, bufferSize);
-                writeMemory = new Memory<byte>(writeArr, 0, size);
-                Interop.Random.PseudoBytes(writeMemory.Span);
-
-                try
+                while (!doRenegotiate
+                    || totalRead < testSize)
                 {
-                    await client.Write
-                    (
-                        target,
-                        writeMemory,
-                        cancellationToken
-                    );
-                }
-                //throws InvalidOperationException when PipeWriter completed
-                //throws InvalidOperationException when SslState.Shutdown
-                catch (InvalidOperationException)
-                {
-                    break;
-                }
+                    size = RandomNumberGenerator.GetInt32(4, bufferSize);
+                    writeMemory = new Memory<byte>(writeArr, 0, size);
+                    Interop.Random.PseudoBytes(writeMemory.Span);
+                    SslState sslState;
+                    int read = 0, index = 0;
+                    ReadOnlyMemory<byte> writeBuf;
 
-                read += size;
+                    try
+                    {
+                        do
+                        {
 
-                if (read > renegotiate
-                    && doRenegotiate)
-                {
-                    await client.Renegotiate
-                    (
-                        target,
-                        cancellationToken
-                    );
+                            writeBuf = writeMemory.Slice(index);
 
-                    renegotiate = int.MaxValue;
+                            (sslState, read) = await client.Write
+                            (
+                                target,
+                                writeBuf,
+                                cancellationToken
+                            );
+
+                            index += read;
+
+                            while (sslState.IsShutdown())
+                            {
+                                if (client._ssl.DoShutdown(out sslState))
+                                {
+                                    return;
+                                }
+
+                                if(sslState.WantsWrite())
+                                {
+                                    (sslState, read) = await client.Write
+                                    (
+                                        target,
+                                        ReadOnlyMemory<byte>.Empty,
+                                        cancellationToken
+                                    );
+                                }
+                            }
+                        } while (index < size);
+                    }
+                    catch (OpenSslException ex) when (ex.Errors.Any(x => x.Library == 20 && x.Reason == 207)) //protocol is shutdown
+                    {
+                        break;
+                    }
+                    //catch (Exception ex)
+                    //{
+                    //    break;
+                    //}
+
+                    totalRead += size;
+
+                    if (totalRead > renegotiate
+                        && doRenegotiate)
+                    {
+                        await client.Renegotiate
+                        (
+                            target,
+                            cancellationToken
+                        );
+
+                        renegotiate = int.MaxValue;
+                    }
                 }
             }
+
+            Task readThread = ReadThread(cancellationToken);
+            Task writeThread = WriteThread(cancellationToken);
+
+            await writeThread;
 
             if (doRenegotiate)
             {
@@ -164,10 +227,11 @@ namespace NippyWard.OpenSSL.Tests
             internal Ssl _ssl;
             private PipeReader _pipeReader;
             private PipeWriter _pipeWriter;
-            private TlsBuffer _decryptedBuffer;
+            internal TlsBuffer _decryptedBuffer;
             private ITestOutputHelper _testOuptuHelper;
 
             private SemaphoreSlim _writeSemaphore;
+            private SemaphoreSlim _readSemaphore;
             private TaskCompletionSource? _renegotiateTcs;
 
             //client
@@ -188,6 +252,7 @@ namespace NippyWard.OpenSSL.Tests
 
                 this.IsServer = this._ssl.IsServer;
                 this._writeSemaphore = new SemaphoreSlim(1);
+                this._readSemaphore = new SemaphoreSlim(1);
             }
 
             //server
@@ -217,6 +282,7 @@ namespace NippyWard.OpenSSL.Tests
 
                 this.IsServer = this._ssl.IsServer;
                 this._writeSemaphore = new SemaphoreSlim(1);
+                this._readSemaphore = new SemaphoreSlim(1);
             }
 
             public async Task Connect
@@ -226,39 +292,34 @@ namespace NippyWard.OpenSSL.Tests
             )
             {
                 SslState sslState;
-                byte[] buf;
 
                 while (!this._ssl.DoHandshake(out sslState))
                 {
                     if (sslState.WantsWrite())
                     {
-                        await this.Write
+                        (sslState, _) = await this.Write
                         (
                             target,
                             ReadOnlyMemory<byte>.Empty,
-                            cancellationToken,
-                            true
+                            cancellationToken
                         );
                     }
-                    else if (sslState.WantsRead())
+                    
+                    if (sslState.WantsRead())
                     {
-                        buf = await this.Read
+                        sslState = await this.Read
                         (
                             target,
-                            cancellationToken,
-                            true
+                            cancellationToken
                         );
-
-                        Assert.Empty(buf);
                     }
                 }
             }
 
-            public async Task<byte[]> Read
+            public async Task<SslState> Read
             (
                 SslCient target,
-                CancellationToken cancellationToken,
-                bool duringHandshake = false
+                CancellationToken cancellationToken
             )
             {
                 PipeReader pipeReader = this._pipeReader;
@@ -267,11 +328,12 @@ namespace NippyWard.OpenSSL.Tests
                 ReadResult readResult;
                 ReadOnlySequence<byte> buffer;
 
-                do
+                await this._readSemaphore.WaitAsync();
+                try
                 {
                     readResult = await pipeReader.ReadAsync(cancellationToken);
 
-                    if(readResult.IsCompleted)
+                    if (readResult.IsCompleted)
                     {
                         throw new InvalidOperationException();
                     }
@@ -287,41 +349,24 @@ namespace NippyWard.OpenSSL.Tests
 
                     pipeReader.AdvanceTo(read, buffer.End);
 
-                    if (sslState.HandshakeCompleted())
-                    {
-                        this._testOuptuHelper.WriteLine($"HandshakeCompleted with {sslState} on {(this.IsServer ? "Server" : "Client")} during {(duringHandshake ? "handshake" : "renegotiation")} on Read");
-                        this._renegotiateTcs?.SetResult();
-                    }
-                } while (sslState.WantsRead());
+                    Assert.Equal(buffer.End, read);
 
-                if (sslState.WantsWrite())
-                {
-                    await this.Write
-                    (
-                        target,
-                        ReadOnlyMemory<byte>.Empty,
-                        cancellationToken
-                    );
+                    this._decryptedBuffer.CreateReadOnlySequence(out ReadOnlySequence<byte> decrypted);
+                    this._decryptedBuffer.AdvanceReader(decrypted.End);
                 }
-                else if (sslState.IsShutdown())
+                finally
                 {
-                    this._pipeWriter.Complete();
-                    throw new InvalidOperationException();
+                    this._readSemaphore.Release();
                 }
 
-                this._decryptedBuffer.CreateReadOnlySequence(out ReadOnlySequence<byte> decrypted);
-                byte[] result = decrypted.ToArray();
-                this._decryptedBuffer.AdvanceReader(decrypted.End);
-
-                return result;
+                return sslState;
             }
 
-            public async Task Write
+            public async Task<(SslState, int)> Write
             (
                 SslCient target,
                 ReadOnlyMemory<byte> buffer,
-                CancellationToken cancellationToken,
-                bool duringHandshake = false
+                CancellationToken cancellationToken
             )
             {
                 PipeWriter pipeWriter = target._pipeWriter;
@@ -335,56 +380,25 @@ namespace NippyWard.OpenSSL.Tests
                 await this._writeSemaphore.WaitAsync();
                 try
                 {
-                    do
-                    {
-                        sslState = this._ssl.WriteSsl
-                        (
-                            writeBuf.Span,
-                            pipeWriter,
-                            out read
-                        );
+                    sslState = this._ssl.WriteSsl
+                    (
+                        writeBuf.Span,
+                        pipeWriter,
+                        out read
+                    );
 
-                        index += read;
-                        writeBuf = buffer.Slice(index);
+                    index += read;
+                    writeBuf = buffer.Slice(index);
 
-                        //send data
-                        await pipeWriter.FlushAsync(cancellationToken);
-
-                        if (sslState.HandshakeCompleted())
-                        {
-                            this._testOuptuHelper.WriteLine($"HandshakeCompleted with {sslState} on {(this.IsServer ? "Server" : "Client")} during {(duringHandshake ? "handshake" : "renegotiation")} on Write");
-                            this._renegotiateTcs?.SetResult();
-                        }
-                    } while (sslState.WantsWrite());
+                    //send data
+                    await pipeWriter.FlushAsync(cancellationToken);
                 }
                 finally
                 {
                     this._writeSemaphore.Release();
                 }
 
-                if (sslState.WantsRead())
-                {
-                    //buf = await this.Read
-                    //(
-                    //    target,
-                    //    cancellationToken
-                    //);
-
-                    //Assert.Empty(buf);
-
-                    //always reading
-                }
-                else
-                {
-                    Assert.Equal(buffer.Length, index);
-                    Assert.Equal(SslState.NONE, sslState);
-                }
-
-                if (sslState.IsShutdown())
-                {
-                    //random not representative error (for testing)
-                    throw new InvalidOperationException();
-                }
+                return (sslState, index);
             }
 
             //to simulate non-application data
@@ -394,38 +408,16 @@ namespace NippyWard.OpenSSL.Tests
                 CancellationToken cancellationToken
             )
             {
-                SslState sslState;
-                //create with TaskCreationOptions.RunContinuationsAsynchronously
-                //else there is a deadlock (due to TESTing code)
-                //even though this is also good practice in production!
-                this._renegotiateTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                this._ssl.DoRenegotiate(out SslState sslState);
 
-                try
+                if (sslState.WantsWrite())
                 {
-                    sslState = this._ssl.DoRenegotiate();
-
-                    //could already be completed (TLS1.3)
-                    if (sslState.HandshakeCompleted())
-                    {
-                        this._testOuptuHelper.WriteLine($"HandshakeCompleted with {sslState} on {(this.IsServer ? "Server" : "Client")} during Renegotiate");
-                        this._renegotiateTcs.SetResult();
-                    }
-
-                    if (sslState.WantsWrite())
-                    {
-                        await this.Write
-                        (
-                            target,
-                            ReadOnlyMemory<byte>.Empty,
-                            cancellationToken
-                        );
-                    }
-
-                    await this._renegotiateTcs.Task;
-                }
-                finally
-                {
-                    this._renegotiateTcs = null;
+                    (sslState, _) = await this.Write
+                    (
+                        target,
+                        ReadOnlyMemory<byte>.Empty,
+                        CancellationToken.None
+                    );
                 }
             }
 
@@ -439,19 +431,20 @@ namespace NippyWard.OpenSSL.Tests
 
                 if (sslState.WantsWrite())
                 {
-                    await this.Write
+                    (sslState, _) = await this.Write
                     (
                         target,
                         ReadOnlyMemory<byte>.Empty,
-                        cancellationToken
+                        CancellationToken.None
                     );
                 }
-
-                this._pipeWriter.Complete();
             }
 
             public void Dispose()
             {
+                //shutdown underlying transport
+                this._pipeWriter.Complete();
+
                 this._ssl.Dispose();
             }
         }

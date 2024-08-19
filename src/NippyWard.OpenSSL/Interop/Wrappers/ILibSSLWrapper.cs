@@ -139,6 +139,12 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
 
         //void SSL_CTX_set_verify(SSL_CTX *ctx, int mode, int (* verify_callback) (int, X509_STORE_CTX*));
         void SSL_CTX_set_verify(SafeSslContextHandle ctx, int mode, VerifyCertificateCallback? callback);
+
+        //int SSL_CTX_set_num_tickets(SSL_CTX* ctx, size_t num_tickets);
+        int SSL_CTX_set_num_tickets(SafeSslContextHandle ctx, nuint num_tickets);
+        //size_t SSL_CTX_get_num_tickets(const SSL_CTX* ctx);
+        [return: DontVerifyType]
+        nuint SSL_CTX_get_num_tickets(SafeSslContextHandle ctx);
         #endregion
 
         #region STACK_OF(SSL_CIPHER)
@@ -206,6 +212,9 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
         int SSL_peek(SafeSslHandle ssl, ref byte buf, int len);
         //void SSL_set_read_ahead(SSL *s, int yes);
         void SSL_set_read_ahead(SafeSslHandle ssl, int yes);
+        //int SSL_want(const SSL* ssl);
+        [return: DontVerifyType]
+        int SSL_want(SafeSslHandle ssl);
 
         //int SSL_renegotiate(SSL *s);
         int SSL_renegotiate(SafeSslHandle ssl);
@@ -257,6 +266,9 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
         //int SSL_is_init_finished(const SSL *s);
         [return: DontVerifyType]
         int SSL_is_init_finished(SafeSslHandle s);
+        //int SSL_in_init(const SSL *s);
+        [return: DontVerifyType]
+        int SSL_in_init(SafeSslHandle s);
         //int SSL_up_ref(SSL *s);
         int SSL_up_ref(SafeSslHandle s);
         //void SSL_set_info_callback(SSL *ssl, void (*callback)());
@@ -297,6 +309,21 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
 
         //int SSL_get_ex_data_X509_STORE_CTX_idx(void)
         int SSL_get_ex_data_X509_STORE_CTX_idx();
+
+        //int SSL_set_num_tickets(SSL* ctx, size_t num_tickets);
+        int SSL_set_num_tickets(SafeSslHandle ctx, nuint num_tickets);
+        //size_t SSL_get_num_tickets(SSL* ctx);
+        [return: DontVerifyType]
+        nuint SSL_get_num_tickets(SafeSslHandle ctx);
+        //int SSL_new_session_ticket(SSL* s);
+        int SSL_new_session_ticket(SafeSslHandle s);
+        #endregion
+
+        #region BIO
+        //const BIO_METHOD* BIO_f_ssl(void);
+        IntPtr BIO_f_ssl();
+        [return: DontVerifyType]
+        int SSL_is_server(SafeSslHandle s);
         #endregion
     }
 }

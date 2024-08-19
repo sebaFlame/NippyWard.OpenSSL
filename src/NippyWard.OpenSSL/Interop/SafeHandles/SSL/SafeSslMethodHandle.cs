@@ -49,11 +49,18 @@ namespace NippyWard.OpenSSL.Interop.SafeHandles.SSL
         { }
 
         /// <summary>
-        /// Default client method
+        /// Default TLS method
+        /// </summary>
+        public static SafeSslMethodHandle TLSMethod => Native.SSLWrapper.TLS_method();
+
+        /// <summary>
+        /// Default client TLS method
         /// </summary>
         public static SafeSslMethodHandle DefaultClientMethod => TLS_client_method;
 
-
+        /// <summary>
+        /// Default server TLS method
+        /// </summary>
         public static SafeSslMethodHandle DefaultServerMethod => TLS_server_method;
 
         /// <summary>
