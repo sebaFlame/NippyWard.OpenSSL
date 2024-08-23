@@ -9,7 +9,7 @@
     <LangVersion>9.0</LangVersion>
     <Nullable>enable</Nullable>
     <VersionPrefix>1.2.0</VersionPrefix>
-    <VersionSuffix>alpha1</VersionSuffix>
+    <VersionSuffix>alpha3</VersionSuffix>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>

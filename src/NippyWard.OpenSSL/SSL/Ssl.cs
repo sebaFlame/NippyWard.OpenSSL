@@ -75,7 +75,7 @@ namespace NippyWard.OpenSSL.SSL
 
                 lock(this._lock)
                 {
-                    return new X509Certificate(SSLWrapper.SSL_get_peer_certificate(this._sslHandle));
+                    return new X509Certificate(SSLWrapper.SSL_get1_peer_certificate(this._sslHandle));
                 }
             }
         }
@@ -183,7 +183,43 @@ namespace NippyWard.OpenSSL.SSL
             }
         }
 
+        public bool IsInInit
+        {
+            get
+            {
+                lock (this._lock)
+                {
+                    return SSLWrapper.SSL_in_init(this._sslHandle) == 1;
+                }
+            }
+        }
+
+        public bool IsRenegotiatePending
+        {
+            get
+            {
+                ThrowInvalidOperationException_HandshakeNotCompleted(this._handshakeCompleted);
+
+                lock (this._lock)
+                {
+                    return SSLWrapper.SSL_renegotiate_pending(this._sslHandle) == 1;
+                }
+            }
+        }
+
+        public bool IsShutdown
+        {
+            get
+            {
+                lock (this._lock)
+                {
+                    return SSLWrapper.SSL_get_shutdown(this._sslHandle) == 3;
+                }
+            }
+        }
+
         public bool IsServer => this._isServer;
+
         /// <summary>
         /// Reusable SSL context. Eg for session reuse between multiple clients on a server.
         /// </summary>
@@ -437,15 +473,10 @@ namespace NippyWard.OpenSSL.SSL
             //get next action from OpenSSL wrapper
             if (ret_code == 1)
             {
-                //reset the SSL_ERROR_WANT_READ after the handshake has finished
-                if (SSLWrapper.SSL_is_init_finished(this._sslHandle) == 1)
-                {
-                    CryptoWrapper.BIO_ctrl_reset_read_request(this._netBio);
-                }
 
                 state = this.VerifyState();
 
-                if (state != SslState.NONE)
+                if ((state & ~SslState.WANTREAD) > 0)
                 {
                     return false;
                 }
@@ -512,6 +543,7 @@ namespace NippyWard.OpenSSL.SSL
             ThrowInvalidOperationException_HandshakeNotCompleted(this._handshakeCompleted);
 
             bool ret = false;
+            int ret_code;
 
             //ensure the renegotiate/handshake function get executed together
             //so no read/write gets inbetween
@@ -519,11 +551,9 @@ namespace NippyWard.OpenSSL.SSL
             {
                 if(this._inRenegotiation == false)
                 {
-                    //these functions do not change state and rely on SSL_do_handshake instead -> no lock
                     if (this.Protocol == SslProtocol.Tls13)
                     {
-                        //requests an update from peer when using 1 (SSL_KEY_UPDATE_REQUESTED)
-                        SSLWrapper.SSL_key_update(this._sslHandle, 1);
+                        throw new NotSupportedException("TLS1.3 doesn't support renegotiation");
                     }
                     else
                     {
@@ -533,7 +563,9 @@ namespace NippyWard.OpenSSL.SSL
 
                 this._inRenegotiation = true;
 
-                ret = this.DoHandshake(out sslState);
+                ret_code = SSLWrapper.SSL_do_handshake(this._sslHandle);
+                ret = this.VerifyDoHandshake(ret_code, out sslState);
+                ret = ret && (SSLWrapper.SSL_renegotiate_pending(this._sslHandle) == 0);
             }
 
             if (ret)
@@ -994,8 +1026,7 @@ namespace NippyWard.OpenSSL.SSL
                 //increase write index
                 writeIndex += read;
 
-                //no more data can be written
-                if (sslState > 0)
+                if ((sslState & ~SslState.WANTREAD) > 0)
                 {
                     break;
                 }
@@ -1116,7 +1147,7 @@ namespace NippyWard.OpenSSL.SSL
                     );
                 }
 
-                if (sslState > 0)
+                if ((sslState & ~SslState.WANTREAD) > 0)
                 {
                     break;
                 }
@@ -1207,7 +1238,7 @@ namespace NippyWard.OpenSSL.SSL
                     );
                 }
 
-                if (sslState > 0)
+                if ((sslState & ~SslState.WANTREAD) > 0)
                 {
                     break;
                 }

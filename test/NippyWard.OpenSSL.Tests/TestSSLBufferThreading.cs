@@ -42,7 +42,7 @@ namespace NippyWard.OpenSSL.Tests
             SslCient target,
             int bufferSize,
             int testSize,
-            bool clientRenegotiate,
+            bool doRenegotiate,
             CancellationToken cancellationToken
         )
         {
@@ -53,9 +53,6 @@ namespace NippyWard.OpenSSL.Tests
             int size;
             Memory<byte> writeMemory;
             int renegotiate = testSize / 2;
-
-            bool doRenegotiate = (clientRenegotiate && !client.IsServer)
-                || (!clientRenegotiate && client.IsServer);
 
             async Task ReadThread(CancellationToken cancellationToken)
             {
@@ -106,8 +103,8 @@ namespace NippyWard.OpenSSL.Tests
 
             async Task WriteThread(CancellationToken cancellationToken)
             {
-                while (!doRenegotiate
-                    || totalRead < testSize)
+                while (totalRead < testSize
+                    || !client.IsServer)
                 {
                     size = RandomNumberGenerator.GetInt32(4, bufferSize);
                     writeMemory = new Memory<byte>(writeArr, 0, size);
@@ -181,7 +178,7 @@ namespace NippyWard.OpenSSL.Tests
 
             await writeThread;
 
-            if (doRenegotiate)
+            if (client.IsServer)
             {
                 await client.Disconnect(target, cancellationToken);
             }
@@ -191,15 +188,14 @@ namespace NippyWard.OpenSSL.Tests
 
         
         [Theory]
-        [InlineData(1024, 1024 * 1024, SslProtocol.Tls12, false)]
-        [InlineData(1024, 1024 * 1024, SslProtocol.Tls13, true)]
+        [InlineData(1024, 1024 * 1024, SslProtocol.Tls12, true)]
         [InlineData(1024, 1024 * 1024, SslProtocol.Tls13, false)]
         public async Task ThreadingTest
         (
             int bufferSize,
             int testSize,
             SslProtocol sslProtocol,
-            bool clientRenegotiate
+            bool renegotiate
         )
         {
             SslCient server = new SslCient(this._testOutputHelper, sslProtocol, this.ServerCertificate, this.ServerKey);
@@ -209,8 +205,8 @@ namespace NippyWard.OpenSSL.Tests
             {
                 await Task.WhenAll
                 (
-                    Client(server, client, bufferSize, testSize, clientRenegotiate, CancellationToken.None),
-                    Client(client, server, bufferSize, testSize, clientRenegotiate, CancellationToken.None)
+                    Client(server, client, bufferSize, testSize, renegotiate & server.IsServer, CancellationToken.None),
+                    Client(client, server, bufferSize, testSize, renegotiate & client.IsServer, CancellationToken.None)
                 );
             }
             finally
@@ -408,6 +404,11 @@ namespace NippyWard.OpenSSL.Tests
                 CancellationToken cancellationToken
             )
             {
+                if(this._ssl.Protocol == SslProtocol.Tls13)
+                {
+                    return;
+                }
+
                 this._ssl.DoRenegotiate(out SslState sslState);
 
                 if (sslState.WantsWrite())

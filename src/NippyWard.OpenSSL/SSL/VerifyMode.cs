@@ -34,5 +34,12 @@ namespace NippyWard.OpenSSL.SSL
         /// Client mode: ignored
         /// </summary>
         SSL_VERIFY_CLIENT_ONCE = 0x04,
+        /// <summary>
+        /// Server mode: the server will not send a client certificate request during the initial handshake, but will send the request via SSL_verify_client_post_handshake(). 
+        /// This allows the SSL_CTX or SSL to be configured for post-handshake peer verification before the handshake occurs. 
+        /// This flag must be used together with SSL_VERIFY_PEER. TLSv1.3 only; no effect on pre-TLSv1.3 connections.
+        /// Client mode: ignored
+        /// </summary>
+        SSL_VERIFY_POST_HANDSHAKE = 0x08
     }
 }

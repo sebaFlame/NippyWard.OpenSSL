@@ -1518,6 +1518,9 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
         //int BIO_write(BIO *b, const void *data, int dlen);
         [return: DontVerifyType]
         int BIO_write(SafeBioHandle b, in byte buf, int len);
+        //int BIO_write_ex(BIO *b, const void *data, size_t dlen, size_t *written)
+        [return: DontVerifyType]
+        int BIO_write_ex(SafeBioHandle b, in byte data, nuint dlen, out nuint written);
         //int BIO_puts(BIO *b, const char *buf);
         int BIO_puts(SafeBioHandle b, in byte buf);
         //int BIO_gets(BIO *b, char *buf, int size);

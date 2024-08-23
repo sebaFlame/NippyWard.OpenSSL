@@ -212,6 +212,14 @@ namespace NippyWard.OpenSSL.SSL
                 sslContextHandle = SSLWrapper.SSL_CTX_new(SafeSslMethodHandle.DefaultClientMethod);
             }
 
+            SSLWrapper.SSL_CTX_ctrl
+            (
+                sslContextHandle,
+                Native.SSL_CTRL_MODE,
+                (int)(SslMode.SSL_MODE_ENABLE_PARTIAL_WRITE | SslMode.SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER),
+                IntPtr.Zero
+            );
+
             //set default SSL options
             Interop.SslOptions protocolOptions = Interop.SslOptions.SSL_OP_ALL;
 

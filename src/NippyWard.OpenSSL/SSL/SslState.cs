@@ -35,11 +35,12 @@ namespace NippyWard.OpenSSL.SSL
         /// Please use <see cref="Ssl.ReadSsl(ReadOnlySpan{byte}, Span{byte}, out int, out int)"/>
         /// Please use <see cref="Ssl.ReadSsl(in System.Buffers.ReadOnlySequence{byte}, System.Buffers.IBufferWriter{byte}, out SequencePosition)"/>
         /// Please use <see cref="Ssl.ReadSsl(ReadOnlySpan{byte}, System.Buffers.IBufferWriter{byte}, out int)"/>
-        /// With an empty read data buffer
+        /// With an empty readable data buffer
         /// </summary>
         READ_DATA_AVAILABLE = 1 << 3,
         /// <summary>
         /// Shutdown has been called from peer, stop reading/writing to allow clean shutdown
+        /// Verify with a call to <see cref="Ssl.DoShutdown(out SslState)"/>
         /// </summary>
         SHUTDOWN = 1 << 4
     }

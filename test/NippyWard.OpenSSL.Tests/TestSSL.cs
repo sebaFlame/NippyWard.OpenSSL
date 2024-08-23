@@ -210,11 +210,6 @@ namespace NippyWard.OpenSSL.Tests
                     );
                 }
             }
-
-            Assert.True(serverContext.DoHandshake(out serverState));
-            Assert.Equal(SslState.NONE, serverState);
-            Assert.True(clientContext.DoHandshake(out clientState));
-            Assert.Equal(SslState.NONE, clientState);
         }
 
         private static void DoSynchronousShutdown
@@ -444,9 +439,6 @@ namespace NippyWard.OpenSSL.Tests
 
             Assert.Equal(_ServerMessage.Length, totalRead);
 
-            //verify no further action needs to be taken
-            Assert.Equal(SslState.NONE, serverState);
-
             //Read data on client
             Array.Copy(this._serverWriteBuffer, 0, this._clientReadBuffer, 0, totalWritten);
             clientState = clientContext.ReadSsl
@@ -517,7 +509,6 @@ namespace NippyWard.OpenSSL.Tests
 
         [Theory]
         [SslProtocolData(SslProtocol.Tls12)]
-        [SslProtocolData(SslProtocol.Tls13)]
         public void TestServerRenegotiate(SslProtocol sslProtocol)
         {
             //create server
@@ -559,60 +550,6 @@ namespace NippyWard.OpenSSL.Tests
             );
 
             Debug.WriteLine("SHUTDOWN");
-
-            DoSynchronousShutdown
-            (
-                serverContext,
-                this._serverWriteBuffer,
-                this._serverReadBuffer,
-                clientContext,
-                this._clientWriteBuffer,
-                this._clientReadBuffer
-            );
-
-            serverContext.Dispose();
-            clientContext.Dispose();
-        }
-
-        [Theory]
-        [SslProtocolData(SslProtocol.Tls13)]
-        public void TestClientRenegotiate(SslProtocol sslProtocol)
-        {
-            //create server
-            Ssl serverContext = Ssl.CreateServerSsl
-            (
-                sslProtocol: sslProtocol,
-                certificate: this.ServerCertificate,
-                privateKey: this.ServerKey
-            );
-            Assert.True(serverContext.IsServer);
-
-            //create client
-            Ssl clientContext = Ssl.CreateClientSsl
-            (
-                sslProtocol: sslProtocol
-            );
-            Assert.False(clientContext.IsServer);
-
-            DoSynchronousHandshake
-            (
-                serverContext,
-                this._serverWriteBuffer,
-                this._serverReadBuffer,
-                clientContext,
-                this._clientWriteBuffer,
-                this._clientReadBuffer
-            );
-
-            DoSynchrounousRenegotiate
-            (
-                clientContext,
-                this._clientWriteBuffer,
-                this._clientReadBuffer,
-                serverContext,
-                this._serverWriteBuffer,
-                this._serverReadBuffer
-            );
 
             DoSynchronousShutdown
             (

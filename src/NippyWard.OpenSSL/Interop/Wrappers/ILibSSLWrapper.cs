@@ -228,6 +228,10 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
         //int SSL_get_key_update_type(const SSL *s);
         [return: DontVerifyType]
         int SSL_get_key_update_type(SafeSslHandle ssl);
+        //int SSL_verify_client_post_handshake(SSL *ssl);
+        int SSL_verify_client_post_handshake(SafeSslHandle ssl);
+        //void SSL_set_verify(SSL *ssl, int mode, SSL_verify_cb verify_callback);
+        void SSL_set_verify(SafeSslHandle ssl, int mode, VerifyCertificateCallback? callback);
 
         //int SSL_set_session_id_context(SSL *ssl, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
         int SSL_set_session_id_context(SafeSslHandle ssl, byte[] sid_ctx, uint sid_ctx_len);
@@ -284,7 +288,7 @@ namespace NippyWard.OpenSSL.Interop.Wrappers
 
         //X509 *SSL_get_peer_certificate(const SSL *ssl);
         [return: TakeOwnership, DontVerifyType] //not new, already gets an extra reference in the native code
-        SafeX509CertificateHandle SSL_get_peer_certificate(SafeSslHandle ssl);
+        SafeX509CertificateHandle SSL_get1_peer_certificate(SafeSslHandle ssl);
         //X509 *SSL_get_certificate(const SSL *ssl);
         SafeX509CertificateHandle SSL_get_certificate(SafeSslHandle ssl);
         //int SSL_use_certificate(SSL *ssl, X509 *x);
